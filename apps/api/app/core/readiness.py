@@ -7,6 +7,7 @@ from app.core.config import Settings
 
 LOCAL_ORIGIN_MARKERS = ("localhost", "127.0.0.1", "::1")
 WEAK_SECRET_VALUES = {"", "change-me", "change-me-locally", "lexflow", "minioadmin"}
+POSTGRES_URL_PREFIXES = ("postgres://", "postgresql://", "postgresql+psycopg://")
 
 
 @dataclass(frozen=True)
@@ -40,7 +41,7 @@ def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
     checks = [
         ReadinessCheck(
             key="database_postgresql",
-            ok=settings.database_url.startswith("postgresql"),
+            ok=settings.database_url.startswith(POSTGRES_URL_PREFIXES),
             severity="blocker",
             message="Production must use PostgreSQL, not in-memory SQLite.",
         ),
