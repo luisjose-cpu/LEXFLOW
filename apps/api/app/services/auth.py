@@ -2,8 +2,12 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from jwt import InvalidTokenError
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import get_settings
+from app.db import models as dbm
+from app.db.database import SessionLocal
 from app.domain.models import AuditAction, User
 from app.services.audit import audit_service
 from app.services.security import create_token, decode_token, verify_password
@@ -17,10 +21,14 @@ class AuthService:
         if tenant_slug:
             tenant = tenant_service.find_by_slug(tenant_slug)
             if not tenant:
+                tenant = self._load_tenant_by_slug(tenant_slug)
+            if not tenant:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
             tenant_id = tenant.id
 
         user = user_service.find_by_email(email, tenant_id)
+        if not user:
+            user = self._load_user_by_email(email=email, tenant_id=tenant_id)
         if not user or not verify_password(password, user.hashed_password):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
@@ -98,11 +106,93 @@ class AuthService:
         tenant_id = UUID(str(payload["tenant_id"]))
         user_id = UUID(str(payload["sub"]))
         user = user_service.get(tenant_id, user_id)
+        if not user:
+            user = self._load_user_by_id(tenant_id=tenant_id, user_id=user_id)
         if not user or not user.is_active:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject")
         if int(payload.get("version", -1)) != user.refresh_token_version:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked")
         return user
+
+    def _load_tenant_by_slug(self, slug: str):
+        try:
+            with SessionLocal() as db:
+                tenant = db.scalars(
+                    select(dbm.Tenant).where(
+                        dbm.Tenant.slug == slug,
+                        dbm.Tenant.status == "active",
+                        dbm.Tenant.deleted_at.is_(None),
+                    )
+                ).first()
+                if not tenant:
+                    return None
+                from app.domain.models import Tenant as DomainTenant
+
+                return tenant_service.upsert(
+                    DomainTenant(
+                        id=UUID(tenant.id),
+                        name=tenant.name,
+                        slug=tenant.slug,
+                        is_active=tenant.status == "active",
+                        created_at=tenant.created_at,
+                    )
+                )
+        except SQLAlchemyError:
+            return None
+
+    def _load_user_by_email(self, *, email: str, tenant_id: UUID | None) -> User | None:
+        try:
+            with SessionLocal() as db:
+                query = (
+                    select(dbm.User)
+                    .join(dbm.Role)
+                    .where(
+                        dbm.User.email == email.lower(),
+                        dbm.User.status == "active",
+                        dbm.User.deleted_at.is_(None),
+                    )
+                )
+                if tenant_id:
+                    query = query.where(dbm.User.tenant_id == str(tenant_id))
+                db_user = db.scalars(query).first()
+                return self._domain_user_from_db(db_user) if db_user else None
+        except SQLAlchemyError:
+            return None
+
+    def _load_user_by_id(self, *, tenant_id: UUID, user_id: UUID) -> User | None:
+        try:
+            with SessionLocal() as db:
+                db_user = db.scalars(
+                    select(dbm.User)
+                    .join(dbm.Role)
+                    .where(
+                        dbm.User.id == str(user_id),
+                        dbm.User.tenant_id == str(tenant_id),
+                        dbm.User.status == "active",
+                        dbm.User.deleted_at.is_(None),
+                    )
+                ).first()
+                return self._domain_user_from_db(db_user) if db_user else None
+        except SQLAlchemyError:
+            return None
+
+    def _domain_user_from_db(self, db_user: dbm.User) -> User:
+        from app.domain.models import RoleName
+
+        return user_service.upsert(
+            User(
+                id=UUID(db_user.id),
+                tenant_id=UUID(db_user.tenant_id),
+                email=db_user.email,
+                full_name=db_user.full_name,
+                hashed_password=db_user.hashed_password,
+                role=RoleName(db_user.role.name),
+                is_active=db_user.status == "active",
+                mfa_enabled=db_user.mfa_enabled,
+                created_at=db_user.created_at,
+                updated_at=db_user.updated_at,
+            )
+        )
 
 
 auth_service = AuthService()

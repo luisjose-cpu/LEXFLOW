@@ -12,6 +12,14 @@ class TenantService:
         self._tenants.append(tenant)
         return tenant
 
+    def upsert(self, tenant: Tenant) -> Tenant:
+        existing = self.get(tenant.id)
+        if existing:
+            self._tenants[self._tenants.index(existing)] = tenant
+        else:
+            self._tenants.append(tenant)
+        return tenant
+
     def get(self, tenant_id: UUID) -> Tenant | None:
         return next((tenant for tenant in self._tenants if tenant.id == tenant_id), None)
 

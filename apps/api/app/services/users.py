@@ -40,6 +40,14 @@ class UserService:
         )
         return user
 
+    def upsert(self, user: User) -> User:
+        existing = self.get(user.tenant_id, user.id)
+        if existing:
+            self._users[self._users.index(existing)] = user
+        else:
+            self._users.append(user)
+        return user
+
     def list_for_tenant(self, tenant_id: UUID) -> list[User]:
         return [user for user in self._users if user.tenant_id == tenant_id and user.is_active]
 
