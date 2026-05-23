@@ -14,10 +14,19 @@ branch_labels = None
 depends_on = None
 
 
+def column_exists(table_name: str, column_name: str) -> bool:
+    return column_name in {column["name"] for column in sa.inspect(op.get_bind()).get_columns(table_name)}
+
+
+def add_column_once(table_name: str, column: sa.Column) -> None:
+    if not column_exists(table_name, column.name):
+        op.add_column(table_name, column)
+
+
 def upgrade() -> None:
-    op.add_column("case_events", sa.Column("is_client_visible", sa.Boolean(), nullable=False, server_default=sa.false()))
-    op.add_column("documents", sa.Column("is_client_visible", sa.Boolean(), nullable=False, server_default=sa.false()))
-    op.add_column("documents", sa.Column("uploaded_by_client", sa.Boolean(), nullable=False, server_default=sa.false()))
+    add_column_once("case_events", sa.Column("is_client_visible", sa.Boolean(), nullable=False, server_default=sa.false()))
+    add_column_once("documents", sa.Column("is_client_visible", sa.Boolean(), nullable=False, server_default=sa.false()))
+    add_column_once("documents", sa.Column("uploaded_by_client", sa.Boolean(), nullable=False, server_default=sa.false()))
 
 
 def downgrade() -> None:

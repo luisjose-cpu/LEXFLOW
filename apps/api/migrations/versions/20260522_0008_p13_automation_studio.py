@@ -21,87 +21,44 @@ def timestamps() -> list[sa.Column]:
     ]
 
 
+def index_exists(table_name: str, index_name: str) -> bool:
+    return index_name in {index["name"] for index in sa.inspect(op.get_bind()).get_indexes(table_name)}
+
+
+def create_index_once(index_name: str, table_name: str, columns: list[str]) -> None:
+    if not index_exists(table_name, index_name):
+        op.create_index(index_name, table_name, columns)
+
+
 def upgrade() -> None:
-    op.create_table(
-        "automation_workflows",
-        sa.Column("id", sa.String(length=36), primary_key=True),
-        sa.Column("tenant_id", sa.String(length=36), sa.ForeignKey("tenants.id"), nullable=False),
-        sa.Column("name", sa.String(length=180), nullable=False),
-        sa.Column("description", sa.Text(), nullable=False),
-        sa.Column("trigger_key", sa.String(length=120), nullable=False),
-        sa.Column("status", sa.String(length=40), nullable=False, server_default="draft"),
-        sa.Column("is_system", sa.Boolean(), nullable=False, server_default=sa.false()),
-        sa.Column("metadata_json", sa.JSON(), nullable=False, server_default="{}"),
-        sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
-        *timestamps(),
-    )
-    op.create_index("ix_automation_workflows_tenant_id", "automation_workflows", ["tenant_id"])
-    op.create_index("ix_automation_workflows_trigger_key", "automation_workflows", ["trigger_key"])
-    op.create_index("ix_automation_workflows_status", "automation_workflows", ["status"])
-    op.create_index("ix_automation_workflows_created_at", "automation_workflows", ["created_at"])
+    bind = op.get_bind()
+    from app.db.models import AutomationAction, AutomationCondition, AutomationRun, AutomationRunStep, AutomationWorkflow
 
-    op.create_table(
-        "automation_conditions",
-        sa.Column("id", sa.String(length=36), primary_key=True),
-        sa.Column("tenant_id", sa.String(length=36), sa.ForeignKey("tenants.id"), nullable=False),
-        sa.Column("workflow_id", sa.String(length=36), sa.ForeignKey("automation_workflows.id"), nullable=False),
-        sa.Column("order_index", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("condition_type", sa.String(length=120), nullable=False, server_default="ALWAYS"),
-        sa.Column("config_json", sa.JSON(), nullable=False, server_default="{}"),
-        *timestamps(),
-    )
-    op.create_index("ix_automation_conditions_tenant_id", "automation_conditions", ["tenant_id"])
-    op.create_index("ix_automation_conditions_workflow_id", "automation_conditions", ["workflow_id"])
+    AutomationWorkflow.__table__.create(bind=bind, checkfirst=True)
+    create_index_once("ix_automation_workflows_tenant_id", "automation_workflows", ["tenant_id"])
+    create_index_once("ix_automation_workflows_trigger_key", "automation_workflows", ["trigger_key"])
+    create_index_once("ix_automation_workflows_status", "automation_workflows", ["status"])
+    create_index_once("ix_automation_workflows_created_at", "automation_workflows", ["created_at"])
 
-    op.create_table(
-        "automation_actions",
-        sa.Column("id", sa.String(length=36), primary_key=True),
-        sa.Column("tenant_id", sa.String(length=36), sa.ForeignKey("tenants.id"), nullable=False),
-        sa.Column("workflow_id", sa.String(length=36), sa.ForeignKey("automation_workflows.id"), nullable=False),
-        sa.Column("order_index", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("action_type", sa.String(length=120), nullable=False),
-        sa.Column("config_json", sa.JSON(), nullable=False, server_default="{}"),
-        *timestamps(),
-    )
-    op.create_index("ix_automation_actions_tenant_id", "automation_actions", ["tenant_id"])
-    op.create_index("ix_automation_actions_workflow_id", "automation_actions", ["workflow_id"])
+    AutomationCondition.__table__.create(bind=bind, checkfirst=True)
+    create_index_once("ix_automation_conditions_tenant_id", "automation_conditions", ["tenant_id"])
+    create_index_once("ix_automation_conditions_workflow_id", "automation_conditions", ["workflow_id"])
 
-    op.create_table(
-        "automation_runs",
-        sa.Column("id", sa.String(length=36), primary_key=True),
-        sa.Column("tenant_id", sa.String(length=36), sa.ForeignKey("tenants.id"), nullable=False),
-        sa.Column("workflow_id", sa.String(length=36), sa.ForeignKey("automation_workflows.id"), nullable=False),
-        sa.Column("trigger_key", sa.String(length=120), nullable=False),
-        sa.Column("status", sa.String(length=40), nullable=False, server_default="running"),
-        sa.Column("event_payload_json", sa.JSON(), nullable=False, server_default="{}"),
-        sa.Column("result_json", sa.JSON(), nullable=False, server_default="{}"),
-        sa.Column("error_message", sa.Text(), nullable=True),
-        sa.Column("started_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-        *timestamps(),
-    )
-    op.create_index("ix_automation_runs_tenant_id", "automation_runs", ["tenant_id"])
-    op.create_index("ix_automation_runs_workflow_id", "automation_runs", ["workflow_id"])
-    op.create_index("ix_automation_runs_trigger_key", "automation_runs", ["trigger_key"])
-    op.create_index("ix_automation_runs_status", "automation_runs", ["status"])
-    op.create_index("ix_automation_runs_created_at", "automation_runs", ["created_at"])
+    AutomationAction.__table__.create(bind=bind, checkfirst=True)
+    create_index_once("ix_automation_actions_tenant_id", "automation_actions", ["tenant_id"])
+    create_index_once("ix_automation_actions_workflow_id", "automation_actions", ["workflow_id"])
 
-    op.create_table(
-        "automation_run_steps",
-        sa.Column("id", sa.String(length=36), primary_key=True),
-        sa.Column("tenant_id", sa.String(length=36), sa.ForeignKey("tenants.id"), nullable=False),
-        sa.Column("run_id", sa.String(length=36), sa.ForeignKey("automation_runs.id"), nullable=False),
-        sa.Column("order_index", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("step_type", sa.String(length=40), nullable=False),
-        sa.Column("key", sa.String(length=120), nullable=False),
-        sa.Column("status", sa.String(length=40), nullable=False, server_default="pending"),
-        sa.Column("result_json", sa.JSON(), nullable=False, server_default="{}"),
-        sa.Column("error_message", sa.Text(), nullable=True),
-        *timestamps(),
-    )
-    op.create_index("ix_automation_run_steps_tenant_id", "automation_run_steps", ["tenant_id"])
-    op.create_index("ix_automation_run_steps_run_id", "automation_run_steps", ["run_id"])
-    op.create_index("ix_automation_run_steps_status", "automation_run_steps", ["status"])
+    AutomationRun.__table__.create(bind=bind, checkfirst=True)
+    create_index_once("ix_automation_runs_tenant_id", "automation_runs", ["tenant_id"])
+    create_index_once("ix_automation_runs_workflow_id", "automation_runs", ["workflow_id"])
+    create_index_once("ix_automation_runs_trigger_key", "automation_runs", ["trigger_key"])
+    create_index_once("ix_automation_runs_status", "automation_runs", ["status"])
+    create_index_once("ix_automation_runs_created_at", "automation_runs", ["created_at"])
+
+    AutomationRunStep.__table__.create(bind=bind, checkfirst=True)
+    create_index_once("ix_automation_run_steps_tenant_id", "automation_run_steps", ["tenant_id"])
+    create_index_once("ix_automation_run_steps_run_id", "automation_run_steps", ["run_id"])
+    create_index_once("ix_automation_run_steps_status", "automation_run_steps", ["status"])
 
 
 def downgrade() -> None:

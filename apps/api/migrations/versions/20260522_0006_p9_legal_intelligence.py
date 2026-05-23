@@ -14,78 +14,66 @@ branch_labels = None
 depends_on = None
 
 
+def inspector() -> sa.Inspector:
+    return sa.inspect(op.get_bind())
+
+
+def table_exists(table_name: str) -> bool:
+    return table_name in inspector().get_table_names()
+
+
+def column_exists(table_name: str, column_name: str) -> bool:
+    return column_name in {column["name"] for column in inspector().get_columns(table_name)}
+
+
+def index_exists(table_name: str, index_name: str) -> bool:
+    return index_name in {index["name"] for index in inspector().get_indexes(table_name)}
+
+
+def add_column_once(table_name: str, column: sa.Column) -> None:
+    if not column_exists(table_name, column.name):
+        op.add_column(table_name, column)
+
+
+def create_index_once(index_name: str, table_name: str, columns: list[str]) -> None:
+    if not index_exists(table_name, index_name):
+        op.create_index(index_name, table_name, columns)
+
+
 def upgrade() -> None:
-    op.add_column("legal_news_sources", sa.Column("adapter_key", sa.String(length=120), nullable=False, server_default="mock"))
-    op.add_column("legal_news_sources", sa.Column("config_json", sa.JSON(), nullable=False, server_default="{}"))
+    bind = op.get_bind()
+    add_column_once("legal_news_sources", sa.Column("adapter_key", sa.String(length=120), nullable=False, server_default="mock"))
+    add_column_once("legal_news_sources", sa.Column("config_json", sa.JSON(), nullable=False, server_default="{}"))
 
-    op.add_column("legal_news", sa.Column("external_id", sa.String(length=180), nullable=True))
-    op.add_column("legal_news", sa.Column("category", sa.String(length=80), nullable=False, server_default="news"))
-    op.add_column("legal_news", sa.Column("ai_summary", sa.Text(), nullable=True))
-    op.add_column("legal_news", sa.Column("status", sa.String(length=40), nullable=False, server_default="published"))
-    op.add_column("legal_news", sa.Column("tags", sa.JSON(), nullable=False, server_default="[]"))
-    op.add_column("legal_news", sa.Column("trend_score", sa.String(length=40), nullable=False, server_default="normal"))
-    op.add_column("legal_news", sa.Column("metadata_json", sa.JSON(), nullable=False, server_default="{}"))
-    op.create_index("ix_legal_news_status", "legal_news", ["status"])
-    op.create_index("ix_legal_news_category", "legal_news", ["category"])
+    add_column_once("legal_news", sa.Column("external_id", sa.String(length=180), nullable=True))
+    add_column_once("legal_news", sa.Column("category", sa.String(length=80), nullable=False, server_default="news"))
+    add_column_once("legal_news", sa.Column("ai_summary", sa.Text(), nullable=True))
+    add_column_once("legal_news", sa.Column("status", sa.String(length=40), nullable=False, server_default="published"))
+    add_column_once("legal_news", sa.Column("tags", sa.JSON(), nullable=False, server_default="[]"))
+    add_column_once("legal_news", sa.Column("trend_score", sa.String(length=40), nullable=False, server_default="normal"))
+    add_column_once("legal_news", sa.Column("metadata_json", sa.JSON(), nullable=False, server_default="{}"))
+    create_index_once("ix_legal_news_status", "legal_news", ["status"])
+    create_index_once("ix_legal_news_category", "legal_news", ["category"])
 
-    op.create_table(
-        "legal_news_favorites",
-        sa.Column("id", sa.String(length=36), primary_key=True),
-        sa.Column("tenant_id", sa.String(length=36), sa.ForeignKey("tenants.id"), nullable=False),
-        sa.Column("user_id", sa.String(length=36), sa.ForeignKey("users.id"), nullable=False),
-        sa.Column("news_id", sa.String(length=36), sa.ForeignKey("legal_news.id"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.UniqueConstraint("tenant_id", "user_id", "news_id", name="uq_legal_news_favorites_user_news"),
-    )
-    op.create_index("ix_legal_news_favorites_tenant_id", "legal_news_favorites", ["tenant_id"])
-    op.create_index("ix_legal_news_favorites_news_id", "legal_news_favorites", ["news_id"])
+    from app.db.models import LegalAlert, LegalNewsCaseLink, LegalNewsFavorite, LegalTag
 
-    op.create_table(
-        "legal_news_case_links",
-        sa.Column("id", sa.String(length=36), primary_key=True),
-        sa.Column("tenant_id", sa.String(length=36), sa.ForeignKey("tenants.id"), nullable=False),
-        sa.Column("case_id", sa.String(length=36), sa.ForeignKey("cases.id"), nullable=False),
-        sa.Column("news_id", sa.String(length=36), sa.ForeignKey("legal_news.id"), nullable=False),
-        sa.Column("linked_by_user_id", sa.String(length=36), sa.ForeignKey("users.id"), nullable=True),
-        sa.Column("note", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.UniqueConstraint("tenant_id", "case_id", "news_id", name="uq_legal_news_case_links_case_news"),
-    )
-    op.create_index("ix_legal_news_case_links_tenant_id", "legal_news_case_links", ["tenant_id"])
-    op.create_index("ix_legal_news_case_links_case_id", "legal_news_case_links", ["case_id"])
-    op.create_index("ix_legal_news_case_links_news_id", "legal_news_case_links", ["news_id"])
+    LegalNewsFavorite.__table__.create(bind=bind, checkfirst=True)
+    create_index_once("ix_legal_news_favorites_tenant_id", "legal_news_favorites", ["tenant_id"])
+    create_index_once("ix_legal_news_favorites_news_id", "legal_news_favorites", ["news_id"])
 
-    op.create_table(
-        "legal_alerts",
-        sa.Column("id", sa.String(length=36), primary_key=True),
-        sa.Column("tenant_id", sa.String(length=36), sa.ForeignKey("tenants.id"), nullable=False),
-        sa.Column("news_id", sa.String(length=36), sa.ForeignKey("legal_news.id"), nullable=True),
-        sa.Column("title", sa.String(length=240), nullable=False),
-        sa.Column("body", sa.Text(), nullable=False),
-        sa.Column("severity", sa.String(length=40), nullable=False, server_default="medium"),
-        sa.Column("status", sa.String(length=40), nullable=False, server_default="open"),
-        sa.Column("tags", sa.JSON(), nullable=False, server_default="[]"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-    )
-    op.create_index("ix_legal_alerts_tenant_id", "legal_alerts", ["tenant_id"])
-    op.create_index("ix_legal_alerts_status", "legal_alerts", ["status"])
-    op.create_index("ix_legal_alerts_severity", "legal_alerts", ["severity"])
-    op.create_index("ix_legal_alerts_created_at", "legal_alerts", ["created_at"])
+    LegalNewsCaseLink.__table__.create(bind=bind, checkfirst=True)
+    create_index_once("ix_legal_news_case_links_tenant_id", "legal_news_case_links", ["tenant_id"])
+    create_index_once("ix_legal_news_case_links_case_id", "legal_news_case_links", ["case_id"])
+    create_index_once("ix_legal_news_case_links_news_id", "legal_news_case_links", ["news_id"])
 
-    op.create_table(
-        "legal_tags",
-        sa.Column("id", sa.String(length=36), primary_key=True),
-        sa.Column("tenant_id", sa.String(length=36), sa.ForeignKey("tenants.id"), nullable=False),
-        sa.Column("name", sa.String(length=120), nullable=False),
-        sa.Column("color", sa.String(length=40), nullable=False, server_default="blue"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.UniqueConstraint("tenant_id", "name", name="uq_legal_tags_tenant_name"),
-    )
-    op.create_index("ix_legal_tags_tenant_id", "legal_tags", ["tenant_id"])
+    LegalAlert.__table__.create(bind=bind, checkfirst=True)
+    create_index_once("ix_legal_alerts_tenant_id", "legal_alerts", ["tenant_id"])
+    create_index_once("ix_legal_alerts_status", "legal_alerts", ["status"])
+    create_index_once("ix_legal_alerts_severity", "legal_alerts", ["severity"])
+    create_index_once("ix_legal_alerts_created_at", "legal_alerts", ["created_at"])
+
+    LegalTag.__table__.create(bind=bind, checkfirst=True)
+    create_index_once("ix_legal_tags_tenant_id", "legal_tags", ["tenant_id"])
 
 
 def downgrade() -> None:

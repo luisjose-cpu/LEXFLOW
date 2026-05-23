@@ -14,10 +14,19 @@ branch_labels = None
 depends_on = None
 
 
+def column_exists(table_name: str, column_name: str) -> bool:
+    return column_name in {column["name"] for column in sa.inspect(op.get_bind()).get_columns(table_name)}
+
+
+def add_column_once(table_name: str, column: sa.Column) -> None:
+    if not column_exists(table_name, column.name):
+        op.add_column(table_name, column)
+
+
 def upgrade() -> None:
-    op.add_column("ai_jobs", sa.Column("result_json", sa.JSON(), nullable=False, server_default="{}"))
-    op.add_column("ai_jobs", sa.Column("reviewed_by_user_id", sa.String(length=36), nullable=True))
-    op.add_column("ai_jobs", sa.Column("review_note", sa.Text(), nullable=True))
+    add_column_once("ai_jobs", sa.Column("result_json", sa.JSON(), nullable=False, server_default="{}"))
+    add_column_once("ai_jobs", sa.Column("reviewed_by_user_id", sa.String(length=36), nullable=True))
+    add_column_once("ai_jobs", sa.Column("review_note", sa.Text(), nullable=True))
 
 
 def downgrade() -> None:
