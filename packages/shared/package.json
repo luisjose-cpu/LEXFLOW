@@ -1,0 +1,10 @@
+{
+  "name": "@lexflow/shared",
+  "private": true,
+  "version": "0.1.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@lexflow/types": "0.1.0"
+  }
+}

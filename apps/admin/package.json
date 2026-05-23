@@ -1,0 +1,9 @@
+{
+  "name": "@lexflow/admin",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "node ./scripts/print-admin-readiness.mjs",
+    "build": "node ./scripts/print-admin-readiness.mjs"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "lexflow",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/web",
+    "apps/admin",
+    "apps/mobile",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:api": "cd apps/api && python -m uvicorn app.main:app --reload --port 8000",
+    "dev:admin": "npm --workspace apps/admin run dev",
+    "dev:mobile": "npm --workspace apps/mobile run start",
+    "build": "npm --workspace apps/web run build",
+    "lint": "npm --workspace apps/web run lint",
+    "test": "npm --workspace apps/web run test",
+    "test:api": "cd apps/api && python -m pytest",
+    "p1:check": "npm run lint && npm run test && npm run build && npm run test:api",
+    "p2:check": "npm run p1:check",
+    "p3:check": "npm run p2:check",
+    "p4:check": "npm run p3:check",
+    "p5:check": "npm run p4:check",
+    "p6:check": "npm run p5:check",
+    "p7:check": "npm run p6:check",
+    "p8:check": "npm run p7:check",
+    "p9:check": "npm run p8:check",
+    "p10:check": "npm run p9:check",
+    "p11:check": "npm run p10:check",
+    "p12:check": "npm run p11:check",
+    "p13:check": "npm run p12:check",
+    "p14:check": "npm run p13:check",
+    "p15:check": "npm run p14:check",
+    "production:gate": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/production-gate.ps1",
+    "production:gate:fast": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/production-gate.ps1 -Fast",
+    "cloud:preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cloud-preflight.ps1"
+  }
+}

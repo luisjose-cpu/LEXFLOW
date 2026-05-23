@@ -1,0 +1,134 @@
+from uuid import uuid4
+
+from fastapi.testclient import TestClient
+
+from app.domain.models import RoleName
+from app.main import app
+from app.services.seed import DEMO_SEED, seed_demo_data
+from app.services.tenants import tenant_service
+from app.services.users import user_service
+
+
+client = TestClient(app)
+
+
+def login(email: str = DEMO_SEED.admin_email, password: str = DEMO_SEED.password, tenant_slug: str = DEMO_SEED.tenant_slug) -> dict[str, str]:
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": password, "tenant_slug": tenant_slug},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    return {"Authorization": f"Bearer {body['access_token']}"}
+
+
+def test_auth_login_me_refresh_and_logout() -> None:
+    seed_demo_data()
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": DEMO_SEED.password, "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    headers = {"Authorization": f"Bearer {body['access_token']}"}
+
+    me = client.get("/api/v1/auth/me", headers=headers)
+    refresh = client.post("/api/v1/auth/refresh", json={"refresh_token": body["refresh_token"]})
+    logout = client.post("/api/v1/auth/logout", headers=headers)
+    revoked = client.post("/api/v1/auth/refresh", json={"refresh_token": body["refresh_token"]})
+
+    assert me.status_code == 200
+    assert me.json()["email"] == DEMO_SEED.admin_email
+    assert refresh.status_code == 200
+    assert logout.status_code == 200
+    assert revoked.status_code == 401
+
+
+def test_rbac_blocks_lawyer_from_user_admin() -> None:
+    seed_demo_data()
+    lawyer_headers = login(DEMO_SEED.lawyer_email)
+
+    response = client.get("/api/v1/users", headers=lawyer_headers)
+
+    assert response.status_code == 403
+
+
+def test_clients_crud_search_tags_and_audit() -> None:
+    seed_demo_data()
+    headers = login()
+
+    created = client.post(
+        "/api/v1/clients",
+        headers=headers,
+        json={"name": "Andes Health", "contact_email": "legal@andes.demo", "tags": ["health", "priority"]},
+    )
+    assert created.status_code == 201
+    client_id = created.json()["id"]
+
+    listed = client.get("/api/v1/clients?search=andes&tag=health", headers=headers)
+    updated = client.patch(
+        f"/api/v1/clients/{client_id}",
+        headers=headers,
+        json={"risk_profile": "high", "tags": ["health", "litigation"]},
+    )
+    audit = client.get("/api/v1/audit?entity_type=client&action=create", headers=headers)
+
+    assert len(listed.json()) == 1
+    assert updated.status_code == 200
+    assert updated.json()["risk_profile"] == "high"
+    assert any(entry["entity_id"] == client_id for entry in audit.json())
+
+
+def test_cases_crud_assign_change_status_and_permissions() -> None:
+    seed_demo_data()
+    headers = login()
+    clients = client.get("/api/v1/clients", headers=headers).json()
+    users = client.get("/api/v1/users", headers=headers).json()
+    lawyer_id = next(user["id"] for user in users if user["role"] == "lawyer")
+
+    created = client.post(
+        "/api/v1/cases",
+        headers=headers,
+        json={
+            "client_id": clients[0]["id"],
+            "title": "Laboral colectivo",
+            "next_action": "Clasificar pruebas",
+        },
+    )
+    case_id = created.json()["id"]
+    assigned = client.post(f"/api/v1/cases/{case_id}/assign", headers=headers, json={"assigned_user_ids": [lawyer_id]})
+    changed = client.post(f"/api/v1/cases/{case_id}/change-status", headers=headers, json={"status": "risk"})
+    filtered = client.get("/api/v1/cases?status=risk", headers=headers)
+
+    assert created.status_code == 201
+    assert assigned.json()["assigned_user_ids"] == [lawyer_id]
+    assert changed.json()["status"] == "risk"
+    assert any(item["id"] == case_id for item in filtered.json())
+
+
+def test_tenant_isolation_blocks_cross_tenant_header() -> None:
+    seed_demo_data()
+    headers = login()
+    other_tenant = tenant_service.create(name="Other Studio", slug="other")
+    user_service.create(
+        tenant_id=other_tenant.id,
+        email="admin@other.demo",
+        full_name="Other Admin",
+        password=DEMO_SEED.password,
+        role=RoleName.tenant_admin,
+    )
+
+    blocked = client.get("/api/v1/clients", headers={**headers, "X-Tenant-Id": str(other_tenant.id)})
+
+    assert blocked.status_code == 403
+
+
+def test_auth_rejects_bad_password() -> None:
+    seed_demo_data()
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": "wrong-password", "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+
+    assert response.status_code == 401

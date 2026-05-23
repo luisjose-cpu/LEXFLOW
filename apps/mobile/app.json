@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "LEXFLOW Mobile",
+    "slug": "lexflow-mobile",
+    "scheme": "lexflow",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "platforms": ["ios", "android", "web"]
+  }
+}

@@ -1,0 +1,48 @@
+name: Cloud CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install API dependencies
+        run: pip install -r apps/api/requirements.txt
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Web tests
+        run: npm run test
+
+      - name: Web build
+        run: npm run build
+
+      - name: API tests
+        run: cd apps/api && python -m pytest -q
+
+      - name: Production gate fast
+        shell: pwsh
+        run: ./scripts/production-gate.ps1 -Fast

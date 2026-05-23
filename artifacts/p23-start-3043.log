@@ -1,0 +1,10 @@
+
+> @lexflow/web@0.1.0 start
+> next start -p 3043
+
+   ▲ Next.js 15.5.18
+   - Local:        http://localhost:3043
+   - Network:      http://10.0.4.251:3043
+
+ ✓ Starting...
+ ✓ Ready in 1055ms

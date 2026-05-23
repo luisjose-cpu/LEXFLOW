@@ -1,0 +1,9 @@
+{
+  "name": "@lexflow/mobile",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "start": "node ./scripts/print-mobile-readiness.mjs",
+    "doctor": "node ./scripts/print-mobile-readiness.mjs"
+  }
+}

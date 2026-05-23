@@ -1,0 +1,8 @@
+service: lexflow
+phase: P1
+metrics:
+  - api_health
+  - web_build
+  - tenant_isolation_checks
+  - audit_log_events
+  - background_job_failures

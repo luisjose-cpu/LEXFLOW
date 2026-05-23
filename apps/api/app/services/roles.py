@@ -1,0 +1,97 @@
+from app.domain.models import Role, RoleName
+
+
+ROLE_PERMISSIONS: dict[RoleName, list[str]] = {
+    RoleName.super_admin: ["*"],
+    RoleName.tenant_admin: [
+        "users:read",
+        "users:write",
+        "roles:read",
+        "clients:read",
+        "clients:write",
+        "cases:read",
+        "cases:write",
+        "cases:assign",
+        "cases:change_status",
+        "communications:read",
+        "communications:write",
+        "templates:write",
+        "notifications:write",
+        "ai:read",
+        "ai:write",
+        "ai:review",
+        "intelligence:read",
+        "intelligence:write",
+        "dashboard:read",
+        "billing:read",
+        "billing:write",
+        "automation:read",
+        "automation:write",
+        "automation:run",
+        "audit:read",
+    ],
+    RoleName.partner: [
+        "users:read",
+        "roles:read",
+        "clients:read",
+        "clients:write",
+        "cases:read",
+        "cases:write",
+        "cases:assign",
+        "cases:change_status",
+        "communications:read",
+        "communications:write",
+        "templates:write",
+        "notifications:write",
+        "ai:read",
+        "ai:write",
+        "ai:review",
+        "intelligence:read",
+        "intelligence:write",
+        "dashboard:read",
+        "billing:read",
+        "billing:write",
+        "automation:read",
+        "automation:write",
+        "automation:run",
+        "audit:read",
+    ],
+    RoleName.lawyer: [
+        "clients:read",
+        "clients:write",
+        "cases:read",
+        "cases:write",
+        "cases:change_status",
+        "communications:read",
+        "communications:write",
+        "templates:write",
+        "notifications:write",
+        "ai:read",
+        "ai:write",
+        "ai:review",
+        "intelligence:read",
+        "intelligence:write",
+        "dashboard:read",
+        "billing:read",
+        "automation:read",
+        "automation:write",
+        "automation:run",
+    ],
+    RoleName.assistant: ["clients:read", "clients:write", "cases:read", "cases:write", "communications:read", "communications:write", "automation:read", "automation:run"],
+    RoleName.client_user: ["clients:read", "cases:read"],
+}
+
+
+class RoleService:
+    def list_roles(self) -> list[Role]:
+        return [
+            Role(name=name, permissions=permissions, description=f"LEXFLOW role: {name.value}")
+            for name, permissions in ROLE_PERMISSIONS.items()
+        ]
+
+    def has_permission(self, role: RoleName, permission: str) -> bool:
+        permissions = ROLE_PERMISSIONS[role]
+        return "*" in permissions or permission in permissions
+
+
+role_service = RoleService()

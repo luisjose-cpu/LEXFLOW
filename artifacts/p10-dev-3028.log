@@ -1,0 +1,58 @@
+
+> @lexflow/web@0.1.0 dev
+> next dev --port 3028
+
+   ▲ Next.js 15.5.18
+   - Local:        http://localhost:3028
+   - Network:      http://10.0.6.102:3028
+
+ ✓ Starting...
+ ✓ Ready in 2.9s
+ ○ Compiling /dashboard/command-center ...
+ ✓ Compiled /dashboard/command-center in 2s (1672 modules)
+ GET /dashboard/command-center 200 in 2838ms
+ GET /dashboard/command-center 200 in 152ms
+ ⚠ Cross origin request detected from 127.0.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1798ms (1688 modules)
+ GET /dashboard 200 in 2365ms
+ GET /dashboard/command-center 200 in 543ms
+ ✓ Compiled in 524ms (654 modules)
+ GET /dashboard/command-center 200 in 227ms
+ GET /dashboard 200 in 54ms
+ ○ Compiling /communication ...
+ ✓ Compiled /communication in 3.7s (1476 modules)
+ ⨯ Error: Cannot find module './695.js'
+Require stack:
+- C:\Users\lico1\OneDrive\Documents\LEXFLOW\apps\web\.next\server\webpack-runtime.js
+- C:\Users\lico1\OneDrive\Documents\LEXFLOW\apps\web\.next\server\app\cases\page.js
+- C:\Users\lico1\OneDrive\Documents\LEXFLOW\node_modules\next\dist\server\require.js
+- C:\Users\lico1\OneDrive\Documents\LEXFLOW\node_modules\next\dist\server\load-components.js
+- C:\Users\lico1\OneDrive\Documents\LEXFLOW\node_modules\next\dist\build\utils.js
+- C:\Users\lico1\OneDrive\Documents\LEXFLOW\node_modules\next\dist\build\swc\options.js
+- C:\Users\lico1\OneDrive\Documents\LEXFLOW\node_modules\next\dist\build\swc\index.js
+- C:\Users\lico1\OneDrive\Documents\LEXFLOW\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- C:\Users\lico1\OneDrive\Documents\LEXFLOW\node_modules\next\dist\server\config.js
+- C:\Users\lico1\OneDrive\Documents\LEXFLOW\node_modules\next\dist\server\next.js
+- C:\Users\lico1\OneDrive\Documents\LEXFLOW\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (C:\Users\lico1\OneDrive\Documents\LEXFLOW\apps\web\.next\server\app\dashboard\page.js:2:7755)
+    at Object.<anonymous> (C:\Users\lico1\OneDrive\Documents\LEXFLOW\apps\web\.next\server\app\dashboard\page.js:2:7812) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/dashboard'
+}
+ GET /cases 200 in 4067ms
+ GET /clients 200 in 4070ms
+ GET /documents 200 in 4069ms
+ GET /hearings 200 in 4068ms
+ GET /communication 200 in 4009ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 4.6s (2903 modules)
+ GET /ai 200 in 4968ms
+ GET /legal-intelligence 200 in 4970ms
+ GET /settings 200 in 4971ms
+ GET /portal 200 in 4973ms
+ GET /dashboard 500 in 7985ms
+ GET /dashboard 200 in 299ms
+[?25h

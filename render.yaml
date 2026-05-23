@@ -1,0 +1,65 @@
+services:
+  - type: web
+    name: lexflow-api
+    runtime: docker
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: apps/api
+    healthCheckPath: /health
+    autoDeploy: false
+    disk:
+      name: lexflow-storage
+      mountPath: /var/lib/lexflow/storage
+      sizeGB: 10
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: RELEASE_PHASE
+        value: P24
+      - key: RELEASE_NAME
+        value: CLOUD-DEPLOY-PACK
+      - key: REQUIRE_PRODUCTION_READY
+        value: "true"
+      - key: SEED_DEMO_ON_STARTUP
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lexflow-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: lexflow-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: S3_ENDPOINT
+        value: https://storage.placeholder.local
+      - key: S3_ACCESS_KEY
+        value: render-local-storage
+      - key: S3_SECRET_KEY
+        generateValue: true
+      - key: S3_BUCKET
+        value: lexflow-staging
+      - key: STORAGE_BACKEND
+        value: local
+      - key: STORAGE_LOCAL_ROOT
+        value: /var/lib/lexflow/storage
+      - key: STORAGE_PUBLIC_BASE_URL
+        sync: false
+      - key: STORAGE_SIGNED_URL_MINUTES
+        value: "10"
+      - key: MAX_UPLOAD_BYTES
+        value: "26214400"
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "120"
+
+  - type: redis
+    name: lexflow-redis
+    ipAllowList: []
+
+databases:
+  - name: lexflow-postgres
+    databaseName: lexflow
+    user: lexflow

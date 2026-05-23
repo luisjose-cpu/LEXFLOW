@@ -1,0 +1,30 @@
+services:
+  web:
+    image: lexflow-web:p1-placeholder
+    build:
+      context: ../../
+      dockerfile: infra/docker/web.Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000
+
+  api:
+    image: lexflow-api:p1-placeholder
+    build:
+      context: ../../apps/api
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://lexflow:lexflow@postgres:5432/lexflow
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: lexflow
+      POSTGRES_USER: lexflow
+      POSTGRES_PASSWORD: lexflow
+
+  redis:
+    image: redis:7-alpine
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
