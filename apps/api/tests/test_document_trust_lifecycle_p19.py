@@ -11,6 +11,7 @@ from app.db.database import get_db
 from app.db.models import AuditLog, Base, Case, Document
 from app.db.seed import seed_demo_database
 from app.main import app
+from app.services import client_portal as client_portal_module
 from app.services import storage as storage_module
 from app.services.seed import DEMO_SEED, seed_demo_data
 
@@ -108,6 +109,33 @@ def test_document_verify_and_clean_scan_promotes_trusted_metadata(api: TestClien
     assert document.storage_verified_at is not None
     assert any(item.action == "document_storage_verified" for item in audits)
     assert any(item.action == "document_malware_scan_completed" for item in audits)
+
+
+def test_verified_download_gate_blocks_unscanned_document(api: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    settings = Settings(
+        jwt_secret="test-lifecycle-secret-value-1234567890",
+        storage_local_root=str(tmp_path / "gated-storage"),
+        storage_public_base_url="http://testserver/api/v1/storage/mock",
+        require_verified_document_downloads=True,
+    )
+    monkeypatch.setattr(client_portal_module, "get_settings", lambda: settings)
+    monkeypatch.setattr(storage_module, "get_settings", lambda: settings)
+    tenant_id, case_id = seed_for_lifecycle(api, db_session)
+    admin_headers = login(api, DEMO_SEED.admin_email)
+    client_headers = login(api, DEMO_SEED.client_email)
+    created = upload_client_document(api, case_id)
+
+    blocked = api.get(f"/api/v1/client-portal/documents/{created['id']}/download", headers=client_headers)
+    api.post(f"/api/v1/documents/{created['id']}/verify-storage", headers=admin_headers)
+    api.post(f"/api/v1/documents/{created['id']}/scan-mock", headers=admin_headers, json={"verdict": "clean"})
+    allowed = api.get(f"/api/v1/client-portal/documents/{created['id']}/download", headers=client_headers)
+
+    audits = db_session.scalars(select(AuditLog).where(AuditLog.tenant_id == tenant_id, AuditLog.entity_id == created["id"])).all()
+
+    assert blocked.status_code == 409
+    assert blocked.json()["detail"] == "Document is pending verification"
+    assert allowed.status_code == 200
+    assert any(item.action == "portal_document_download_blocked_unverified" for item in audits)
 
 
 def test_infected_scan_hides_document_from_client_portal(api: TestClient, db_session: Session) -> None:

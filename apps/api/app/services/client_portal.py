@@ -313,6 +313,20 @@ class ClientPortalService:
 
     def download_document(self, db: Session, *, actor: User, document_id: UUID | str, request_id: str | None = None) -> dict[str, object]:
         document = self.get_visible_document(db, actor=actor, document_id=document_id)
+        if get_settings().require_verified_document_downloads and (
+            document.status != "verified" or document.malware_scan_status != "clean" or not document.storage_verified_at
+        ):
+            self.audit(
+                db,
+                actor=actor,
+                action="portal_document_download_blocked_unverified",
+                entity_type="document",
+                entity_id=document.id,
+                request_id=request_id,
+                metadata={"case_id": document.case_id, "status": document.status, "malware_scan_status": document.malware_scan_status},
+            )
+            db.commit()
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Document is pending verification")
         self.audit(
             db,
             actor=actor,

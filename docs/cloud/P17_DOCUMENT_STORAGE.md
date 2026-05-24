@@ -20,6 +20,7 @@ Avanzar de registro documental demo a contrato de storage productivo S3-compatib
 - Backend S3/R2 compatible con `boto3` cuando `STORAGE_BACKEND=s3`.
 - Upload/download via API proxy sobre objetos S3 sin exponer credenciales al frontend.
 - `head_object` para verificar existencia, bytes y checksum/ETag.
+- Gate opcional `REQUIRE_VERIFIED_DOCUMENT_DOWNLOADS=true` para bloquear descargas cliente hasta verificacion documental limpia.
 
 ## Seguridad
 

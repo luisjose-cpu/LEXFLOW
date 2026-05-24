@@ -71,11 +71,13 @@
 - Owner system health now includes live API request metrics, production readiness summary and storage backend metadata.
 - Owner Console frontend now renders live health details from the API instead of generic placeholder health text.
 - Added `cloud:evidence` to generate a local JSON release evidence report from cloud preflight, smoke, readiness and version checks.
+- Added optional `REQUIRE_VERIFIED_DOCUMENT_DOWNLOADS` gate to block client portal downloads until storage verification and clean scan are complete.
 
 ### Security
 
 - Health checks expose operational metadata only, never tenant legal content, document bytes, tokens or provider secrets.
 - Release evidence reports explicitly exclude passwords, tokens, secrets and tenant data, and `reports/` is ignored by git.
+- Blocked unverified document downloads are audited without exposing document bytes or storage credentials.
 
 ## 2026-05-24 - Security Alerts
 

@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 25 * 1024 * 1024
     storage_backend: str = "local"
     storage_local_root: str = ".lexflow-storage"
+    require_verified_document_downloads: bool = False
     openai_api_key: str | None = None
     whatsapp_business_token: str | None = None
     billing_provider_secret: str | None = None

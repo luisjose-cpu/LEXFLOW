@@ -35,6 +35,7 @@ Agregar ciclo de confianza documental sobre los bytes reales de P18: verificacio
 - Cliente no puede invocar lifecycle interno.
 - Documento infectado se oculta del portal.
 - Documento rechazado se oculta del portal.
+- `REQUIRE_VERIFIED_DOCUMENT_DOWNLOADS=true` bloquea descargas del portal hasta que el documento tenga storage verificado, estado `verified` y escaneo `clean`.
 - Toda accion interna queda auditada.
 
 ## Produccion pendiente
@@ -43,4 +44,4 @@ Agregar ciclo de confianza documental sobre los bytes reales de P18: verificacio
 - Politica de cuarentena.
 - Retencion y borrado fisico del objeto rechazado.
 - Escaneo asincrono con Celery.
-- Bloqueo de descarga hasta `verified` si el estudio lo requiere.
+- Integrar el gate de descarga verificada con politicas configurables por tenant.
