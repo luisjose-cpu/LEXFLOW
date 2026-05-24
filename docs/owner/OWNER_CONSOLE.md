@@ -68,6 +68,7 @@ READY para piloto controlado con autenticacion owner JWT. El frontend owner cons
 - `api_requests`: contadores in-process de requests, errores y ultima latencia.
 - `readiness`: estado production readiness, blockers y warnings.
 - `storage_backend`: backend activo y bucket sin secretos.
+- `external_providers`: modo no secreto de IA, WhatsApp, billing y email.
 
 Estos checks son metadata operativa. No exponen contenido legal de tenants, bytes documentales, tokens ni credenciales de proveedores.
 

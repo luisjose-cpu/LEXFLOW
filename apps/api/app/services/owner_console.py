@@ -306,6 +306,13 @@ class OwnerConsoleService:
             db.commit()
         readiness = production_readiness_report(get_settings())
         storage_status = storage_service.provider_status()
+        settings = get_settings()
+        provider_modes = {
+            "ai": "live" if settings.openai_api_key else "mock",
+            "whatsapp": "live" if settings.whatsapp_business_token else "mock",
+            "billing": "live" if settings.billing_provider_secret else "mock",
+            "email": "live" if settings.email_provider == "http_json" and settings.email_api_key else settings.email_provider,
+        }
         live_checks = [
             {
                 "component": "api_requests",
@@ -327,6 +334,13 @@ class OwnerConsoleService:
                 "latency_ms": 0,
                 "checked_at": now_utc().isoformat(),
                 "detail": f"backend={storage_status['backend']} bucket={storage_status['bucket']}",
+            },
+            {
+                "component": "external_providers",
+                "status": "ok" if all(mode == "live" for mode in provider_modes.values()) else "warning",
+                "latency_ms": 0,
+                "checked_at": now_utc().isoformat(),
+                "detail": " ".join(f"{key}={value}" for key, value in provider_modes.items()),
             },
         ]
         stored_checks = [{"component": item.component, "status": item.status, "latency_ms": item.latency_ms, "checked_at": item.checked_at.isoformat(), "detail": "stored health check"} for item in checks]

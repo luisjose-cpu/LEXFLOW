@@ -79,6 +79,7 @@
 - Production Gate API now includes dynamic readiness blockers/warnings in the public production requirements list.
 - API status now exposes non-secret external provider modes for AI, WhatsApp, billing, email and storage.
 - Cloud smoke verifies provider modes are present.
+- Owner system health now includes external provider modes without exposing tokens or secrets.
 
 ### Security
 
