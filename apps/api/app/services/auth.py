@@ -14,7 +14,9 @@ from app.db import models as dbm
 from app.db.database import SessionLocal
 from app.domain.models import AuditAction, User
 from app.services.audit import audit_service
+from app.services.mfa import build_otpauth_url, generate_totp_secret, verify_totp
 from app.services.security import create_token, decode_token, hash_password, verify_password
+from app.services.sinoe_integration import CredentialCipher
 from app.services.tenants import tenant_service
 from app.services.users import user_service
 
@@ -23,7 +25,7 @@ class AuthService:
     def __init__(self) -> None:
         self._memory_password_resets: dict[str, dict[str, object]] = {}
 
-    def login(self, *, email: str, password: str, tenant_slug: str | None = None, request_id: str | None = None) -> dict[str, object]:
+    def login(self, *, email: str, password: str, tenant_slug: str | None = None, mfa_code: str | None = None, request_id: str | None = None) -> dict[str, object]:
         tenant_id: UUID | None = None
         if tenant_slug:
             tenant = tenant_service.find_by_slug(tenant_slug)
@@ -41,24 +43,10 @@ class AuthService:
 
         if not user.is_active:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
+        if user.mfa_enabled:
+            self._verify_user_mfa(user, mfa_code)
 
-        settings = get_settings()
-        access_token = create_token(
-            subject=user.id,
-            tenant_id=user.tenant_id,
-            role=user.role,
-            token_type="access",
-            expires_minutes=settings.access_token_minutes,
-            version=user.refresh_token_version,
-        )
-        refresh_token = create_token(
-            subject=user.id,
-            tenant_id=user.tenant_id,
-            role=user.role,
-            token_type="refresh",
-            expires_minutes=settings.refresh_token_minutes,
-            version=user.refresh_token_version,
-        )
+        tokens = self._issue_session(user)
         audit_service.record(
             tenant_id=user.tenant_id,
             actor_user_id=user.id,
@@ -67,7 +55,7 @@ class AuthService:
             entity_id=user.id,
             request_id=request_id,
         )
-        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "user": user}
+        return {**tokens, "user": user}
 
     def refresh(self, *, refresh_token: str, request_id: str | None = None) -> dict[str, str]:
         user = self.user_from_token(refresh_token, expected_type="refresh")
@@ -117,24 +105,104 @@ class AuthService:
             request_id=request_id,
             metadata={"reason": "user_password_changed"},
         )
+        tokens = self._issue_session(updated)
+        return {**tokens, "user": updated}
+
+    def mfa_status(self, *, user: User) -> dict[str, object]:
+        return {"mfa_enabled": user.mfa_enabled, "enrollment_pending": bool(user.mfa_secret_encrypted and not user.mfa_enabled)}
+
+    def start_mfa_enrollment(self, *, user: User, request_id: str | None = None) -> dict[str, object]:
+        secret = generate_totp_secret()
+        encrypted = CredentialCipher().encrypt(secret)
+        updated = user.model_copy(update={"mfa_secret_encrypted": encrypted, "mfa_enabled": False})
+        user_service.upsert(updated)
+        self._sync_user_mfa(updated, confirmed=False)
+        audit_service.record(
+            tenant_id=updated.tenant_id,
+            actor_user_id=updated.id,
+            action=AuditAction.update,
+            entity_type="auth_mfa",
+            entity_id=updated.id,
+            request_id=request_id,
+            metadata={"reason": "mfa_enrollment_started"},
+        )
+        return {
+            "status": "pending",
+            "secret": secret,
+            "otpauth_url": build_otpauth_url(issuer="LEXFLOW", account=updated.email, secret=secret),
+        }
+
+    def confirm_mfa_enrollment(self, *, user: User, code: str, request_id: str | None = None) -> dict[str, object]:
+        if not user.mfa_secret_encrypted:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="MFA enrollment has not started")
+        secret = CredentialCipher().decrypt(user.mfa_secret_encrypted)
+        if not verify_totp(secret, code):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid MFA code")
+        updated = user.model_copy(
+            update={
+                "mfa_enabled": True,
+                "refresh_token_version": user.refresh_token_version + 1,
+                "updated_at": dbm.now_utc(),
+            }
+        )
+        user_service.upsert(updated)
+        self._sync_user_mfa(updated, confirmed=True)
+        audit_service.record(
+            tenant_id=updated.tenant_id,
+            actor_user_id=updated.id,
+            action=AuditAction.update,
+            entity_type="auth_mfa",
+            entity_id=updated.id,
+            request_id=request_id,
+            metadata={"reason": "mfa_enabled"},
+        )
+        return {**self._issue_session(updated), "user": updated}
+
+    def disable_mfa(self, *, user: User, current_password: str, code: str | None = None, request_id: str | None = None) -> dict[str, object]:
+        if not verify_password(current_password, user.hashed_password):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid current password")
+        if user.mfa_enabled:
+            self._verify_user_mfa(user, code)
+        updated = user.model_copy(
+            update={
+                "mfa_enabled": False,
+                "mfa_secret_encrypted": None,
+                "refresh_token_version": user.refresh_token_version + 1,
+                "updated_at": dbm.now_utc(),
+            }
+        )
+        user_service.upsert(updated)
+        self._sync_user_mfa(updated, confirmed=False, clear_secret=True)
+        audit_service.record(
+            tenant_id=updated.tenant_id,
+            actor_user_id=updated.id,
+            action=AuditAction.update,
+            entity_type="auth_mfa",
+            entity_id=updated.id,
+            request_id=request_id,
+            metadata={"reason": "mfa_disabled"},
+        )
+        return {**self._issue_session(updated), "user": updated}
+
+    def _issue_session(self, user: User) -> dict[str, str]:
         settings = get_settings()
         access_token = create_token(
-            subject=updated.id,
-            tenant_id=updated.tenant_id,
-            role=updated.role,
+            subject=user.id,
+            tenant_id=user.tenant_id,
+            role=user.role,
             token_type="access",
             expires_minutes=settings.access_token_minutes,
-            version=updated.refresh_token_version,
+            version=user.refresh_token_version,
         )
         refresh_token = create_token(
-            subject=updated.id,
-            tenant_id=updated.tenant_id,
-            role=updated.role,
+            subject=user.id,
+            tenant_id=user.tenant_id,
+            role=user.role,
             token_type="refresh",
             expires_minutes=settings.refresh_token_minutes,
-            version=updated.refresh_token_version,
+            version=user.refresh_token_version,
         )
-        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "user": updated}
+        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
     def request_password_reset(self, db: Session, *, email: str, tenant_slug: str, request_id: str | None = None, requested_ip: str | None = None) -> dict[str, object]:
         settings = get_settings()
@@ -356,6 +424,7 @@ class AuthService:
                 role=RoleName(db_user.role.name),
                 is_active=db_user.status == "active",
                 mfa_enabled=db_user.mfa_enabled,
+                mfa_secret_encrypted=db_user.mfa_secret_encrypted,
                 refresh_token_version=db_user.refresh_token_version,
                 created_at=db_user.created_at,
                 updated_at=db_user.updated_at,
@@ -384,6 +453,29 @@ class AuthService:
                 db.commit()
         except SQLAlchemyError:
             return
+
+    def _sync_user_mfa(self, user: User, *, confirmed: bool, clear_secret: bool = False) -> None:
+        try:
+            with SessionLocal() as db:
+                db_user = db.get(dbm.User, str(user.id))
+                if not db_user:
+                    return
+                db_user.mfa_enabled = user.mfa_enabled
+                db_user.mfa_secret_encrypted = None if clear_secret else user.mfa_secret_encrypted
+                db_user.mfa_confirmed_at = dbm.now_utc() if confirmed else None
+                db_user.refresh_token_version = user.refresh_token_version
+                db.commit()
+        except SQLAlchemyError:
+            return
+
+    def _verify_user_mfa(self, user: User, code: str | None) -> None:
+        if not code:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="MFA code required")
+        if not user.mfa_secret_encrypted:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="MFA is enabled but not configured")
+        secret = CredentialCipher().decrypt(user.mfa_secret_encrypted)
+        if not verify_totp(secret, code):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid MFA code")
 
     @staticmethod
     def _token_hash(raw_token: str) -> str:

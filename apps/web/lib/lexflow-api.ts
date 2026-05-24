@@ -99,6 +99,31 @@ export async function changePassword(payload: { current_password: string; new_pa
   });
 }
 
+export async function loadMfaStatus() {
+  return apiRequest<{ mfa_enabled: boolean; enrollment_pending: boolean }>("/auth/mfa/status");
+}
+
+export async function startMfaEnrollment() {
+  return apiRequest<{ status: string; secret: string; otpauth_url: string }>("/auth/mfa/enroll", {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+}
+
+export async function verifyMfaEnrollment(payload: { code: string }) {
+  return apiRequest<{ access_token: string; refresh_token: string; token_type: string }>("/auth/mfa/verify", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function disableMfa(payload: { current_password: string; code?: string }) {
+  return apiRequest<{ access_token: string; refresh_token: string; token_type: string }>("/auth/mfa/disable", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function requestPasswordReset(payload: { email: string; tenant_slug: string }) {
   return publicApiRequest<{ status: string; delivery: string; reset_token?: string }>("/auth/password-reset/request", {
     method: "POST",

@@ -72,6 +72,7 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
     tenant_slug: str | None = None
+    mfa_code: str | None = Field(default=None, min_length=6, max_length=12)
 
 
 class RefreshRequest(BaseModel):
@@ -91,6 +92,15 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetConfirmRequest(BaseModel):
     reset_token: str = Field(min_length=20, max_length=500)
     new_password: str = Field(min_length=10, max_length=500)
+
+
+class MfaCodeRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=12)
+
+
+class MfaDisableRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=500)
+    code: str | None = Field(default=None, min_length=6, max_length=12)
 
 
 class UserOut(BaseModel):
@@ -1248,6 +1258,7 @@ def login(payload: LoginRequest, request: Request) -> dict[str, object]:
         email=payload.email,
         password=payload.password,
         tenant_slug=payload.tenant_slug,
+        mfa_code=payload.mfa_code,
         request_id=getattr(request.state, "request_id", None),
     )
 
@@ -1282,6 +1293,26 @@ def logout(current_user: Annotated[User, Depends(get_current_user)], request: Re
 @router.post("/auth/change-password", response_model=LoginResponse)
 def change_password(payload: ChangePasswordRequest, current_user: Annotated[User, Depends(get_current_user)], request: Request) -> dict[str, object]:
     return auth_service.change_password(user=current_user, current_password=payload.current_password, new_password=payload.new_password, request_id=getattr(request.state, "request_id", None))
+
+
+@router.get("/auth/mfa/status")
+def mfa_status(current_user: Annotated[User, Depends(get_current_user)]) -> dict[str, object]:
+    return auth_service.mfa_status(user=current_user)
+
+
+@router.post("/auth/mfa/enroll")
+def enroll_mfa(current_user: Annotated[User, Depends(get_current_user)], request: Request) -> dict[str, object]:
+    return auth_service.start_mfa_enrollment(user=current_user, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/auth/mfa/verify", response_model=LoginResponse)
+def verify_mfa(payload: MfaCodeRequest, current_user: Annotated[User, Depends(get_current_user)], request: Request) -> dict[str, object]:
+    return auth_service.confirm_mfa_enrollment(user=current_user, code=payload.code, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/auth/mfa/disable", response_model=LoginResponse)
+def disable_mfa(payload: MfaDisableRequest, current_user: Annotated[User, Depends(get_current_user)], request: Request) -> dict[str, object]:
+    return auth_service.disable_mfa(user=current_user, current_password=payload.current_password, code=payload.code, request_id=getattr(request.state, "request_id", None))
 
 
 @router.get("/auth/me", response_model=UserOut)

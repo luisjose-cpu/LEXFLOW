@@ -56,6 +56,6 @@ describe("LoginPage", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "bad-password" } });
     fireEvent.click(screen.getByText("Entrar al Legal OS"));
 
-    expect(await screen.findByText("Credenciales o estudio incorrectos.")).toBeTruthy();
+    expect(await screen.findByText("Credenciales, estudio o codigo MFA incorrectos.")).toBeTruthy();
   });
 });

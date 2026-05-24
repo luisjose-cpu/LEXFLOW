@@ -71,6 +71,7 @@ class User(TenantScopedModel):
     role: RoleName
     is_active: bool = True
     mfa_enabled: bool = False
+    mfa_secret_encrypted: str | None = None
     refresh_token_version: int = 0
 
 

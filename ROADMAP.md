@@ -119,3 +119,4 @@ Started:
 
 - Part 1 now includes tenant password change with token rotation and persisted session revocation.
 - Part 1 now includes password reset request/confirm with one-time hashed tokens and login recovery screens.
+- Part 1 now includes tenant MFA TOTP with encrypted secrets, login enforcement and Settings controls.

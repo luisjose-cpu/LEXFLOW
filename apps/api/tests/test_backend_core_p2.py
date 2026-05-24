@@ -1,9 +1,11 @@
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
 from app.domain.models import RoleName
 from app.main import app
+from app.services.mfa import totp_code
 from app.services.seed import DEMO_SEED, seed_demo_data
 from app.services.tenants import tenant_service
 from app.services.users import user_service
@@ -204,3 +206,48 @@ def test_auth_password_reset_flow_does_not_expose_unknown_accounts_and_revokes_s
     assert old_me.status_code == 401
     assert old_password.status_code == 401
     assert new_password.status_code == 200
+
+
+def test_auth_mfa_enrollment_requires_totp_and_can_be_disabled() -> None:
+    seed_demo_data()
+    logged = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": DEMO_SEED.password, "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+    access = logged.json()["access_token"]
+    enrollment = client.post("/api/v1/auth/mfa/enroll", headers={"Authorization": f"Bearer {access}"})
+    secret = enrollment.json()["secret"]
+    code = totp_code(secret, int(datetime.now(UTC).timestamp() // 30))
+    verified = client.post("/api/v1/auth/mfa/verify", headers={"Authorization": f"Bearer {access}"}, json={"code": code})
+    rotated_access = verified.json()["access_token"]
+    no_mfa_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": DEMO_SEED.password, "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+    bad_mfa_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": DEMO_SEED.password, "tenant_slug": DEMO_SEED.tenant_slug, "mfa_code": "000000"},
+    )
+    good_mfa_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": DEMO_SEED.password, "tenant_slug": DEMO_SEED.tenant_slug, "mfa_code": code},
+    )
+    disabled = client.post(
+        "/api/v1/auth/mfa/disable",
+        headers={"Authorization": f"Bearer {rotated_access}"},
+        json={"current_password": DEMO_SEED.password, "code": code},
+    )
+    no_code_after_disable = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": DEMO_SEED.password, "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+
+    assert enrollment.status_code == 200
+    assert enrollment.json()["status"] == "pending"
+    assert enrollment.json()["otpauth_url"].startswith("otpauth://totp/")
+    assert verified.status_code == 200
+    assert no_mfa_login.status_code == 401
+    assert bad_mfa_login.status_code == 401
+    assert good_mfa_login.status_code == 200
+    assert disabled.status_code == 200
+    assert no_code_after_disable.status_code == 200

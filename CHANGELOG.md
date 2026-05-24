@@ -1,5 +1,21 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Tenant MFA TOTP
+
+### Added
+
+- Tenant user MFA TOTP service with standard `otpauth://` enrollment.
+- `users.mfa_secret_encrypted` and `users.mfa_confirmed_at` persistence with Alembic migration `20260524_0015`.
+- `/api/v1/auth/mfa/status`, `/api/v1/auth/mfa/enroll`, `/api/v1/auth/mfa/verify` and `/api/v1/auth/mfa/disable`.
+- Login support for optional `mfa_code` and enforcement when MFA is enabled.
+- Settings MFA controls for enrollment, confirmation and disable flows.
+- Backend and frontend tests for MFA enrollment, login enforcement and session rotation.
+
+### Security
+
+- MFA secrets are encrypted at rest and never logged.
+- MFA enable/disable actions rotate sessions and create audit logs.
+
 ## 2026-05-24 - Password Reset Workflow
 
 ### Added

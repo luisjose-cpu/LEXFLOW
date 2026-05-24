@@ -60,6 +60,7 @@ export default function LoginPage() {
   const [tenantSlug, setTenantSlug] = useState("piloto");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
   const canSubmit = useMemo(() => tenantSlug.trim() && email.trim() && password, [email, password, tenantSlug]);
@@ -78,12 +79,13 @@ export default function LoginPage() {
         body: JSON.stringify({
           email: email.trim(),
           password,
-          tenant_slug: tenantSlug.trim()
+          tenant_slug: tenantSlug.trim(),
+          ...(mfaCode.trim() ? { mfa_code: mfaCode.trim() } : {})
         })
       });
 
       if (!response.ok) {
-        throw new Error(response.status === 401 ? "Credenciales o estudio incorrectos." : "No pudimos iniciar sesion.");
+        throw new Error(response.status === 401 ? "Credenciales, estudio o codigo MFA incorrectos." : "No pudimos iniciar sesion.");
       }
 
       const body = (await response.json()) as LoginResponse;
@@ -137,6 +139,14 @@ export default function LoginPage() {
             placeholder="Password del estudio"
             type="password"
             value={password}
+          />
+          <Field
+            autoComplete="one-time-code"
+            label="Codigo MFA"
+            name="mfa_code"
+            onChange={setMfaCode}
+            placeholder="Opcional si tu cuenta lo requiere"
+            value={mfaCode}
           />
           {error ? (
             <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700" role="alert">
