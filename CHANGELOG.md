@@ -797,3 +797,11 @@
 - No new functional frontend behavior.
 - No new database tables.
 - No new Docker functionality.
+
+# 2026-05-24 - Nivel 1 Core Obligatorio review
+
+- Created the Nivel 1 module review package for Expediente360, SINOE, Portal Cliente, Comunicacion + WhatsApp, Dashboard, IA practica legal and Automation Studio.
+- Added module-level review reports under `docs/review/`.
+- Added GAP reports for all mandatory Nivel 1 modules.
+- Classified the current release as `PILOT_READY_WITH_MOCKS`, not full production automation.
+- Confirmed no CAPTCHA bypass, no credential hardcoding and no module duplication in this review pass.
