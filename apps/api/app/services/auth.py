@@ -10,7 +10,7 @@ from app.db import models as dbm
 from app.db.database import SessionLocal
 from app.domain.models import AuditAction, User
 from app.services.audit import audit_service
-from app.services.security import create_token, decode_token, verify_password
+from app.services.security import create_token, decode_token, hash_password, verify_password
 from app.services.tenants import tenant_service
 from app.services.users import user_service
 
@@ -85,6 +85,7 @@ class AuthService:
 
     def logout(self, *, user: User, request_id: str | None = None) -> None:
         user_service.bump_refresh_version(user)
+        self._sync_user_refresh_version(user)
         audit_service.record(
             tenant_id=user.tenant_id,
             actor_user_id=user.id,
@@ -93,6 +94,40 @@ class AuthService:
             entity_id=user.id,
             request_id=request_id,
         )
+
+    def change_password(self, *, user: User, current_password: str, new_password: str, request_id: str | None = None) -> dict[str, object]:
+        if not verify_password(current_password, user.hashed_password):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid current password")
+        new_hash = hash_password(new_password)
+        updated = user_service.change_password(user, new_hash)
+        self._sync_user_password(updated)
+        audit_service.record(
+            tenant_id=updated.tenant_id,
+            actor_user_id=updated.id,
+            action=AuditAction.update,
+            entity_type="auth_password",
+            entity_id=updated.id,
+            request_id=request_id,
+            metadata={"reason": "user_password_changed"},
+        )
+        settings = get_settings()
+        access_token = create_token(
+            subject=updated.id,
+            tenant_id=updated.tenant_id,
+            role=updated.role,
+            token_type="access",
+            expires_minutes=settings.access_token_minutes,
+            version=updated.refresh_token_version,
+        )
+        refresh_token = create_token(
+            subject=updated.id,
+            tenant_id=updated.tenant_id,
+            role=updated.role,
+            token_type="refresh",
+            expires_minutes=settings.refresh_token_minutes,
+            version=updated.refresh_token_version,
+        )
+        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "user": updated}
 
     def user_from_token(self, token: str, *, expected_type: str = "access") -> User:
         try:
@@ -189,10 +224,34 @@ class AuthService:
                 role=RoleName(db_user.role.name),
                 is_active=db_user.status == "active",
                 mfa_enabled=db_user.mfa_enabled,
+                refresh_token_version=db_user.refresh_token_version,
                 created_at=db_user.created_at,
                 updated_at=db_user.updated_at,
             )
         )
+
+    def _sync_user_password(self, user: User) -> None:
+        try:
+            with SessionLocal() as db:
+                db_user = db.get(dbm.User, str(user.id))
+                if not db_user:
+                    return
+                db_user.hashed_password = user.hashed_password
+                db_user.refresh_token_version = user.refresh_token_version
+                db.commit()
+        except SQLAlchemyError:
+            return
+
+    def _sync_user_refresh_version(self, user: User) -> None:
+        try:
+            with SessionLocal() as db:
+                db_user = db.get(dbm.User, str(user.id))
+                if not db_user:
+                    return
+                db_user.refresh_token_version = user.refresh_token_version + 1
+                db.commit()
+        except SQLAlchemyError:
+            return
 
 
 auth_service = AuthService()

@@ -101,6 +101,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     hashed_password: Mapped[str] = mapped_column(String(240), nullable=False)
     status: Mapped[str] = mapped_column(String(40), default="active", nullable=False)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    refresh_token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     tenant: Mapped[Tenant] = relationship(back_populates="users")
     role: Mapped[Role] = relationship(back_populates="users")

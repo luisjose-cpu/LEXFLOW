@@ -132,3 +132,31 @@ def test_auth_rejects_bad_password() -> None:
     )
 
     assert response.status_code == 401
+
+
+def test_auth_change_password_revokes_old_tokens_and_allows_new_password() -> None:
+    seed_demo_data()
+    logged = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": DEMO_SEED.password, "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+    old_access = logged.json()["access_token"]
+    old_refresh = logged.json()["refresh_token"]
+
+    changed = client.post(
+        "/api/v1/auth/change-password",
+        headers={"Authorization": f"Bearer {old_access}"},
+        json={"current_password": DEMO_SEED.password, "new_password": "NewPilotPassword123!"},
+    )
+    old_me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {old_access}"})
+    old_refresh_response = client.post("/api/v1/auth/refresh", json={"refresh_token": old_refresh})
+    new_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": "NewPilotPassword123!", "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+
+    assert changed.status_code == 200
+    assert changed.json()["refresh_token"]
+    assert old_me.status_code == 401
+    assert old_refresh_response.status_code == 401
+    assert new_login.status_code == 200

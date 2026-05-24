@@ -121,6 +121,17 @@ class UserService:
         self._users[self._users.index(user)] = updated
         return updated
 
+    def change_password(self, user: User, hashed_password: str) -> User:
+        updated = user.model_copy(
+            update={
+                "hashed_password": hashed_password,
+                "refresh_token_version": user.refresh_token_version + 1,
+                "updated_at": datetime.now(UTC),
+            }
+        )
+        self._users[self._users.index(user)] = updated
+        return updated
+
     def clear(self) -> None:
         self._users.clear()
 

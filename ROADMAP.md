@@ -101,3 +101,20 @@ Goal: turn operational data into legal management decisions.
 ## P10 - Billing, Automation Studio, Hardening, Cloud, And Release
 
 Goal: subscriptions, automation authoring, production readiness, backups, monitoring, security review, performance, and QA.
+
+## Production Functionalization Plan
+
+Grouped into 8 execution parts:
+
+1. Security/Auth: password change, session revocation, password recovery, MFA, audit hardening.
+2. Tenant Onboarding: productive tenant creation, initial admin, invites, branding, import.
+3. Storage/Documents: S3 signed URLs, scan, versioning, lifecycle, retention.
+4. Integrations: SINOE authorized adapter, WhatsApp Business, email and webhooks.
+5. Billing: real payment provider, invoices, limits and subscription enforcement.
+6. AI/RAG: OCR, embeddings, vector store, citations and usage controls.
+7. QA/Observability: E2E, load tests, logs, metrics, backups and restore drills.
+8. Commercial/Compliance: landing, contracts, privacy, DPA, pilot runbooks and support.
+
+Started:
+
+- Part 1 now includes tenant password change with token rotation and persisted session revocation.

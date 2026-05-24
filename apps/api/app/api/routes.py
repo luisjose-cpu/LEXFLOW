@@ -78,6 +78,11 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=500)
+    new_password: str = Field(min_length=10, max_length=500)
+
+
 class UserOut(BaseModel):
     id: UUID
     tenant_id: UUID
@@ -1246,6 +1251,11 @@ def refresh(payload: RefreshRequest, request: Request) -> dict[str, str]:
 def logout(current_user: Annotated[User, Depends(get_current_user)], request: Request) -> dict[str, str]:
     auth_service.logout(user=current_user, request_id=getattr(request.state, "request_id", None))
     return {"status": "logged_out"}
+
+
+@router.post("/auth/change-password", response_model=LoginResponse)
+def change_password(payload: ChangePasswordRequest, current_user: Annotated[User, Depends(get_current_user)], request: Request) -> dict[str, object]:
+    return auth_service.change_password(user=current_user, current_password=payload.current_password, new_password=payload.new_password, request_id=getattr(request.state, "request_id", None))
 
 
 @router.get("/auth/me", response_model=UserOut)

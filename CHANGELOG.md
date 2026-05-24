@@ -1,5 +1,19 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Production Auth Hardening
+
+### Added
+
+- Tenant user `refresh_token_version` persistence with Alembic migration `20260524_0013`.
+- `/api/v1/auth/change-password` endpoint with current-password verification, token rotation and old-token revocation.
+- Settings account security panel for password changes from the web app.
+- Backend and frontend tests for password change, token revocation and rotated session storage.
+
+### Security
+
+- Password changes create audit logs without exposing password, hash or token values.
+- Logout and password changes now sync tenant session revocation to persisted users.
+
 ## 2026-05-24 - Owner Console Foundation
 
 ### Added

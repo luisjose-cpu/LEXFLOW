@@ -92,6 +92,13 @@ export function hasCloudSession() {
   return Boolean(getAccessToken());
 }
 
+export async function changePassword(payload: { current_password: string; new_password: string }) {
+  return apiRequest<{ access_token: string; refresh_token: string; token_type: string }>("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getAccessToken();
   const response = await fetch(`${API_URL}/api/v1${path}`, {
