@@ -42,7 +42,7 @@ Hacer funcional el contrato de storage de P17: las URLs firmadas ahora permiten 
 
 ## Pendiente productivo
 
-- Integrar antivirus/antimalware.
+- Desplegar servicio antivirus/antimalware real y configurar `MALWARE_SCANNER_PROVIDER=clamav`.
 - Agregar versionado y retencion.
 - Agregar lifecycle policies por tenant.
 - Evaluar presigned URLs nativas para archivos grandes.

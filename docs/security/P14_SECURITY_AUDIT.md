@@ -33,6 +33,6 @@ LEXFLOW RC1 is acceptable for controlled pilot, not public production.
 - Move secrets to managed secret store.
 - Add signed real webhooks where providers are introduced.
 - Add production WAF/edge rate limits.
-- Add malware scanning for uploads.
+- Deploy real malware scanner infrastructure and set `MALWARE_SCANNER_PROVIDER=clamav`.
 - Add external penetration test.
 - Add backup restore drill evidence.

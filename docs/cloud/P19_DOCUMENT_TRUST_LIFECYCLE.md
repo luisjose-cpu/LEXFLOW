@@ -15,6 +15,7 @@ Agregar ciclo de confianza documental sobre los bytes reales de P18: verificacio
 - Endpoints internos:
   - `GET /api/v1/documents/{document_id}/storage`
   - `POST /api/v1/documents/{document_id}/verify-storage`
+  - `POST /api/v1/documents/{document_id}/scan`
   - `POST /api/v1/documents/{document_id}/scan-mock`
   - `POST /api/v1/documents/{document_id}/reject`
 - Auditoria:
@@ -37,6 +38,7 @@ Agregar ciclo de confianza documental sobre los bytes reales de P18: verificacio
 - Documento rechazado se oculta del portal.
 - `REQUIRE_VERIFIED_DOCUMENT_DOWNLOADS=true` bloquea descargas del portal hasta que el documento tenga storage verificado, estado `verified` y escaneo `clean`.
 - `MALWARE_SCANNER_PROVIDER` debe dejar de ser `mock` antes de produccion publica.
+- `MALWARE_SCANNER_PROVIDER=clamav` usa protocolo ClamAV INSTREAM contra `CLAMAV_HOST:CLAMAV_PORT`.
 - Toda accion interna queda auditada.
 
 ## Produccion pendiente

@@ -255,6 +255,22 @@ class StorageService:
         etag = str(response.get("ETag", "")).strip('"') or None
         return {"exists": True, "bytes": response.get("ContentLength", 0), "sha256": metadata.get("sha256") or etag}
 
+    def read_object_bytes(self, *, storage_key: str) -> bytes:
+        settings = get_settings()
+        if settings.storage_backend == "local":
+            path = _safe_local_path(storage_key)
+            if not path.exists():
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored object not found")
+            return path.read_bytes()
+        try:
+            response = _s3_client(settings).get_object(Bucket=settings.s3_bucket, Key=storage_key)
+        except Exception as exc:
+            if _s3_not_found(exc):
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored object not found") from exc
+            raise
+        stream = response.get("Body", BytesIO())
+        return stream.read()
+
     def read_signed_download(self, db: Session, *, document_id: UUID | str, token: str, request_id: str | None = None) -> tuple[bytes, dict[str, object]]:
         settings = get_settings()
         signed = self.verify_token(token)

@@ -1112,6 +1112,23 @@ def document_scan_mock(
     )
 
 
+@router.post("/documents/{document_id}/scan")
+def document_scan(
+    document_id: UUID,
+    actor: Annotated[User, Depends(require_permission("cases:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return document_lifecycle_service.scan(
+        db,
+        tenant_id=tenant_id,
+        document_id=document_id,
+        actor=actor,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
 @router.post("/documents/{document_id}/reject")
 def document_reject(
     document_id: UUID,

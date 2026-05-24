@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     storage_local_root: str = ".lexflow-storage"
     require_verified_document_downloads: bool = False
     malware_scanner_provider: str = "mock"
+    clamav_host: str = "localhost"
+    clamav_port: int = 3310
+    clamav_timeout_seconds: float = 2.0
     openai_api_key: str | None = None
     whatsapp_business_token: str | None = None
     billing_provider_secret: str | None = None

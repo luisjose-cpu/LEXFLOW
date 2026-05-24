@@ -111,6 +111,21 @@ def test_document_verify_and_clean_scan_promotes_trusted_metadata(api: TestClien
     assert any(item.action == "document_malware_scan_completed" for item in audits)
 
 
+def test_document_provider_scan_uses_configured_scanner(api: TestClient, db_session: Session) -> None:
+    tenant_id, case_id = seed_for_lifecycle(api, db_session)
+    admin_headers = login(api, DEMO_SEED.admin_email)
+    created = upload_client_document(api, case_id, content=b"%PDF-clean")
+
+    scanned = api.post(f"/api/v1/documents/{created['id']}/scan", headers=admin_headers)
+    audits = db_session.scalars(select(AuditLog).where(AuditLog.tenant_id == tenant_id, AuditLog.entity_id == created["id"])).all()
+
+    assert scanned.status_code == 200
+    assert scanned.json()["status"] == "verified"
+    assert scanned.json()["malware_scan_result"]["engine"] == "mock"
+    assert scanned.json()["malware_scan_status"] == "clean"
+    assert any(item.action == "document_malware_scan_completed" for item in audits)
+
+
 def test_verified_download_gate_blocks_unscanned_document(api: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     settings = Settings(
         jwt_secret="test-lifecycle-secret-value-1234567890",

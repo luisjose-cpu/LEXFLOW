@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db import models as dbm
 from app.domain.models import User
+from app.services.malware_scanner import malware_scanner_service
 from app.services.storage import storage_service
 
 
@@ -94,6 +96,47 @@ class DocumentLifecycleService:
         db.commit()
         db.refresh(document)
         return self.serialize(document, storage=metadata)
+
+    def scan(
+        self,
+        db: Session,
+        *,
+        tenant_id: UUID | str,
+        document_id: UUID | str,
+        actor: User,
+        request_id: str | None = None,
+    ) -> dict[str, object]:
+        document = self.get_document(db, tenant_id=tenant_id, document_id=document_id)
+        body = storage_service.read_object_bytes(storage_key=document.storage_key)
+        checksum = hashlib.sha256(body).hexdigest()
+        result = malware_scanner_service.scan_bytes(filename=document.filename, body=body)
+        document.file_size_bytes = len(body)
+        document.checksum_sha256 = checksum
+        document.storage_verified_at = dbm.now_utc()
+        document.malware_scan_status = result.verdict
+        document.malware_scan_result = {
+            "engine": result.engine,
+            "verdict": result.verdict,
+            "signature": result.signature,
+            "raw": result.raw,
+            "scanned_at": dbm.now_utc().isoformat(),
+            "sha256": checksum,
+        }
+        document.status = "verified" if result.verdict == "clean" else "rejected"
+        if result.verdict == "infected":
+            document.is_client_visible = False
+        self.audit(
+            db,
+            tenant_id=tenant_id,
+            actor=actor,
+            action="document_malware_scan_completed",
+            document=document,
+            request_id=request_id,
+            metadata={"verdict": result.verdict, "engine": result.engine, "sha256": checksum, "bytes": len(body)},
+        )
+        db.commit()
+        db.refresh(document)
+        return self.serialize(document, storage={"exists": True, "bytes": len(body), "sha256": checksum})
 
     def reject(
         self,
