@@ -1,6 +1,7 @@
 param(
   [string]$ApiUrl = $env:LEXFLOW_API_URL,
   [string]$WebUrl = $env:LEXFLOW_WEB_URL,
+  [string]$ExpectedRevision = $env:LEXFLOW_EXPECTED_REVISION,
   [string]$ReportDir = "reports/cloud"
 )
 
@@ -43,8 +44,25 @@ function Invoke-ReleaseStep {
   }
 }
 
+function Resolve-ExpectedRevision {
+  param([string]$Revision)
+  if ($Revision) {
+    return $Revision.Trim()
+  }
+  $git = Get-Command git -ErrorAction SilentlyContinue
+  if (-not $git) {
+    return ""
+  }
+  $head = & $git.Source rev-parse HEAD
+  if ($LASTEXITCODE -ne 0) {
+    return ""
+  }
+  return $head.Trim()
+}
+
 $ApiUrl = Normalize-Url $ApiUrl
 $WebUrl = Normalize-Url $WebUrl
+$ExpectedRevision = Resolve-ExpectedRevision $ExpectedRevision
 
 if (-not $ApiUrl) {
   throw "LEXFLOW_API_URL or -ApiUrl is required"
@@ -65,6 +83,11 @@ $statusResponse = Invoke-WebRequest -Uri "$ApiUrl/api/v1/status" -Method GET -Us
 $apiStatus = $statusResponse.Content | ConvertFrom-Json
 $versionResponse = Invoke-WebRequest -Uri "$ApiUrl/version" -Method GET -UseBasicParsing -TimeoutSec 30
 $version = $versionResponse.Content | ConvertFrom-Json
+$actualRevision = "$($version.revision)".Trim()
+$revisionMatches = $false
+if ($ExpectedRevision -and $actualRevision -and $actualRevision -ne "unknown") {
+  $revisionMatches = $ExpectedRevision.StartsWith($actualRevision) -or $actualRevision.StartsWith($ExpectedRevision)
+}
 $blockerCount = @($readiness.blockers).Count
 $warningCount = @($readiness.warnings).Count
 $publicProductionReady = $readiness.public_production_ready
@@ -78,7 +101,11 @@ $report = @{
   api_url = $ApiUrl
   web_url = $WebUrl
   version = $version
-  revision = $version.revision
+  revision = @{
+    expected = $ExpectedRevision
+    actual = $actualRevision
+    matches_expected = $revisionMatches
+  }
   external_providers = $apiStatus.external_providers
   readiness = @{
     status = $readiness.status

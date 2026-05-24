@@ -39,6 +39,7 @@ npm run cloud:evidence
 ```
 
 6. Revisar el JSON mas reciente en `reports/cloud/`.
+7. Confirmar `revision.matches_expected=true` cuando Render/Vercel ya expongan revision.
 
 ## Criterios de salida
 

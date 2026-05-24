@@ -146,6 +146,8 @@ def test_cloud_release_evidence_script_writes_safe_report() -> None:
     assert "scripts/cloud-smoke.ps1" in script
     assert "api/v1/status" in script
     assert "external_providers" in script
+    assert "matches_expected" in script
+    assert "LEXFLOW_EXPECTED_REVISION" in script
     assert "revision" in script
     assert "secrets_included = $false" in script
     assert "credentials_included = $false" in script
