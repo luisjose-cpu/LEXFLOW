@@ -333,6 +333,20 @@ export async function loadOperationalCases(): Promise<CaseOps[]> {
   return body.map(normalizeCase);
 }
 
+export async function createCaseRecord(payload: { client_id: string; title: string; description?: string; next_action: string; external_case_number?: string }) {
+  return apiRequest<{ id: string; title: string; next_action: string }>("/cases", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateCaseRecord(caseId: string, payload: { title?: string; description?: string; next_action?: string }) {
+  return apiRequest<{ id: string; title: string; next_action: string }>(`/cases/${caseId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function loadClientProfile(clientId: string) {
   const body = await apiRequest<ApiClientProfile>(`/clients/${clientId}/profile`);
   const client = normalizeClient(body.client);

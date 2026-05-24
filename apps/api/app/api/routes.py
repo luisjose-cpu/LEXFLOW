@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, get_request_tenant, require_permission
@@ -208,6 +209,7 @@ class CaseCreate(BaseModel):
     title: str
     description: str | None = None
     next_action: str
+    external_case_number: str | None = Field(default=None, max_length=120)
     assigned_user_ids: list[UUID] = Field(default_factory=list)
 
 
@@ -543,6 +545,41 @@ def parse_api_datetime(value: str | None, *, field_name: str) -> datetime | None
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"{field_name} must be an ISO datetime") from exc
+
+
+def db_case_to_domain(legal_case: dbm.Case, *, next_action: str = "Revisar timeline y SINOE", assigned_user_ids: list[UUID] | None = None) -> LegalCase:
+    return LegalCase(
+        id=UUID(legal_case.id),
+        tenant_id=UUID(legal_case.tenant_id),
+        client_id=UUID(legal_case.client_id),
+        title=legal_case.title,
+        description=legal_case.description,
+        status=MatterStatus(legal_case.status),
+        assigned_user_ids=assigned_user_ids or [],
+        next_action=next_action,
+        created_at=legal_case.created_at,
+        updated_at=legal_case.updated_at,
+    )
+
+
+def list_db_cases_safe(db: Session, *, tenant_id: UUID, status_filter: MatterStatus | None = None) -> list[LegalCase]:
+    try:
+        filters = [dbm.Case.tenant_id == str(tenant_id), dbm.Case.deleted_at.is_(None)]
+        if status_filter:
+            filters.append(dbm.Case.status == status_filter.value)
+        items = db.scalars(select(dbm.Case).where(*filters).order_by(dbm.Case.created_at.desc())).all()
+        return [db_case_to_domain(item) for item in items]
+    except SQLAlchemyError:
+        db.rollback()
+        return []
+
+
+def get_db_case_safe(db: Session, *, tenant_id: UUID, case_id: UUID) -> dbm.Case | None:
+    try:
+        return db.scalar(select(dbm.Case).where(dbm.Case.tenant_id == str(tenant_id), dbm.Case.id == str(case_id), dbm.Case.deleted_at.is_(None)))
+    except SQLAlchemyError:
+        db.rollback()
+        return None
 
 
 def get_owner_db_user(db: Session, owner: OwnerPrincipal) -> dbm.OwnerUser:
@@ -2671,9 +2708,13 @@ def delete_client(
 def list_cases(
     _: Annotated[User, Depends(require_permission("cases:read"))],
     tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
     status_filter: MatterStatus | None = Query(default=None, alias="status"),
 ) -> list[LegalCase]:
-    return case_service.list_for_tenant(tenant_id, status=status_filter)
+    service_cases = case_service.list_for_tenant(tenant_id, status=status_filter)
+    service_ids = {item.id for item in service_cases}
+    db_cases = [item for item in list_db_cases_safe(db, tenant_id=tenant_id, status_filter=status_filter) if item.id not in service_ids]
+    return service_cases + db_cases
 
 
 @router.get("/cases/search")
@@ -2692,11 +2733,19 @@ def create_case(
     payload: CaseCreate,
     actor: Annotated[User, Depends(require_permission("cases:write"))],
     tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
     request: Request,
 ) -> LegalCase:
-    if not client_service.get(tenant_id, payload.client_id):
+    memory_client = client_service.get(tenant_id, payload.client_id)
+    db_client: dbm.Client | None = None
+    if not memory_client:
+        try:
+            db_client = db.scalar(select(dbm.Client).where(dbm.Client.id == str(payload.client_id), dbm.Client.tenant_id == str(tenant_id), dbm.Client.deleted_at.is_(None)))
+        except SQLAlchemyError:
+            db.rollback()
+    if not memory_client and not db_client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
-    return case_service.create(
+    legal_case = case_service.create(
         tenant_id=tenant_id,
         client_id=payload.client_id,
         title=payload.title,
@@ -2706,6 +2755,39 @@ def create_case(
         actor_user_id=actor.id,
         request_id=getattr(request.state, "request_id", None),
     )
+    if db_client:
+        db_case = dbm.Case(
+            id=str(legal_case.id),
+            tenant_id=str(tenant_id),
+            client_id=str(payload.client_id),
+            title=payload.title,
+            external_case_number=payload.external_case_number,
+            status=legal_case.status.value,
+            description=payload.description,
+        )
+        db.add(db_case)
+        db.add(
+            dbm.CaseEvent(
+                tenant_id=str(tenant_id),
+                case_id=db_case.id,
+                event_type="case_created",
+                title=f"Expediente creado: {payload.title}",
+                description=payload.next_action,
+            )
+        )
+        db.flush()
+        audit_case_action(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=actor.id,
+            action="create",
+            entity_type="case",
+            entity_id=db_case.id,
+            request_id=getattr(request.state, "request_id", None),
+            metadata={"case_id": db_case.id, "client_id": str(payload.client_id)},
+        )
+        db.commit()
+    return legal_case
 
 
 @router.get("/cases/{case_id}/overview")
@@ -3410,9 +3492,13 @@ def get_case(
     case_id: UUID,
     _: Annotated[User, Depends(require_permission("cases:read"))],
     tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> LegalCase:
     legal_case = case_service.get(tenant_id, case_id)
     if not legal_case:
+        db_case = get_db_case_safe(db, tenant_id=tenant_id, case_id=case_id)
+        if db_case:
+            return db_case_to_domain(db_case)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
     return legal_case
 
@@ -3423,6 +3509,7 @@ def update_case(
     payload: CaseUpdate,
     actor: Annotated[User, Depends(require_permission("cases:write"))],
     tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
     request: Request,
 ) -> LegalCase:
     legal_case = case_service.update(
@@ -3434,8 +3521,37 @@ def update_case(
         next_action=payload.next_action,
         request_id=getattr(request.state, "request_id", None),
     )
+    db_case = get_db_case_safe(db, tenant_id=tenant_id, case_id=case_id)
+    if db_case:
+        if payload.title is not None:
+            db_case.title = payload.title
+        if payload.description is not None:
+            db_case.description = payload.description
+        db_case.updated_at = now()
+        db.add(
+            dbm.CaseEvent(
+                tenant_id=str(tenant_id),
+                case_id=db_case.id,
+                event_type="case_updated",
+                title=f"Expediente actualizado: {db_case.title}",
+                description=payload.next_action or payload.description,
+            )
+        )
+        audit_case_action(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=actor.id,
+            action="update",
+            entity_type="case",
+            entity_id=db_case.id,
+            request_id=getattr(request.state, "request_id", None),
+            metadata={"case_id": db_case.id},
+        )
+        db.commit()
     if not legal_case:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+        if not db_case:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+        return db_case_to_domain(db_case, next_action=payload.next_action or "Revisar timeline y SINOE")
     return legal_case
 
 
@@ -3445,6 +3561,7 @@ def assign_case(
     payload: CaseAssign,
     actor: Annotated[User, Depends(require_permission("cases:assign"))],
     tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
     request: Request,
 ) -> LegalCase:
     legal_case = case_service.assign(
@@ -3454,8 +3571,32 @@ def assign_case(
         actor_user_id=actor.id,
         request_id=getattr(request.state, "request_id", None),
     )
+    db_case = get_db_case_safe(db, tenant_id=tenant_id, case_id=case_id)
+    if db_case:
+        db.add(
+            dbm.CaseEvent(
+                tenant_id=str(tenant_id),
+                case_id=db_case.id,
+                event_type="case_assigned",
+                title="Equipo asignado al expediente",
+                description=", ".join(str(item) for item in payload.assigned_user_ids),
+            )
+        )
+        audit_case_action(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=actor.id,
+            action="assign",
+            entity_type="case",
+            entity_id=db_case.id,
+            request_id=getattr(request.state, "request_id", None),
+            metadata={"case_id": db_case.id, "assigned_user_ids": [str(item) for item in payload.assigned_user_ids]},
+        )
+        db.commit()
     if not legal_case:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+        if not db_case:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+        return db_case_to_domain(db_case, assigned_user_ids=payload.assigned_user_ids)
     return legal_case
 
 
@@ -3465,6 +3606,7 @@ def change_case_status(
     payload: CaseStatusChange,
     actor: Annotated[User, Depends(require_permission("cases:change_status"))],
     tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
     request: Request,
 ) -> LegalCase:
     legal_case = case_service.change_status(
@@ -3474,8 +3616,33 @@ def change_case_status(
         actor_user_id=actor.id,
         request_id=getattr(request.state, "request_id", None),
     )
+    db_case = get_db_case_safe(db, tenant_id=tenant_id, case_id=case_id)
+    if db_case:
+        db_case.status = payload.status.value
+        db_case.updated_at = now()
+        db.add(
+            dbm.CaseEvent(
+                tenant_id=str(tenant_id),
+                case_id=db_case.id,
+                event_type="status_change",
+                title=f"Estado actualizado a {payload.status.value}",
+            )
+        )
+        audit_case_action(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=actor.id,
+            action="change_status",
+            entity_type="case",
+            entity_id=db_case.id,
+            request_id=getattr(request.state, "request_id", None),
+            metadata={"case_id": db_case.id, "status": payload.status.value},
+        )
+        db.commit()
     if not legal_case:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+        if not db_case:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+        return db_case_to_domain(db_case)
     return legal_case
 
 
@@ -3484,6 +3651,7 @@ def delete_case(
     case_id: UUID,
     actor: Annotated[User, Depends(require_permission("cases:write"))],
     tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
     request: Request,
 ) -> None:
     deleted = case_service.delete(
@@ -3492,8 +3660,23 @@ def delete_case(
         actor_user_id=actor.id,
         request_id=getattr(request.state, "request_id", None),
     )
+    db_case = get_db_case_safe(db, tenant_id=tenant_id, case_id=case_id)
+    if db_case:
+        db_case.soft_delete()
+        audit_case_action(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=actor.id,
+            action="delete",
+            entity_type="case",
+            entity_id=db_case.id,
+            request_id=getattr(request.state, "request_id", None),
+            metadata={"case_id": db_case.id},
+        )
+        db.commit()
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+        if not db_case:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
 
 
 @router.get("/audit", response_model=list[AuditLog])

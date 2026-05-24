@@ -6,10 +6,12 @@
 
 - `POST /api/v1/cases/{case_id}/hearings` to create audited hearings from Expediente 360.
 - `PATCH` lifecycle endpoints for case tasks, hearings and documents.
+- Case CRUD now dual-writes DB-backed expedientes when using cloud tenant clients, so created cases appear in search and Expediente 360.
 - Case task creation now persists ISO `due_at` values.
 - `Case360Workspace` loads live case overview data when authenticated and keeps demo fallback when offline.
 - Expediente 360 can now create notes, tasks, document records, hearings and portal communications from the case page.
 - Expediente 360 can now close tasks, complete hearings and approve client-visible documents from the operational rail.
+- Case create/edit forms now call the cloud API when authenticated instead of remaining placeholder-only.
 - Expediente 360 can trigger SINOE source checks and case AI summaries from the same workspace.
 
 ### Security

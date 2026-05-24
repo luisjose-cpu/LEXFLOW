@@ -152,8 +152,8 @@ describe("Operational core UI", () => {
     render(<ClientDetail client={findClient("cli-nova")} />);
 
     await waitFor(() => expect(screen.getByText("Perfil cliente conectados al API cloud.")).toBeTruthy());
-    expect(screen.getByText("Contrato live.pdf · contrato · approved")).toBeTruthy();
-    expect(screen.getByText("Movimiento SINOE live · Resolucion · new · 2026-05-24")).toBeTruthy();
+    expect(screen.getByText("Contrato live.pdf - contrato - approved")).toBeTruthy();
+    expect(screen.getByText("Movimiento SINOE live - Resolucion - new - 2026-05-24")).toBeTruthy();
     expect(screen.getByText("Nota live: Perfil desde API")).toBeTruthy();
   });
 
@@ -171,8 +171,8 @@ describe("Operational core UI", () => {
     render(<CaseResourcePage legalCase={findCase("case-demo")} type="judicial" />);
 
     await waitFor(() => expect(screen.getByText("Actualizaciones judiciales sinoe conectados al API cloud.")).toBeTruthy());
-    expect(screen.getByText("Fuente SINOE · 0001-2026 · active · ok")).toBeTruthy();
-    expect(screen.getByText("Cedula live · Notificacion electronica · new · hash-live")).toBeTruthy();
+    expect(screen.getByText("Fuente SINOE - 0001-2026 - active - ok")).toBeTruthy();
+    expect(screen.getByText("Cedula live - Notificacion electronica - new - hash-live")).toBeTruthy();
     expect(screen.getByText("SINOE Module: consumed")).toBeTruthy();
   });
 

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db.database import get_db
-from app.db.models import AuditLog, Base, Case, CaseEvent, Document, Hearing, Task, Tenant
+from app.db.models import AuditLog, Base, Case, CaseEvent, Client, Document, Hearing, Task, Tenant
 from app.db.seed import seed_demo_database
 from app.main import app
 from app.services.seed import DEMO_SEED, seed_demo_data
@@ -167,6 +167,44 @@ def test_case_resource_updates_return_404_for_missing_resource(api: TestClient, 
     )
 
     assert response.status_code == 404
+
+
+def test_case_crud_persists_to_expediente_360_database(api: TestClient, db_session: Session) -> None:
+    headers = auth_headers(api)
+    tenant_id = seed_db_for_auth_tenant(api, db_session, headers)
+    db_client = Client(tenant_id=tenant_id, name="Cliente DB", contact_email="cliente-db@lexflow.demo", risk_profile="standard", tags=["db"])
+    db_session.add(db_client)
+    db_session.commit()
+
+    created = api.post(
+        "/api/v1/cases",
+        headers=headers,
+        json={
+            "client_id": db_client.id,
+            "title": "Expediente persistente",
+            "description": "Cobro ejecutivo",
+            "next_action": "Registrar demanda",
+            "external_case_number": "DB-2026-001",
+        },
+    )
+
+    assert created.status_code == 201
+    case_id = created.json()["id"]
+    stored = db_session.get(Case, case_id)
+    assert stored is not None
+    assert stored.external_case_number == "DB-2026-001"
+
+    updated = api.patch(f"/api/v1/cases/{case_id}", headers=headers, json={"title": "Expediente persistente actualizado", "next_action": "Revisar SINOE"})
+    changed = api.post(f"/api/v1/cases/{case_id}/change-status", headers=headers, json={"status": "risk"})
+    overview = api.get(f"/api/v1/cases/{case_id}/overview", headers=headers)
+    listed = api.get("/api/v1/cases?status=risk", headers=headers)
+
+    assert updated.status_code == 200
+    assert changed.status_code == 200
+    assert overview.status_code == 200
+    assert overview.json()["case"]["title"] == "Expediente persistente actualizado"
+    assert any(item["id"] == case_id for item in listed.json())
+    assert db_session.scalars(select(AuditLog).where(AuditLog.tenant_id == tenant_id, AuditLog.entity_type == "case")).first() is not None
 
 
 def test_case_hearing_rejects_invalid_datetime(api: TestClient, db_session: Session) -> None:

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import React, { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
-import { hasCloudSession, loadCaseResource, loadClientProfile, loadOperationalCases, loadOperationalClients, searchOperational } from "@/lib/lexflow-api";
+import { createCaseRecord, hasCloudSession, loadCaseResource, loadClientProfile, loadOperationalCases, loadOperationalClients, searchOperational, updateCaseRecord } from "@/lib/lexflow-api";
 import {
   CaseOps,
   ClientOps,
@@ -500,21 +500,86 @@ export function CaseCreateWizard() {
 }
 
 export function CaseEditForm({ legalCase }: { legalCase?: CaseOps }) {
+  const [clients, setClients] = useState<ClientOps[]>(clientsOps);
+  const [clientId, setClientId] = useState(legalCase?.clientId ?? clientsOps[0]?.id ?? "");
+  const [title, setTitle] = useState(legalCase?.title ?? "");
+  const [description, setDescription] = useState(legalCase?.matter ?? "");
+  const [externalNumber, setExternalNumber] = useState(legalCase?.externalNumber ?? "");
+  const [nextAction, setNextAction] = useState(legalCase?.nextAction ?? "Revisar timeline y SINOE");
+  const [state, setState] = useState<"demo" | "loading" | "live" | "saving" | "saved" | "error">("demo");
+
+  useEffect(() => {
+    if (!hasCloudSession()) {
+      setState("demo");
+      return;
+    }
+    let active = true;
+    setState("loading");
+    void loadOperationalClients()
+      .then((payload) => {
+        if (!active) return;
+        if (payload.length) {
+          setClients(payload);
+          setClientId((current) => current || payload[0].id);
+        }
+        setState("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setState("error");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!hasCloudSession()) {
+      setState("demo");
+      return;
+    }
+    setState("saving");
+    try {
+      const payload = { title, description, next_action: nextAction, external_case_number: externalNumber || undefined };
+      const saved = legalCase ? await updateCaseRecord(legalCase.id, payload) : await createCaseRecord({ ...payload, client_id: clientId });
+      setState("saved");
+      window.location.assign(`/cases/${saved.id}`);
+    } catch {
+      setState("error");
+    }
+  }
+
   return (
     <Card>
       <PanelTitle icon={<BriefcaseBusiness size={18} />} title={legalCase ? "Editar expediente" : "Datos del expediente"} />
-      <form className="mt-5 grid gap-4">
-        <Field label="Titulo" value={legalCase?.title ?? ""} placeholder="Nombre operativo del expediente" />
+      <form className="mt-5 grid gap-4" onSubmit={submit}>
+        {!legalCase ? (
+          <label className="grid gap-2 text-sm font-semibold text-ink">
+            Cliente
+            <select className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm font-normal text-ink outline-none focus:border-legal-500" onChange={(event) => setClientId(event.target.value)} value={clientId}>
+              {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+            </select>
+          </label>
+        ) : null}
+        <EditableField label="Titulo" onChange={setTitle} placeholder="Nombre operativo del expediente" value={title} />
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Materia" value={legalCase?.matter ?? ""} placeholder="Civil, laboral, comercial..." />
-          <Field label="Submateria" value={legalCase?.submatter ?? ""} placeholder="Cobro ejecutivo..." />
+          <EditableField label="Materia" onChange={setDescription} placeholder="Civil, laboral, comercial..." value={description} />
+          <EditableField label="Proxima accion" onChange={setNextAction} placeholder="Siguiente paso operativo" value={nextAction} />
         </div>
-        <Field label="Numero expediente" value={legalCase?.externalNumber ?? ""} placeholder="Numero externo" />
+        <EditableField label="Numero expediente" onChange={setExternalNumber} placeholder="Numero externo" value={externalNumber} />
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Responsable" value={legalCase?.responsible ?? ""} placeholder="Abogado responsable" />
           <Field label="Juzgado" value={legalCase?.court ?? ""} placeholder="Juzgado / sede" />
         </div>
-        <button className="h-10 w-fit rounded-md bg-legal-900 px-4 text-sm font-semibold text-white" type="button">Guardar expediente</button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button className="h-10 w-fit rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={state === "saving"} type="submit">
+            {state === "saving" ? "Guardando..." : "Guardar expediente"}
+          </button>
+          <span className="text-xs font-semibold text-slate-500">
+            {state === "live" ? "Conectado al API cloud" : state === "saved" ? "Expediente guardado" : state === "error" ? "No se pudo guardar" : state === "loading" ? "Cargando clientes..." : "Modo demo hasta iniciar sesion"}
+          </span>
+        </div>
       </form>
     </Card>
   );
@@ -624,6 +689,15 @@ function Field({ label, value, placeholder }: { label: string; value: string; pl
     <label className="grid gap-2 text-sm font-semibold text-ink">
       {label}
       <input className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm font-normal text-ink outline-none transition placeholder:text-slate-400 focus:border-legal-500 focus:shadow-[0_0_0_3px_rgba(36,153,232,0.18)]" onChange={(event) => setCurrent(event.target.value)} placeholder={placeholder} value={current} />
+    </label>
+  );
+}
+
+function EditableField({ label, value, placeholder, onChange }: { label: string; value: string; placeholder: string; onChange: (value: string) => void }) {
+  return (
+    <label className="grid gap-2 text-sm font-semibold text-ink">
+      {label}
+      <input className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm font-normal text-ink outline-none transition placeholder:text-slate-400 focus:border-legal-500 focus:shadow-[0_0_0_3px_rgba(36,153,232,0.18)]" onChange={(event) => onChange(event.target.value)} placeholder={placeholder} value={value} />
     </label>
   );
 }

@@ -7,6 +7,13 @@ Create the star screen for LEXFLOW: one legal matter workspace that connects cli
 ## Backend Endpoints
 
 - `GET /api/v1/cases/{case_id}/overview`
+- `GET /api/v1/cases`
+- `POST /api/v1/cases`
+- `GET /api/v1/cases/{case_id}`
+- `PATCH /api/v1/cases/{case_id}`
+- `POST /api/v1/cases/{case_id}/assign`
+- `POST /api/v1/cases/{case_id}/change-status`
+- `DELETE /api/v1/cases/{case_id}`
 - `POST /api/v1/cases/{case_id}/events`
 - `POST /api/v1/cases/{case_id}/tasks`
 - `PATCH /api/v1/cases/{case_id}/tasks/{task_id}`
@@ -58,6 +65,7 @@ The route now uses `Case360Workspace`:
 
 - Loads live `GET /cases/{case_id}/overview` when a tenant session exists.
 - Falls back to safe demo data when no session/API is available.
+- Creates and edits cloud-persistent cases from the case wizard, reusing tenant clients and DB-backed Expediente 360 data.
 - Creates timeline notes, tasks with due dates, documents, hearings and portal communications.
 - Advances the lifecycle of tasks, hearings and documents from the right operational rail.
 - Runs case AI summary with the mandatory professional review disclaimer.
