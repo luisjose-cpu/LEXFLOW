@@ -81,6 +81,7 @@
 - Production readiness now blocks non-HTTPS allowed origins and warns on non-HTTPS public web URLs.
 - Cloud release evidence now records observed API and web security headers.
 - Public production gate now writes non-sensitive evidence reports under `reports/cloud/`.
+- API rate limiter now prunes stale in-memory buckets to reduce long-running service memory growth.
 - Restore drill script now writes non-secret JSON evidence under `reports/restore/`.
 - Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.

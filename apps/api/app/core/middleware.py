@@ -30,11 +30,21 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.limit_per_minute = limit_per_minute
         self._buckets: dict[tuple[str, int], int] = {}
+        self._last_pruned_bucket = 0
+
+    def _prune_old_buckets(self, current_bucket: int) -> None:
+        if current_bucket <= self._last_pruned_bucket:
+            return
+        stale_buckets = [key for key in self._buckets if key[1] < current_bucket - 1]
+        for key in stale_buckets:
+            self._buckets.pop(key, None)
+        self._last_pruned_bucket = current_bucket
 
     async def dispatch(self, request: Request, call_next):
         if self.limit_per_minute > 0:
             client_host = request.client.host if request.client else "unknown"
             bucket = int(perf_counter() // 60)
+            self._prune_old_buckets(bucket)
             key = (client_host, bucket)
             self._buckets[key] = self._buckets.get(key, 0) + 1
             if self._buckets[key] > self.limit_per_minute:
