@@ -40,6 +40,12 @@ S3_BUCKET=lexflow-production
 REQUIRE_VERIFIED_DOCUMENT_DOWNLOADS=true
 ```
 
+Aplicar y revisar tambien:
+
+- `infra/cloud/s3-lifecycle-policy.json`
+- `infra/cloud/s3-cors-policy.json`
+- `docs/cloud/S3_STORAGE_POLICY.md`
+
 ## Validacion
 
 1. Guardar secrets reales en Render/Vercel, nunca en el repositorio.

@@ -39,9 +39,14 @@ Avanzar de registro documental demo a contrato de storage productivo S3-compatib
 - `S3_BUCKET`
 - `STORAGE_PUBLIC_BASE_URL=https://<api-publica>/api/v1/storage/mock`
 
+## Politicas S3/R2
+
+- Plantilla lifecycle: `infra/cloud/s3-lifecycle-policy.json`.
+- Plantilla CORS: `infra/cloud/s3-cors-policy.json`.
+- Runbook: `docs/cloud/S3_STORAGE_POLICY.md`.
+
 ## Produccion pendiente
 
 - Antivirus/antimalware para archivos cargados.
-- Versionado y retencion por tenant.
 - Politica de eliminacion segura.
 - Presigned URLs nativas del proveedor para cargas pesadas, si el piloto supera el proxy API.

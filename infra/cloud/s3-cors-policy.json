@@ -1,0 +1,22 @@
+[
+  {
+    "AllowedHeaders": [
+      "Content-Type",
+      "Content-MD5",
+      "x-amz-content-sha256"
+    ],
+    "AllowedMethods": [
+      "GET",
+      "PUT",
+      "HEAD"
+    ],
+    "AllowedOrigins": [
+      "https://app.lexflow.example"
+    ],
+    "ExposeHeaders": [
+      "ETag",
+      "x-amz-version-id"
+    ],
+    "MaxAgeSeconds": 300
+  }
+]

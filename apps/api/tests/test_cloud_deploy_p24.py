@@ -39,6 +39,9 @@ def test_cloud_deploy_pack_files_are_present() -> None:
         "scripts/production-gate.ps1",
         "docs/cloud/P24_CLOUD_DEPLOY_PACK.md",
         "docs/cloud/P25_PUBLIC_PRODUCTION_GAPS.md",
+        "infra/cloud/s3-lifecycle-policy.json",
+        "infra/cloud/s3-cors-policy.json",
+        "docs/cloud/S3_STORAGE_POLICY.md",
     ]
 
     missing = [path for path in required_files if not (ROOT / path).exists()]
@@ -137,3 +140,15 @@ def test_cloud_release_evidence_script_writes_safe_report() -> None:
     assert "blocker_keys" in script
     assert "public_production_ready" in script
     assert "reports/" in gitignore
+
+
+def test_s3_storage_policy_templates_are_safe() -> None:
+    lifecycle = json.loads(read_repo_file("infra/cloud/s3-lifecycle-policy.json"))
+    cors = json.loads(read_repo_file("infra/cloud/s3-cors-policy.json"))
+    docs = read_repo_file("docs/cloud/S3_STORAGE_POLICY.md")
+
+    assert lifecycle["Rules"][0]["Filter"]["Prefix"] == "tenants/"
+    assert lifecycle["Rules"][0]["AbortIncompleteMultipartUpload"]["DaysAfterInitiation"] == 7
+    assert "PUT" in cors[0]["AllowedMethods"]
+    assert "*" not in cors[0]["AllowedOrigins"]
+    assert "No contiene access keys" in docs
