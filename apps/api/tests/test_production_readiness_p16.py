@@ -59,6 +59,7 @@ def test_public_production_readiness_requires_no_warnings() -> None:
         openai_api_key="sk-production-openai-key-value-123456",
         whatsapp_business_token="production-whatsapp-token-value-123456",
         billing_provider_secret="production-billing-secret-value-123456",
+        credential_encryption_key="production-credential-encryption-key-123456",
         malware_scanner_provider="clamav",
         lexflow_web_url="https://app.lexflow.example",
         require_owner_mfa=True,
@@ -77,20 +78,30 @@ def test_production_readiness_warns_when_owner_mfa_is_not_required() -> None:
     assert "owner_mfa_required" in warning_keys
 
 
+def test_production_readiness_warns_without_dedicated_credential_encryption_key() -> None:
+    report = production_readiness_report(production_settings(credential_encryption_key=None))
+    warning_keys = {item["key"] for item in report["warnings"]}
+
+    assert "credential_encryption_key_configured" in warning_keys
+
+
 def test_production_readiness_rejects_placeholder_secrets() -> None:
     settings = production_settings(
         storage_backend="s3",
         s3_access_key="replace-with-production-access-key",
         s3_secret_key="replace-with-strong-production-secret-at-least-32-chars",
         jwt_secret="replace-with-strong-random-secret-at-least-32-chars",
+        credential_encryption_key="replace-with-strong-credential-encryption-key",
     )
     report = production_readiness_report(settings)
     blocker_keys = {item["key"] for item in report["blockers"]}
+    warning_keys = {item["key"] for item in report["warnings"]}
 
     assert report["production_ready"] is False
     assert "jwt_secret_strong" in blocker_keys
     assert "s3_secret_configured" in blocker_keys
     assert "s3_access_key_configured" in blocker_keys
+    assert "credential_encryption_key_configured" in warning_keys
 
 
 def test_production_readiness_requires_https_public_urls() -> None:

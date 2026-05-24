@@ -141,6 +141,12 @@ def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
             message="Billing provider secret is required before paid SaaS subscriptions.",
         ),
         ReadinessCheck(
+            key="credential_encryption_key_configured",
+            ok=_secret_is_strong(settings.credential_encryption_key),
+            severity="warning",
+            message="Public production should use a dedicated strong CREDENTIAL_ENCRYPTION_KEY for encrypted credentials and MFA secrets.",
+        ),
+        ReadinessCheck(
             key="malware_scanner_configured",
             ok=settings.malware_scanner_provider.lower() not in {"", "mock", "prepared"},
             severity="warning",

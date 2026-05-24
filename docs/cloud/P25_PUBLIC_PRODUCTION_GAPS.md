@@ -20,6 +20,7 @@ Mientras no se configuren proveedores reales, readiness mantiene warnings:
 - `openai_configured`: configurar `OPENAI_API_KEY` antes de usar IA real.
 - `whatsapp_configured`: configurar `WHATSAPP_BUSINESS_TOKEN` antes de despacho WhatsApp real.
 - `billing_configured`: configurar `BILLING_PROVIDER_SECRET` antes de suscripciones/pagos reales.
+- `credential_encryption_key_configured`: configurar `CREDENTIAL_ENCRYPTION_KEY` dedicado y fuerte para credenciales cifradas y MFA.
 - `malware_scanner_configured`: configurar `MALWARE_SCANNER_PROVIDER` real antes de cargas publicas.
 
 Si el cloud todavia no muestra `malware_scanner_configured`, significa que Render no esta corriendo el ultimo commit. Ejecutar `npm run cloud:revision` y redeploy latest `master`.
@@ -30,6 +31,7 @@ Si el cloud todavia no muestra `malware_scanner_configured`, significa que Rende
 OPENAI_API_KEY=replace-with-real-openai-key
 WHATSAPP_BUSINESS_TOKEN=replace-with-real-whatsapp-business-token
 BILLING_PROVIDER_SECRET=replace-with-real-billing-provider-secret
+CREDENTIAL_ENCRYPTION_KEY=replace-with-real-dedicated-credential-encryption-key
 ```
 
 Para produccion publica tambien validar:
@@ -75,6 +77,7 @@ npm run cloud:public-ready
 - `external_providers.ai=live`
 - `external_providers.whatsapp=live`
 - `external_providers.billing=live`
+- `credential_encryption_key_configured` sin warning.
 - `ALLOWED_ORIGINS` usa solo origenes HTTPS.
 - `LEXFLOW_WEB_URL` apunta al dominio publico HTTPS.
 - `REQUIRE_OWNER_MFA=true`.

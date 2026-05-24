@@ -29,6 +29,8 @@ CREDENTIAL_ENCRYPTION_KEY=...
 
 If the variable is absent in local/demo mode, the service derives a Fernet-compatible key from `JWT_SECRET`. Production should use a dedicated credential encryption key and rotate it under a controlled migration plan.
 
+Public production readiness reports `credential_encryption_key_configured` as a warning until this value is set to a dedicated non-placeholder secret. This avoids relying on the JWT secret fallback for SINOE credentials, MFA secrets, and encrypted alert recipients.
+
 ## API Response Contract
 
 Allowed response fields:

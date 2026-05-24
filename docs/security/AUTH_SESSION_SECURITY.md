@@ -27,6 +27,7 @@
 - Las entregas de email registran telemetria redactada por tenant en `email_delivery_logs`.
 - `tenant_security_policies` queda persistido por migracion `20260524_0018`.
 - `REQUIRE_OWNER_MFA=true` exige MFA owner antes de permitir login propietario sin segundo factor.
+- `CREDENTIAL_ENCRYPTION_KEY` dedicado queda validado por readiness para proteger secretos MFA y credenciales de integraciones sin depender del `JWT_SECRET`.
 
 ## Auditoria
 

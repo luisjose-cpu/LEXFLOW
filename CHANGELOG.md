@@ -87,6 +87,7 @@
 - Added dry-run-by-default `db:backup-retention` for local PostgreSQL backup retention evidence and opt-in cleanup.
 - Billing mock webhooks now support tenant-scoped idempotency keys and duplicate audit entries.
 - Added `REQUIRE_OWNER_MFA` production readiness warning and owner login enforcement when enabled.
+- Added public production readiness warning for a dedicated credential encryption key.
 - Restore drill script now writes non-secret JSON evidence under `reports/restore/`.
 - Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.
