@@ -7,6 +7,7 @@ from app.core.config import Settings
 
 LOCAL_ORIGIN_MARKERS = ("localhost", "127.0.0.1", "::1")
 WEAK_SECRET_VALUES = {"", "change-me", "change-me-locally", "lexflow", "minioadmin"}
+PLACEHOLDER_SECRET_MARKERS = ("replace-with", "placeholder", "dummy-secret", "example-secret")
 POSTGRES_URL_PREFIXES = ("postgres://", "postgresql://", "postgresql+psycopg://")
 
 
@@ -29,7 +30,23 @@ def _secret_is_strong(value: str | None, *, min_length: int = 32) -> bool:
     if value is None:
         return False
     cleaned = value.strip()
-    return len(cleaned) >= min_length and cleaned not in WEAK_SECRET_VALUES and "change-me" not in cleaned.lower()
+    lowered = cleaned.lower()
+    return (
+        len(cleaned) >= min_length
+        and cleaned not in WEAK_SECRET_VALUES
+        and "change-me" not in lowered
+        and not any(marker in lowered for marker in PLACEHOLDER_SECRET_MARKERS)
+    )
+
+
+def _configured_non_placeholder(value: str | None) -> bool:
+    if value is None:
+        return False
+    cleaned = value.strip()
+    lowered = cleaned.lower()
+    return bool(cleaned) and cleaned not in WEAK_SECRET_VALUES and not any(
+        marker in lowered for marker in PLACEHOLDER_SECRET_MARKERS
+    )
 
 
 def _origins(settings: Settings) -> list[str]:
@@ -71,7 +88,7 @@ def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
         ),
         ReadinessCheck(
             key="s3_access_key_configured",
-            ok=settings.storage_backend == "local" or bool(settings.s3_access_key),
+            ok=settings.storage_backend == "local" or _configured_non_placeholder(settings.s3_access_key),
             severity="blocker",
             message="S3_ACCESS_KEY must be configured when STORAGE_BACKEND is not local.",
         ),

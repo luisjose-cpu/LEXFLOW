@@ -44,6 +44,8 @@ REQUIRE_VERIFIED_DOCUMENT_DOWNLOADS=true
 MALWARE_SCANNER_PROVIDER=clamav
 ```
 
+Los valores `replace-with...`, `placeholder`, `dummy-secret` o equivalentes no cuentan como secretos validos aunque tengan longitud suficiente.
+
 Aplicar y revisar tambien:
 
 - `infra/cloud/s3-lifecycle-policy.json`

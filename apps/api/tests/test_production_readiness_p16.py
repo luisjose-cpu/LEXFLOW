@@ -67,6 +67,22 @@ def test_public_production_readiness_requires_no_warnings() -> None:
     assert report["warnings"] == []
 
 
+def test_production_readiness_rejects_placeholder_secrets() -> None:
+    settings = production_settings(
+        storage_backend="s3",
+        s3_access_key="replace-with-production-access-key",
+        s3_secret_key="replace-with-strong-production-secret-at-least-32-chars",
+        jwt_secret="replace-with-strong-random-secret-at-least-32-chars",
+    )
+    report = production_readiness_report(settings)
+    blocker_keys = {item["key"] for item in report["blockers"]}
+
+    assert report["production_ready"] is False
+    assert "jwt_secret_strong" in blocker_keys
+    assert "s3_secret_configured" in blocker_keys
+    assert "s3_access_key_configured" in blocker_keys
+
+
 def test_production_readiness_reports_email_provider_configuration() -> None:
     unconfigured = production_settings(email_provider="http_json")
     configured = production_settings(
