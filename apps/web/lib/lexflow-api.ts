@@ -44,6 +44,36 @@ type ApiCaseSummary = {
   captcha_pending: number;
 };
 
+type ApiClientProfile = {
+  client: ApiClientSummary;
+  general?: {
+    business_name?: string | null;
+    sector?: string | null;
+    main_matter?: string | null;
+    status?: string | null;
+    priority?: string | null;
+  };
+  metrics?: {
+    active_cases?: number;
+    documents?: number;
+    hearings?: number;
+    judicial_updates?: number;
+    captcha_pending?: number;
+  };
+  risk?: {
+    level?: string;
+    signals?: string[];
+    recommendation?: string;
+  };
+  cases?: ApiCaseSummary[];
+  documents?: Record<string, unknown>[];
+  communications?: Record<string, unknown>[];
+  hearings?: Record<string, unknown>[];
+  judicial_updates?: Record<string, unknown>[];
+  timeline?: Record<string, unknown>[];
+  notes?: { title?: string; body?: string }[];
+};
+
 const resultTypeMap: Record<string, SearchResult["type"]> = {
   client: "cliente",
   case: "expediente",
@@ -98,6 +128,52 @@ export async function loadOperationalClients(): Promise<ClientOps[]> {
 export async function loadOperationalCases(): Promise<CaseOps[]> {
   const body = await apiRequest<ApiCaseSummary[]>("/cases/search?limit=50");
   return body.map(normalizeCase);
+}
+
+export async function loadClientProfile(clientId: string) {
+  const body = await apiRequest<ApiClientProfile>(`/clients/${clientId}/profile`);
+  const client = normalizeClient(body.client);
+  const metrics = body.metrics;
+  const risk = body.risk;
+  return {
+    client: {
+      ...client,
+      businessName: body.general?.business_name ?? client.businessName,
+      sector: body.general?.sector ?? client.sector,
+      mainMatter: body.general?.main_matter ?? client.mainMatter,
+      status: body.general?.status ?? client.status,
+      priority: body.general?.priority ?? client.priority,
+      risk: normalizeRisk(risk?.level ?? client.risk),
+      notes: body.notes?.map((note) => [note.title, note.body].filter(Boolean).join(": ")) ?? client.notes,
+      metrics: metrics
+        ? [
+            { label: "Expedientes", value: String(metrics.active_cases ?? 0), trend: "activos" },
+            { label: "Documentos", value: String(metrics.documents ?? 0), trend: `${metrics.hearings ?? 0} audiencias` },
+            { label: "Riesgo", value: capitalize(normalizeRisk(risk?.level ?? client.risk)), trend: risk?.recommendation ?? "revisar expediente" }
+          ]
+        : client.metrics
+    },
+    cases: (body.cases ?? []).map(normalizeCase),
+    documents: (body.documents ?? []).map((item) => itemLabel(item, ["filename", "classification", "status"])),
+    communications: (body.communications ?? []).map((item) => itemLabel(item, ["channel", "direction", "body", "status"])),
+    hearings: (body.hearings ?? []).map((item) => itemLabel(item, ["title", "starts_at", "location", "status"])),
+    judicialUpdates: (body.judicial_updates ?? []).map((item) => itemLabel(item, ["title", "summary", "status", "checked_at"])),
+    timeline: (body.timeline ?? []).map((item) => itemLabel(item, ["title", "description", "type", "occurred_at"]))
+  };
+}
+
+export async function loadCaseResource(caseId: string, type: "documents" | "hearings" | "communications" | "judicial" | "automation" | "intelligence") {
+  const body = await apiRequest<unknown>(`/cases/${caseId}/${type}`);
+  if (type === "judicial") return normalizeJudicialResource(body);
+  if (type === "automation") return normalizeAutomationResource(body);
+  if (type === "intelligence") return normalizeIntelligenceResource(body);
+  const items = Array.isArray(body) ? body : [];
+  const keys = {
+    documents: ["filename", "classification", "status", "malware_scan_status"],
+    hearings: ["title", "starts_at", "location", "status"],
+    communications: ["channel", "direction", "body", "status"]
+  }[type];
+  return items.map((item) => itemLabel(item as Record<string, unknown>, keys));
 }
 
 function normalizeSearchResult(result: ApiSearchResult): SearchResult {
@@ -177,4 +253,40 @@ function normalizeRisk(value: string) {
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function itemLabel(item: Record<string, unknown>, keys: string[]) {
+  return keys
+    .map((key) => item[key])
+    .filter((value) => value !== undefined && value !== null && String(value).trim())
+    .map(String)
+    .join(" · ");
+}
+
+function normalizeJudicialResource(body: unknown) {
+  if (!body || typeof body !== "object") return [];
+  const payload = body as { sources?: Record<string, unknown>[]; updates?: Record<string, unknown>[]; sinoe_module?: string };
+  return [
+    ...(payload.sources ?? []).map((source) => `Fuente ${itemLabel(source, ["source_type", "external_case_number", "status", "last_result"])}`),
+    ...(payload.updates ?? []).map((update) => itemLabel(update, ["title", "summary", "status", "hash"])),
+    payload.sinoe_module ? `SINOE Module: ${payload.sinoe_module}` : ""
+  ].filter(Boolean);
+}
+
+function normalizeAutomationResource(body: unknown) {
+  if (!body || typeof body !== "object") return [];
+  const payload = body as { workflows?: Record<string, unknown>[]; available_triggers?: string[] };
+  return [
+    ...(payload.workflows ?? []).map((workflow) => itemLabel(workflow, ["name", "trigger_key", "status"])),
+    ...(payload.available_triggers ?? []).map((trigger) => `Trigger disponible: ${trigger}`)
+  ];
+}
+
+function normalizeIntelligenceResource(body: unknown) {
+  if (!body || typeof body !== "object") return [];
+  const payload = body as { linked_news?: Record<string, unknown>[]; trend_notes?: string[] };
+  return [
+    ...(payload.linked_news ?? []).map((news) => itemLabel(news, ["title", "summary"])),
+    ...(payload.trend_notes ?? [])
+  ];
 }

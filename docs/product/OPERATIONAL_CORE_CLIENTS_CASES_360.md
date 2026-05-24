@@ -12,7 +12,7 @@ Create the operational nucleus of LEXFLOW:
 
 The module adds a global search layer, richer client management, case management and advanced case resource views. Judicial updates are not reimplemented here; they consume the existing SINOE Automation Module.
 
-When a browser session has a valid LEXFLOW JWT, the global search layer and the main client/case lists call the cloud API. If the API is unavailable, the UI falls back to deterministic demo data so pilot demos remain usable.
+When a browser session has a valid LEXFLOW JWT, the global search layer, main client/case lists, client detail and case resource panels call the cloud API. If the API is unavailable, the UI falls back to deterministic demo data so pilot demos remain usable.
 
 ## Frontend Surfaces
 
@@ -75,6 +75,6 @@ The judicial case panel uses existing `case_sources`, `judicial_updates` and CAP
 
 ## Current Limitations
 
-- Search and the main client/case lists consume the cloud API when authenticated. Some client and case detail panels still use deterministic demo data until the web app fully maps every backend resource into editable forms.
+- Search, main client/case lists, client detail and case resource panels consume the cloud API when authenticated. Editable forms still use deterministic defaults until mutation flows are connected end to end.
 - Real document upload, OCR and AI execution remain delegated to existing document and AI modules.
 - E2E browser validation should be run after the next cloud deployment against Vercel and Render.

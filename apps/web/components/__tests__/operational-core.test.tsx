@@ -122,6 +122,60 @@ describe("Operational core UI", () => {
     expect(screen.getByText("Expedientes conectados al API cloud.")).toBeTruthy();
   });
 
+  it("loads client detail resources from the cloud API when authenticated", async () => {
+    localStorage.setItem("lexflow.access_token", "token");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        client: {
+          id: "cli-nova",
+          name: "Nova Capital Live",
+          contact_email: "live@nova.demo",
+          status: "active",
+          risk_profile: "high",
+          tags: ["live"],
+          case_count: 1,
+          active_case_count: 1
+        },
+        general: { business_name: "Nova Capital Live", sector: "Financiero", main_matter: "Cobro live", status: "active", priority: "alta" },
+        metrics: { active_cases: 1, documents: 3, hearings: 1, judicial_updates: 2, captcha_pending: 0 },
+        risk: { level: "high", recommendation: "Revisar plazo live" },
+        cases: [],
+        documents: [{ filename: "Contrato live.pdf", classification: "contrato", status: "approved" }],
+        communications: [{ channel: "portal", direction: "inbound", body: "Mensaje live", status: "sent" }],
+        judicial_updates: [{ title: "Movimiento SINOE live", summary: "Resolucion", status: "new", checked_at: "2026-05-24" }],
+        timeline: [{ title: "Evento live", description: "Timeline cloud", type: "case_event", occurred_at: "2026-05-24" }],
+        notes: [{ title: "Nota live", body: "Perfil desde API" }]
+      })
+    } as Response);
+
+    render(<ClientDetail client={findClient("cli-nova")} />);
+
+    await waitFor(() => expect(screen.getByText("Perfil cliente conectados al API cloud.")).toBeTruthy());
+    expect(screen.getByText("Contrato live.pdf · contrato · approved")).toBeTruthy();
+    expect(screen.getByText("Movimiento SINOE live · Resolucion · new · 2026-05-24")).toBeTruthy();
+    expect(screen.getByText("Nota live: Perfil desde API")).toBeTruthy();
+  });
+
+  it("loads case resource items from the cloud API when authenticated", async () => {
+    localStorage.setItem("lexflow.access_token", "token");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        sources: [{ source_type: "SINOE", external_case_number: "0001-2026", status: "active", last_result: "ok" }],
+        updates: [{ title: "Cedula live", summary: "Notificacion electronica", status: "new", hash: "hash-live" }],
+        sinoe_module: "consumed"
+      })
+    } as Response);
+
+    render(<CaseResourcePage legalCase={findCase("case-demo")} type="judicial" />);
+
+    await waitFor(() => expect(screen.getByText("Actualizaciones judiciales sinoe conectados al API cloud.")).toBeTruthy());
+    expect(screen.getByText("Fuente SINOE · 0001-2026 · active · ok")).toBeTruthy();
+    expect(screen.getByText("Cedula live · Notificacion electronica · new · hash-live")).toBeTruthy();
+    expect(screen.getByText("SINOE Module: consumed")).toBeTruthy();
+  });
+
   it("renders client detail with cases, risk, documents, timeline and communications", () => {
     render(<ClientDetail client={findClient("cli-nova")} />);
 

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import React, { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
-import { hasCloudSession, loadOperationalCases, loadOperationalClients, searchOperational } from "@/lib/lexflow-api";
+import { hasCloudSession, loadCaseResource, loadClientProfile, loadOperationalCases, loadOperationalClients, searchOperational } from "@/lib/lexflow-api";
 import {
   CaseOps,
   ClientOps,
@@ -223,24 +223,61 @@ export function ClientCard({ client }: { client: ClientOps }) {
 }
 
 export function ClientDetail({ client }: { client: ClientOps }) {
-  const relatedCases = casesForClient(client.id);
+  const [liveProfile, setLiveProfile] = useState<{
+    client: ClientOps;
+    cases: CaseOps[];
+    documents: string[];
+    communications: string[];
+    judicialUpdates: string[];
+    timeline: string[];
+  } | null>(null);
+  const [source, setSource] = useState<"demo" | "loading" | "live" | "fallback">("loading");
+  const activeClient = liveProfile?.client ?? client;
+  const relatedCases = liveProfile?.cases.length ? liveProfile.cases : casesForClient(client.id);
+
+  useEffect(() => {
+    if (!hasCloudSession()) {
+      setSource("demo");
+      return;
+    }
+
+    let active = true;
+    setSource("loading");
+    void loadClientProfile(client.id)
+      .then((payload) => {
+        if (!active) return;
+        setLiveProfile(payload);
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setLiveProfile(null);
+        setSource("fallback");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [client.id]);
   return (
     <div className="grid gap-5">
       <PageHeader description={`${client.businessName} · ${client.mainMatter} · ${client.email}`} eyebrow="Cliente 360" title={client.name} />
       <SearchGlobalBar compact />
+      <DataSourceNotice source={source} entity="perfil cliente" />
       <section className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="grid gap-5">
-          <ClientMetrics client={client} />
+          <ClientMetrics client={activeClient} />
           <ClientCasesGrid cases={relatedCases} />
-          <ClientTimeline />
-          <ClientDocuments />
-          <ClientCommunications />
+          <ClientTimeline items={liveProfile?.timeline} />
+          <ClientDocuments items={liveProfile?.documents} />
+          <ClientCommunications items={liveProfile?.communications} />
+          <ClientJudicialUpdates items={liveProfile?.judicialUpdates} />
         </div>
         <div className="grid gap-5">
-          <ClientRiskPanel client={client} />
-          <ClientTags tags={client.tags} />
-          <ClientNotes notes={client.notes} />
-          <ClientInfo client={client} />
+          <ClientRiskPanel client={activeClient} />
+          <ClientTags tags={activeClient.tags} />
+          <ClientNotes notes={activeClient.notes} />
+          <ClientInfo client={activeClient} />
         </div>
       </section>
     </div>
@@ -291,7 +328,8 @@ export function ClientOnboardingWizard() {
   );
 }
 
-export function ClientDocuments() {
+export function ClientDocuments({ items }: { items?: string[] }) {
+  if (items?.length) return <ResourcePanel icon={<FileText size={18} />} title="Documentos del cliente" items={items} />;
   return <ResourcePanel icon={<FileText size={18} />} title="Documentos del cliente" items={documentsOps.map((doc) => `${doc.name} · ${doc.status} · ${doc.ai}`)} />;
 }
 
@@ -306,7 +344,8 @@ export function ClientCasesGrid({ cases }: { cases: CaseOps[] }) {
   );
 }
 
-export function ClientTimeline() {
+export function ClientTimeline({ items }: { items?: string[] }) {
+  if (items?.length) return <ResourcePanel icon={<History size={18} />} title="Timeline cliente" items={items} />;
   return <ResourcePanel icon={<History size={18} />} title="Timeline cliente" items={timelineOps.map((item) => `${item.title} · ${item.description}`)} />;
 }
 
@@ -333,8 +372,13 @@ export function ClientNotes({ notes }: { notes: string[] }) {
   return <ResourcePanel icon={<History size={18} />} title="Notas" items={notes} />;
 }
 
-export function ClientCommunications() {
+export function ClientCommunications({ items }: { items?: string[] }) {
+  if (items?.length) return <ResourcePanel icon={<MessageCircle size={18} />} title="Comunicaciones" items={items} />;
   return <ResourcePanel icon={<MessageCircle size={18} />} title="Comunicaciones" items={communicationOps.map((item) => `${item.channel} · ${item.direction}: ${item.body}`)} />;
+}
+
+export function ClientJudicialUpdates({ items }: { items?: string[] }) {
+  return <ResourcePanel icon={<ShieldCheck size={18} />} title="Actualizaciones judiciales" items={items?.length ? items : ["SINOE sin novedades demo", "CAPTCHA pendiente se gestiona en Expediente 360"]} />;
 }
 
 export function ClientMetrics({ client }: { client: ClientOps }) {
@@ -477,6 +521,8 @@ export function CaseEditForm({ legalCase }: { legalCase?: CaseOps }) {
 }
 
 export function CaseResourcePage({ legalCase, type }: { legalCase: CaseOps; type: "documents" | "hearings" | "communications" | "judicial" | "automation" | "intelligence" }) {
+  const [liveItems, setLiveItems] = useState<string[] | null>(null);
+  const [source, setSource] = useState<"demo" | "loading" | "live" | "fallback">("loading");
   const map = {
     documents: { title: "Documentos", icon: <FileText size={18} />, items: documentsOps.map((item) => `${item.name} · ${item.type} · ${item.status} · ${item.ai}`) },
     hearings: { title: "Audiencias", icon: <CalendarClock size={18} />, items: hearingsOps.map((item) => `${item.title} · ${item.date} · ${item.type} · ${item.responsible}`) },
@@ -485,11 +531,38 @@ export function CaseResourcePage({ legalCase, type }: { legalCase: CaseOps; type
     automation: { title: "Automatizaciones", icon: <Workflow size={18} />, items: ["HEARING_UPCOMING -> recordatorio", "DOCUMENT_UPLOADED -> IA resumen mock", "CAPTCHA_REQUIRED -> alerta interna"] },
     intelligence: { title: "Inteligencia juridica", icon: <Brain size={18} />, items: ["Noticias vinculadas", "Tendencias procesales", "Graph legal futuro", "Decision snapshot"] }
   }[type];
+  const items = liveItems?.length ? liveItems : map.items;
+
+  useEffect(() => {
+    if (!hasCloudSession()) {
+      setSource("demo");
+      return;
+    }
+
+    let active = true;
+    setSource("loading");
+    void loadCaseResource(legalCase.id, type)
+      .then((payload) => {
+        if (!active) return;
+        setLiveItems(payload.length ? payload : null);
+        setSource(payload.length ? "live" : "fallback");
+      })
+      .catch(() => {
+        if (!active) return;
+        setLiveItems(null);
+        setSource("fallback");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [legalCase.id, type]);
   return (
     <div className="grid gap-5">
       <PageHeader description={`${legalCase.title} · ${legalCase.clientName}`} eyebrow="Expediente 360" title={map.title} />
       <SearchGlobalBar compact />
-      <ResourcePanel icon={map.icon} title={map.title} items={map.items} />
+      <DataSourceNotice source={source} entity={map.title.toLowerCase()} />
+      <ResourcePanel icon={map.icon} title={map.title} items={items} />
     </div>
   );
 }
