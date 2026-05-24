@@ -18,12 +18,18 @@ class EmailProvider:
     def send_password_reset(self, *, to_email: str, reset_url: str | None = None) -> EmailDeliveryResult:
         raise NotImplementedError
 
+    def send_security_alert(self, *, to_email: str, title: str, body: str, severity: str, event_type: str) -> EmailDeliveryResult:
+        raise NotImplementedError
+
 
 class EmailPreparedProvider(EmailProvider):
     def send_user_invitation(self, *, to_email: str, full_name: str, invitation_url: str | None = None) -> EmailDeliveryResult:
         return EmailDeliveryResult(provider="email_prepared", status="prepared")
 
     def send_password_reset(self, *, to_email: str, reset_url: str | None = None) -> EmailDeliveryResult:
+        return EmailDeliveryResult(provider="email_prepared", status="prepared")
+
+    def send_security_alert(self, *, to_email: str, title: str, body: str, severity: str, event_type: str) -> EmailDeliveryResult:
         return EmailDeliveryResult(provider="email_prepared", status="prepared")
 
 
@@ -45,6 +51,14 @@ class EmailHttpJsonProvider(EmailProvider):
             to_email=to_email,
             subject="Recuperacion de acceso LEXFLOW",
             payload={"reset_url": reset_url},
+        )
+
+    def send_security_alert(self, *, to_email: str, title: str, body: str, severity: str, event_type: str) -> EmailDeliveryResult:
+        return self._send(
+            template="security_alert",
+            to_email=to_email,
+            subject=f"LEXFLOW alerta de seguridad: {title}",
+            payload={"title": title, "body": body, "severity": severity, "event_type": event_type},
         )
 
     def _send(self, *, template: str, to_email: str, subject: str, payload: dict[str, object]) -> EmailDeliveryResult:

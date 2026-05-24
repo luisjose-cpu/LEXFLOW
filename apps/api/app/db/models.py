@@ -471,6 +471,35 @@ class SecurityAlert(Base, TimestampMixin):
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class SecurityAlertDelivery(Base, TimestampMixin):
+    __tablename__ = "security_alert_deliveries"
+    __table_args__ = (
+        Index("ix_security_alert_deliveries_alert_id", "alert_id"),
+        Index("ix_security_alert_deliveries_scope", "scope"),
+        Index("ix_security_alert_deliveries_status", "status"),
+        Index("ix_security_alert_deliveries_next_attempt_at", "next_attempt_at"),
+        Index("ix_security_alert_deliveries_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    alert_id: Mapped[str] = mapped_column(String(36), ForeignKey("security_alerts.id"), nullable=False)
+    scope: Mapped[str] = mapped_column(String(40), nullable=False)
+    tenant_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=True)
+    owner_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("owner_users.id"), nullable=True)
+    channel: Mapped[str] = mapped_column(String(40), default="email", nullable=False)
+    template: Mapped[str] = mapped_column(String(80), default="security_alert", nullable=False)
+    recipient_email_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    recipient_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    recipient_hint: Mapped[str] = mapped_column(String(120), nullable=False)
+    provider: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    status: Mapped[str] = mapped_column(String(40), default="pending", nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    max_attempts: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     __table_args__ = (

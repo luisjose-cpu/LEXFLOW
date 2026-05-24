@@ -1,5 +1,21 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Security Alert Email Deliveries
+
+### Added
+
+- `security_alert_deliveries` persistence with Alembic migration `20260524_0022`.
+- Tenant delivery telemetry endpoints under `/api/v1/settings/security-alert-deliveries`.
+- Owner delivery telemetry endpoints under `/api/v1/owner/security-alert-deliveries`.
+- Automatic prepared/email-provider delivery for `high` and `critical` security alerts.
+- Retry-ready delivery processing with attempt counters, due dates and failure state.
+
+### Security
+
+- Alert delivery recipients are encrypted at rest and exposed only as redacted hints.
+- Delivery payloads never include passwords, MFA secrets, recovery codes, tokens or tenant secrets.
+- Tenant deliveries target active `tenant_admin` and `partner` users; owner deliveries stay inside Owner Console scope.
+
 ## 2026-05-24 - Security Alerts
 
 ### Added

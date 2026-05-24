@@ -8,11 +8,15 @@ Endpoints tenant:
 
 - `GET /api/v1/settings/security-alerts`
 - `POST /api/v1/settings/security-alerts/{id}/acknowledge`
+- `GET /api/v1/settings/security-alert-deliveries`
+- `POST /api/v1/settings/security-alert-deliveries/process`
 
 Endpoints owner:
 
 - `GET /api/v1/owner/security-alerts`
 - `POST /api/v1/owner/security-alerts/{id}/acknowledge`
+- `GET /api/v1/owner/security-alert-deliveries`
+- `POST /api/v1/owner/security-alert-deliveries/process`
 
 ## Eventos cubiertos
 
@@ -36,12 +40,17 @@ Owner:
 ## Seguridad
 
 - Las alertas no almacenan passwords, tokens, secretos MFA ni recovery codes.
+- Las entregas email guardan destinatario cifrado y solo exponen hash/hint.
+- Solo alertas `high` y `critical` generan entrega email automatica.
+- El provider usa el boundary transaccional existente `EMAIL_PROVIDER=prepared|http_json`.
+- Los reintentos quedan limitados por `max_attempts` y `next_attempt_at`.
 - El acceso tenant queda limitado por RBAC y tenant isolation.
 - El acceso owner exige permisos owner y bearer token cuando se marca una alerta.
 - Reconocer una alerta registra `status=acknowledged`, usuario/owner responsable y timestamp.
 
 ## Pendiente productivo
 
-- Envio por email/push para eventos `high` y `critical`.
+- Worker Celery dedicado para procesar reintentos sin endpoint manual.
+- Push para eventos `critical`.
 - Politicas de retencion y export para auditoria externa.
 - Agrupacion/dedupe para evitar ruido por login owner frecuente.

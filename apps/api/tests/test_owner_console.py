@@ -130,6 +130,7 @@ def test_owner_mfa_enrollment_requires_totp_and_can_be_disabled(api: TestClient,
     recovery_login = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!", "mfa_code": recovery_code})
     reused_recovery_login = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!", "mfa_code": recovery_code})
     regenerated = api.post("/api/v1/owner/auth/mfa/recovery-codes", headers=rotated_headers, json={"current_password": "OwnerPassword123!", "code": code})
+    deliveries = api.get("/api/v1/owner/security-alert-deliveries", headers=rotated_headers)
     disabled = api.post("/api/v1/owner/auth/mfa/disable", headers=rotated_headers, json={"current_password": "OwnerPassword123!", "code": code})
     login_after_disable = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!"})
     audits = db_session.scalars(select(OwnerAuditLog).where(OwnerAuditLog.entity_type == "owner_mfa")).all()
@@ -147,6 +148,8 @@ def test_owner_mfa_enrollment_requires_totp_and_can_be_disabled(api: TestClient,
     assert reused_recovery_login.status_code == 401
     assert regenerated.status_code == 200
     assert len(regenerated.json()["recovery_codes"]) == 10
+    assert deliveries.status_code == 200
+    assert any(item["template"] == "security_alert" and item["status"] == "prepared" for item in deliveries.json())
     assert disabled.status_code == 200
     assert disabled.json()["owner"]["mfa_enabled"] is False
     assert login_after_disable.status_code == 200

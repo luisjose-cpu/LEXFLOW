@@ -614,6 +614,27 @@ def acknowledge_tenant_security_alert(
     return security_alert_service.acknowledge_tenant(db, tenant_id=tenant_id, alert_id=alert_id, actor=actor)
 
 
+@router.get("/settings/security-alert-deliveries")
+def list_tenant_security_alert_deliveries(
+    _: Annotated[User, Depends(require_permission("users:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = Query(default=25, ge=1, le=100),
+) -> list[dict[str, object]]:
+    return security_alert_service.list_deliveries(db, scope="tenant", tenant_id=tenant_id, limit=limit)
+
+
+@router.post("/settings/security-alert-deliveries/process")
+def process_tenant_security_alert_deliveries(
+    _: Annotated[User, Depends(require_permission("users:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    result = security_alert_service.process_pending_deliveries(db, scope="tenant", tenant_id=tenant_id, limit=25)
+    db.commit()
+    return result
+
+
 @router.patch("/settings/security-policy")
 def update_tenant_security_policy(
     payload: TenantSecurityPolicyUpdate,
@@ -892,6 +913,25 @@ def owner_acknowledge_security_alert(
 ) -> dict[str, object]:
     db_owner = get_owner_db_user(db, owner)
     return security_alert_service.acknowledge_owner(db, alert_id=alert_id, owner=db_owner)
+
+
+@router.get("/owner/security-alert-deliveries")
+def owner_security_alert_deliveries(
+    _: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))],
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = Query(default=25, ge=1, le=100),
+) -> list[dict[str, object]]:
+    return security_alert_service.list_deliveries(db, scope="owner", limit=limit)
+
+
+@router.post("/owner/security-alert-deliveries/process")
+def owner_process_security_alert_deliveries(
+    _: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    result = security_alert_service.process_pending_deliveries(db, scope="owner", limit=25)
+    db.commit()
+    return result
 
 
 @router.get("/storage/status")
