@@ -328,3 +328,46 @@ def test_user_invitation_resend_rotates_token_and_cancel_blocks_acceptance() -> 
     assert cancelled.json()["status"] == "cancelled"
     assert new_accept.status_code == 401
     assert listed.json()[0]["status"] == "cancelled"
+
+
+def test_tenant_security_policy_enforces_mfa_for_configured_roles() -> None:
+    seed_demo_data()
+    admin_headers = login()
+    updated = client.patch(
+        "/api/v1/settings/security-policy",
+        headers=admin_headers,
+        json={"enforce_mfa": True, "mfa_required_roles": ["lawyer"], "grace_period_hours": 24},
+    )
+    status_response = client.get("/api/v1/auth/mfa/status", headers=admin_headers)
+    lawyer_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.lawyer_email, "password": DEMO_SEED.password, "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+    admin_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": DEMO_SEED.password, "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+    audit = client.get("/api/v1/audit?entity_type=tenant_security_policy&action=update", headers=admin_headers)
+
+    assert updated.status_code == 200
+    assert updated.json()["enforce_mfa"] is True
+    assert updated.json()["mfa_required_roles"] == ["lawyer"]
+    assert status_response.json()["policy_required"] is False
+    assert lawyer_login.status_code == 403
+    assert lawyer_login.json()["detail"] == "MFA enrollment required"
+    assert admin_login.status_code == 200
+    assert any(entry["entity_type"] == "tenant_security_policy" for entry in audit.json())
+
+
+def test_tenant_security_policy_blocks_self_lockout_without_mfa() -> None:
+    seed_demo_data()
+    admin_headers = login()
+
+    blocked = client.patch(
+        "/api/v1/settings/security-policy",
+        headers=admin_headers,
+        json={"enforce_mfa": True, "mfa_required_roles": ["tenant_admin"]},
+    )
+
+    assert blocked.status_code == 400
+    assert blocked.json()["detail"] == "Enable MFA before enforcing it for your own role"

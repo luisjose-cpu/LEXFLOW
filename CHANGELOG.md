@@ -1,5 +1,21 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Tenant MFA Security Policy
+
+### Added
+
+- `tenant_security_policies` persistence with Alembic migration `20260524_0018`.
+- `/api/v1/settings/security-policy` read/update endpoints with tenant RBAC.
+- Login enforcement for roles covered by tenant MFA policy.
+- Settings policy panel for role-based MFA enforcement.
+- Backend and frontend tests for policy update, self-lockout guard and UI save flow.
+
+### Security
+
+- Policy changes generate `tenant_security_policy` audit logs.
+- A user cannot enforce MFA for their own role unless their account already has MFA enabled.
+- Policy responses do not expose secrets, MFA codes, passwords or token material.
+
 ## 2026-05-24 - Transactional Email Provider Boundary
 
 ### Added

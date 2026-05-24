@@ -1081,6 +1081,24 @@ class TenantLimit(Base, TimestampMixin):
     metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
 
 
+class TenantSecurityPolicy(Base, TimestampMixin):
+    __tablename__ = "tenant_security_policies"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", name="uq_tenant_security_policies_tenant_id"),
+        Index("ix_tenant_security_policies_tenant_id", "tenant_id"),
+        Index("ix_tenant_security_policies_enforce_mfa", "enforce_mfa"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    enforce_mfa: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    mfa_required_roles: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    grace_period_hours: Mapped[int] = mapped_column(Integer, default=72, nullable=False)
+    allow_client_user_mfa_bypass: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    updated_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+
+
 class TenantUsageDaily(Base, TimestampMixin):
     __tablename__ = "tenant_usage_daily"
     __table_args__ = (

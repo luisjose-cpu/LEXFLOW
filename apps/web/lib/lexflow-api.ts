@@ -100,7 +100,7 @@ export async function changePassword(payload: { current_password: string; new_pa
 }
 
 export async function loadMfaStatus() {
-  return apiRequest<{ mfa_enabled: boolean; enrollment_pending: boolean }>("/auth/mfa/status");
+  return apiRequest<{ mfa_enabled: boolean; enrollment_pending: boolean; policy_required?: boolean }>("/auth/mfa/status");
 }
 
 export async function startMfaEnrollment() {
@@ -120,6 +120,25 @@ export async function verifyMfaEnrollment(payload: { code: string }) {
 export async function disableMfa(payload: { current_password: string; code?: string }) {
   return apiRequest<{ access_token: string; refresh_token: string; token_type: string }>("/auth/mfa/disable", {
     method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export type TenantSecurityPolicy = {
+  tenant_id: string;
+  enforce_mfa: boolean;
+  mfa_required_roles: string[];
+  grace_period_hours: number;
+  allow_client_user_mfa_bypass: boolean;
+};
+
+export async function loadTenantSecurityPolicy() {
+  return apiRequest<TenantSecurityPolicy>("/settings/security-policy");
+}
+
+export async function updateTenantSecurityPolicy(payload: Partial<Omit<TenantSecurityPolicy, "tenant_id">>) {
+  return apiRequest<TenantSecurityPolicy>("/settings/security-policy", {
+    method: "PATCH",
     body: JSON.stringify(payload)
   });
 }

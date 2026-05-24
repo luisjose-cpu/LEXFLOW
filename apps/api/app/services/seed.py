@@ -5,6 +5,7 @@ from app.services.audit import audit_service
 from app.services.cases import case_service
 from app.services.clients import client_service
 from app.services.tenants import tenant_service
+from app.services.tenant_security_policy import tenant_security_policy_service
 from app.services.user_invitations import user_invitation_service
 from app.services.users import user_service
 
@@ -33,6 +34,7 @@ def seed_demo_data() -> SeedResult:
     client_service.clear()
     user_service.clear()
     tenant_service.clear()
+    tenant_security_policy_service.clear()
     user_invitation_service.clear()
 
     tenant = tenant_service.create(name="LEXFLOW Demo Studio", slug=DEMO_SEED.tenant_slug)

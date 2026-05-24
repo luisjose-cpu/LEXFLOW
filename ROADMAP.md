@@ -40,6 +40,7 @@ Expected themes:
 - Users, clients, cases, roles, and audit endpoints
 - Request middleware and service layer
 - Backend tests and seed data
+- Tenant MFA security policy for role-based enforcement in Settings
 
 ## P3 - Base De Datos Completa + Fuentes Judiciales
 

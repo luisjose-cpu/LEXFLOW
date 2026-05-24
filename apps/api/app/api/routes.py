@@ -58,6 +58,7 @@ from app.services.roles import role_service
 from app.services.seed import DEMO_SEED
 from app.services.sinoe_integration import sinoe_automation_service
 from app.services.storage import storage_service
+from app.services.tenant_security_policy import tenant_security_policy_service
 from app.services.user_invitations import user_invitation_service
 from app.services.users import user_service
 
@@ -103,6 +104,13 @@ class MfaCodeRequest(BaseModel):
 class MfaDisableRequest(BaseModel):
     current_password: str = Field(min_length=1, max_length=500)
     code: str | None = Field(default=None, min_length=6, max_length=12)
+
+
+class TenantSecurityPolicyUpdate(BaseModel):
+    enforce_mfa: bool | None = None
+    mfa_required_roles: list[RoleName] | None = None
+    grace_period_hours: int | None = Field(default=None, ge=0, le=720)
+    allow_client_user_mfa_bypass: bool | None = None
 
 
 class UserOut(BaseModel):
@@ -559,6 +567,32 @@ def list_email_deliveries(
     limit: int = Query(default=25, ge=1, le=100),
 ) -> list[dict[str, object]]:
     return email_delivery_log_service.list_for_tenant(db, tenant_id=tenant_id, limit=limit)
+
+
+@router.get("/settings/security-policy")
+def get_tenant_security_policy(
+    _: Annotated[User, Depends(require_permission("users:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return tenant_security_policy_service.get(db, tenant_id=tenant_id)
+
+
+@router.patch("/settings/security-policy")
+def update_tenant_security_policy(
+    payload: TenantSecurityPolicyUpdate,
+    actor: Annotated[User, Depends(require_permission("users:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return tenant_security_policy_service.update(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        payload=payload.model_dump(exclude_none=True),
+        request_id=getattr(request.state, "request_id", None),
+    )
 
 
 @router.post("/owner/auth/login", response_model=OwnerLoginResponse)

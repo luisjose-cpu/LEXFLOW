@@ -17,6 +17,7 @@ export function AccountSecurity() {
   const [mfaSecret, setMfaSecret] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [mfaPassword, setMfaPassword] = useState("");
+  const [mfaPolicyRequired, setMfaPolicyRequired] = useState(false);
   const [mfaState, setMfaState] = useState<"idle" | "saving" | "error" | "success">("idle");
   const [mfaMessage, setMfaMessage] = useState("");
 
@@ -26,6 +27,7 @@ export function AccountSecurity() {
       .then((status) => {
         setMfaEnabled(status.mfa_enabled);
         setMfaPending(status.enrollment_pending);
+        setMfaPolicyRequired(Boolean(status.policy_required));
       })
       .catch(() => undefined);
   }, []);
@@ -171,6 +173,11 @@ export function AccountSecurity() {
         <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-ink">
           Estado: {mfaEnabled ? "Activo" : mfaPending ? "Pendiente de verificacion" : "Inactivo"}
         </p>
+        {mfaPolicyRequired ? (
+          <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+            Politica del tenant: tu rol requiere MFA antes de iniciar sesion nuevamente.
+          </p>
+        ) : null}
         {!mfaEnabled ? (
           <div className="mt-4 grid gap-3">
             <button className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={mfaState === "saving"} onClick={beginMfa} type="button">

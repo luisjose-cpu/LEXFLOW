@@ -20,6 +20,7 @@ from app.services.mfa import build_otpauth_url, generate_totp_secret, verify_tot
 from app.services.security import create_token, decode_token, hash_password, verify_password
 from app.services.sinoe_integration import CredentialCipher
 from app.services.tenants import tenant_service
+from app.services.tenant_security_policy import tenant_security_policy_service
 from app.services.users import user_service
 
 
@@ -47,6 +48,8 @@ class AuthService:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
         if user.mfa_enabled:
             self._verify_user_mfa(user, mfa_code)
+        elif self._tenant_policy_requires_mfa(user):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="MFA enrollment required")
 
         tokens = self._issue_session(user)
         audit_service.record(
@@ -111,7 +114,11 @@ class AuthService:
         return {**tokens, "user": updated}
 
     def mfa_status(self, *, user: User) -> dict[str, object]:
-        return {"mfa_enabled": user.mfa_enabled, "enrollment_pending": bool(user.mfa_secret_encrypted and not user.mfa_enabled)}
+        return {
+            "mfa_enabled": user.mfa_enabled,
+            "enrollment_pending": bool(user.mfa_secret_encrypted and not user.mfa_enabled),
+            "policy_required": self._tenant_policy_requires_mfa(user),
+        }
 
     def start_mfa_enrollment(self, *, user: User, request_id: str | None = None) -> dict[str, object]:
         secret = generate_totp_secret()
@@ -205,6 +212,10 @@ class AuthService:
             version=user.refresh_token_version,
         )
         return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+    def _tenant_policy_requires_mfa(self, user: User) -> bool:
+        with SessionLocal() as db:
+            return tenant_security_policy_service.is_mfa_required(db, user=user)
 
     def request_password_reset(self, db: Session, *, email: str, tenant_slug: str, request_id: str | None = None, requested_ip: str | None = None) -> dict[str, object]:
         settings = get_settings()
