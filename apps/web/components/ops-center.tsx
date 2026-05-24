@@ -2,8 +2,9 @@
 
 import { Badge, Button, Card, MetricCard } from "@lexflow/ui";
 import { CheckCircle2, ClipboardList, FileSpreadsheet, Rocket, ShieldCheck, Terminal, UploadCloud, XCircle } from "lucide-react";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { csvTemplates, gateCommands, importFlow, pilotChecklist, pilotMetrics, productionGate } from "@/lib/ops-demo";
+import { hasCloudSession, loadProductionGate, ProductionGateReport } from "@/lib/lexflow-api";
 
 type OpsView = "import" | "pilot" | "gate";
 
@@ -104,12 +105,58 @@ function PilotOpsCenter() {
 }
 
 function ProductionGate() {
+  const [report, setReport] = useState<ProductionGateReport | null>(null);
+  const [source, setSource] = useState<"demo" | "loading" | "live" | "fallback">("demo");
+
+  useEffect(() => {
+    if (!hasCloudSession()) {
+      setSource("demo");
+      return;
+    }
+    let active = true;
+    setSource("loading");
+    void loadProductionGate()
+      .then((payload) => {
+        if (!active) return;
+        setReport(payload);
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const liveChecks = report?.readiness?.checks?.length
+    ? report.readiness.checks.map((item) => ({
+        key: item.key,
+        status: item.ok ? "pass" : item.severity,
+        detail: item.message
+      }))
+    : productionGate;
+  const commands = report?.commands?.length ? report.commands : gateCommands;
+  const blockers = report?.summary?.blockers ?? 0;
+  const warnings = report?.summary?.warnings ?? 0;
+
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_1fr]">
       <Card>
-        <PanelTitle icon={<ShieldCheck size={18} />} title="Gate productivo" />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <PanelTitle icon={<ShieldCheck size={18} />} title="Gate productivo" />
+          <Badge>{source}</Badge>
+        </div>
+        {report ? (
+          <div className="mt-4 grid gap-3 rounded-lg border border-slate-200 bg-mist p-4 sm:grid-cols-3">
+            <Metric label="Estado" value={report.status} />
+            <Metric label="Blockers" value={String(blockers)} />
+            <Metric label="Warnings" value={String(warnings)} />
+          </div>
+        ) : null}
         <div className="mt-4 grid gap-3">
-          {productionGate.map((item) => (
+          {liveChecks.map((item) => (
             <div className="rounded-lg border border-slate-200 bg-mist p-4" key={item.key}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-ink">{item.key}</p>
@@ -123,14 +170,33 @@ function ProductionGate() {
       <Card>
         <PanelTitle icon={<Terminal size={18} />} title="Comandos obligatorios" />
         <div className="mt-4 grid gap-3">
-          {gateCommands.map((command) => (
+          {commands.map((command) => (
             <code className="rounded-lg border border-slate-200 bg-legal-900 p-3 text-sm font-semibold text-white" key={command}>
               {command}
             </code>
           ))}
         </div>
+        {report?.required_before_public_production?.length ? (
+          <div className="mt-5 rounded-lg border border-slate-200 bg-mist p-4">
+            <p className="text-sm font-semibold text-ink">Pendiente para produccion publica</p>
+            <div className="mt-3 grid gap-2">
+              {report.required_before_public_production.map((item) => (
+                <p className="text-sm text-slate-600" key={item}>{item}</p>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </Card>
     </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-normal text-slate-500">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-ink">{value}</p>
+    </div>
   );
 }
 

@@ -1,10 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import React from "react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpsCenter } from "@/components/ops-center";
 import { csvTemplates, gateCommands, pilotChecklist } from "@/lib/ops-demo";
 
 describe("Ops center UI", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
   it("renders import templates and ordered flow", () => {
     render(<OpsCenter view="import" />);
 
@@ -30,5 +35,31 @@ describe("Ops center UI", () => {
     expect(gateCommands).toContain("npm run test:api");
     expect(screen.getByText("npm run build")).toBeTruthy();
     expect(screen.getByText("Pentest")).toBeTruthy();
+  });
+
+  it("loads production gate readiness from cloud session", async () => {
+    localStorage.setItem("lexflow.access_token", "tenant-token");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: "blocked",
+        summary: { blockers: 1, warnings: 2 },
+        readiness: {
+          checks: [
+            { key: "database_postgresql", ok: true, severity: "blocker", message: "Production must use PostgreSQL." },
+            { key: "cors_no_localhost", ok: false, severity: "blocker", message: "Production origins must not point to localhost." }
+          ]
+        },
+        commands: ["npm run cloud:smoke"],
+        required_before_public_production: ["External pentest and monitoring"]
+      })
+    } as Response);
+
+    render(<OpsCenter view="gate" />);
+
+    expect(await screen.findByText("database_postgresql")).toBeTruthy();
+    expect(screen.getByText("cors_no_localhost")).toBeTruthy();
+    expect(screen.getByText("npm run cloud:smoke")).toBeTruthy();
+    expect(screen.getByText("External pentest and monitoring")).toBeTruthy();
   });
 });

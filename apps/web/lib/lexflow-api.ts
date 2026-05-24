@@ -184,6 +184,28 @@ export async function processSecurityAlertDeliveries() {
   });
 }
 
+export type ProductionGateReport = {
+  status: string;
+  summary?: {
+    blockers?: number;
+    warnings?: number;
+  };
+  readiness?: {
+    app_env?: string;
+    production_ready?: boolean;
+    status?: string;
+    blockers?: { key: string; message: string; severity: string; ok: boolean }[];
+    warnings?: { key: string; message: string; severity: string; ok: boolean }[];
+    checks?: { key: string; message: string; severity: string; ok: boolean }[];
+  };
+  commands?: string[];
+  required_before_public_production?: string[];
+};
+
+export async function loadProductionGate() {
+  return apiRequest<ProductionGateReport>("/ops/production-gate");
+}
+
 export async function requestPasswordReset(payload: { email: string; tenant_slug: string }) {
   return publicApiRequest<{ status: string; delivery: string; reset_token?: string }>("/auth/password-reset/request", {
     method: "POST",
