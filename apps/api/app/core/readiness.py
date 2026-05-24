@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from app.core.config import Settings
 
@@ -51,6 +52,19 @@ def _configured_non_placeholder(value: str | None) -> bool:
 
 def _origins(settings: Settings) -> list[str]:
     return [origin.strip() for origin in settings.allowed_origins.split(",") if origin.strip()]
+
+
+def _recent_iso_datetime(value: str | None, *, max_age_hours: int) -> bool:
+    if not value:
+        return False
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    delta = datetime.now(timezone.utc) - parsed.astimezone(timezone.utc)
+    return delta.total_seconds() >= -300 and delta.total_seconds() <= max_age_hours * 3600
 
 
 def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
@@ -151,6 +165,12 @@ def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
             ok=settings.require_billing_webhook_signature,
             severity="warning",
             message="Public production should set REQUIRE_BILLING_WEBHOOK_SIGNATURE=true before processing billing webhooks.",
+        ),
+        ReadinessCheck(
+            key="restore_drill_recent",
+            ok=_recent_iso_datetime(settings.restore_drill_verified_at, max_age_hours=settings.restore_drill_max_age_hours),
+            severity="warning",
+            message="Public production should record a recent isolated restore drill in RESTORE_DRILL_VERIFIED_AT after running db:restore-evidence.",
         ),
         ReadinessCheck(
             key="credential_encryption_key_configured",

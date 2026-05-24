@@ -65,6 +65,15 @@ npm run db:restore-evidence
 
 By default, this gate requires recent evidence with `status=restore_completed` and `executed_restore=true`. It also verifies that the restore evidence declares `database_urls_included=false`, `credentials_included=false` and `tenant_data_included=false`.
 
+After the gate passes for an isolated restore drill, update the API environment with the UTC completion timestamp:
+
+```env
+RESTORE_DRILL_VERIFIED_AT=2026-05-24T00:00:00Z
+RESTORE_DRILL_MAX_AGE_HOURS=720
+```
+
+`/readiness` uses those values to keep public production blocked by warning until the restore drill evidence is recent.
+
 For a controlled pilot where only backup catalog inspection is being reviewed, the gate can be run explicitly in inspection mode:
 
 ```powershell

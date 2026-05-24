@@ -60,6 +60,10 @@ services:
         value: "2"
       - key: REQUIRE_BILLING_WEBHOOK_SIGNATURE
         value: "false"
+      - key: RESTORE_DRILL_VERIFIED_AT
+        sync: false
+      - key: RESTORE_DRILL_MAX_AGE_HOURS
+        value: "720"
       - key: STORAGE_SIGNED_URL_MINUTES
         value: "10"
       - key: MAX_UPLOAD_BYTES

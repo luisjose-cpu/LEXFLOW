@@ -99,6 +99,7 @@
 - Invalid billing webhook signatures now create redacted audit entries.
 - Restore drill script now writes non-secret JSON evidence under `reports/restore/`.
 - Added `db:restore-evidence` to gate public production on recent non-secret restore drill evidence.
+- Production readiness now warns until `RESTORE_DRILL_VERIFIED_AT` records a recent validated restore drill.
 - Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.
 - Readiness and provider mode telemetry now track `MALWARE_SCANNER_PROVIDER`.

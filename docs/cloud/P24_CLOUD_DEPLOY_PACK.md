@@ -45,7 +45,8 @@ Ruta recomendada para staging:
    - `STORAGE_PUBLIC_BASE_URL`
    - dominios
 6. Confirmar que `REQUIRE_PRODUCTION_READY=true`, `LEXFLOW_WEB_URL` apunta a la web publica y `REQUIRE_OWNER_MFA` queda listo para activarse despues de enrolar MFA owner.
-7. Confirmar que `SEED_DEMO_ON_STARTUP=false`.
+7. Despues de ejecutar restore drill real y `db:restore-evidence`, configurar `RESTORE_DRILL_VERIFIED_AT` con timestamp UTC.
+8. Confirmar que `SEED_DEMO_ON_STARTUP=false`.
 
 ## Vercel
 

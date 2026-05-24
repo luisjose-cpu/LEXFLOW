@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, timezone, timedelta
 
 from app.core.config import Settings
 from app.core.readiness import assert_startup_readiness, production_readiness_report
@@ -17,6 +18,7 @@ def production_settings(**overrides: object) -> Settings:
         "s3_secret_key": "a-strong-production-s3-secret-value-123456",
         "failed_login_backend": "redis",
         "rate_limit_per_minute": 120,
+        "restore_drill_verified_at": datetime.now(timezone.utc).isoformat(),
     }
     base.update(overrides)
     return Settings(**base)
@@ -71,6 +73,21 @@ def test_public_production_readiness_requires_no_warnings() -> None:
     assert report["production_ready"] is True
     assert report["public_production_ready"] is True
     assert report["warnings"] == []
+
+
+def test_production_readiness_warns_without_recent_restore_drill() -> None:
+    report = production_readiness_report(production_settings(restore_drill_verified_at=None))
+    warning_keys = {item["key"] for item in report["warnings"]}
+
+    assert "restore_drill_recent" in warning_keys
+
+
+def test_production_readiness_rejects_stale_restore_drill_evidence() -> None:
+    stale = (datetime.now(timezone.utc) - timedelta(hours=721)).isoformat()
+    report = production_readiness_report(production_settings(restore_drill_verified_at=stale))
+    warning_keys = {item["key"] for item in report["warnings"]}
+
+    assert "restore_drill_recent" in warning_keys
 
 
 def test_production_readiness_warns_when_owner_mfa_is_not_required() -> None:
