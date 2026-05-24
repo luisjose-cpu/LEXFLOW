@@ -196,7 +196,7 @@ describe("Owner Console UI", () => {
       if (url.includes("/owner/system/health")) {
         return {
           ok: true,
-          json: async () => ({ checks: [{ component: "api", status: "ok", latency_ms: 10 }] })
+          json: async () => ({ checks: [{ component: "readiness", status: "ready", latency_ms: 0, detail: "blockers=0 warnings=0" }] })
         } as Response;
       }
       return { ok: false, json: async () => ({}) } as Response;
@@ -207,6 +207,7 @@ describe("Owner Console UI", () => {
     await waitFor(() => expect(screen.getByText("Owner Console conectado al API cloud.")).toBeTruthy());
     expect(screen.getByText("Tenant Live")).toBeTruthy();
     expect(screen.getByText("$990")).toBeTruthy();
+    expect(screen.getByText("blockers=0 warnings=0")).toBeTruthy();
   });
 
   it("renders tenants list with search and lifecycle actions", () => {
@@ -442,7 +443,7 @@ describe("Owner Console UI", () => {
       if (url.includes("/owner/system/health")) {
         return {
           ok: true,
-          json: async () => ({ checks: [{ component: "api", status: "ok", latency_ms: 35 }] })
+          json: async () => ({ checks: [{ component: "storage_backend", status: "warning", latency_ms: 0, detail: "backend=local bucket=local" }] })
         } as Response;
       }
       if (url.includes("/owner/system/incidents/incident-new/resolve")) {
@@ -463,6 +464,7 @@ describe("Owner Console UI", () => {
 
     render(<SystemHealth />);
     await waitFor(() => expect(screen.getByText("Owner Console conectado al API cloud.")).toBeTruthy());
+    expect(screen.getByText("backend=local bucket=local - 0 ms")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText("Titulo del incidente"), { target: { value: "API error rate" } });
     fireEvent.change(screen.getByDisplayValue("medium"), { target: { value: "high" } });
     fireEvent.change(screen.getByPlaceholderText("Resumen operativo"), { target: { value: "5xx elevados" } });

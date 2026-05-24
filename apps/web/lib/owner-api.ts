@@ -359,8 +359,16 @@ export async function resolveOwnerTicket(ticketId: string, resolution = "Resuelt
 }
 
 export async function loadOwnerSystemChecks() {
-  const body = await ownerApiRequest<{ checks?: { component: string; status: string; latency_ms: number }[] }>("/owner/system/health");
-  return (body.checks ?? []).map((check) => ({ service: check.component.toUpperCase(), status: check.status, latency: `${check.latency_ms} ms`, detail: "API health" }));
+  const body = await ownerApiRequest<{ checks?: { component: string; status: string; latency_ms: number; detail?: string }[] }>("/owner/system/health");
+  return (body.checks ?? []).map((check) => {
+    const status = check.status === "ok" || check.status === "ready" ? "operational" : check.status === "warning" ? "degraded" : check.status;
+    return {
+      service: check.component.toUpperCase(),
+      status,
+      latency: `${check.latency_ms} ms`,
+      detail: check.detail ?? "API health"
+    };
+  });
 }
 
 export async function loadOwnerSystemIncidents() {

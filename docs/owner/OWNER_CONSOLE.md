@@ -71,6 +71,8 @@ READY para piloto controlado con autenticacion owner JWT. El frontend owner cons
 
 Estos checks son metadata operativa. No exponen contenido legal de tenants, bytes documentales, tokens ni credenciales de proveedores.
 
+El frontend Owner Console muestra el `detail` operativo devuelto por el API para que soporte/devops pueda distinguir rapidamente readiness blockers, warnings, backend de storage y metricas in-process sin abrir logs ni datos de tenants.
+
 ## Bootstrap owner
 
 Crear el primer propietario con:

@@ -69,6 +69,7 @@
 ### Added
 
 - Owner system health now includes live API request metrics, production readiness summary and storage backend metadata.
+- Owner Console frontend now renders live health details from the API instead of generic placeholder health text.
 
 ### Security
 
