@@ -34,6 +34,17 @@ export interface Case360Data {
   }>;
   hearings: Array<{ id: string; title: string; starts_at: string; location: string; status: string }>;
   tasks: Array<{ id: string; title: string; status: string; due_at: string }>;
+  case_sources: Array<{
+    id: string;
+    source_type: string;
+    source_name?: string | null;
+    external_case_number: string;
+    court_name?: string | null;
+    status: string;
+    captcha_required: boolean;
+    last_checked_at?: string | null;
+    last_result?: string | null;
+  }>;
   judicial_updates: Array<{ id: string; title: string; summary: string; status: string; captcha_required: boolean; requires_human_intervention: boolean; checked_at: string }>;
   communications: Array<{ id: string; direction: string; channel?: string; body: string; status: string; created_at: string }>;
   alerts: Array<{ id: string; title: string; body: string; status: string; created_at: string }>;

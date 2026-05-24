@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     whatsapp_business_token: str | None = None
     billing_provider_secret: str | None = None
+    credential_encryption_key: str | None = None
     jwt_secret: str = "change-me-locally"
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 30

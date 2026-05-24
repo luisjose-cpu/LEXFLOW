@@ -31,3 +31,13 @@ Decision: Existing scaffold files are preserved during P0. P0 will not add new f
 Reason: Project rules prohibit deleting existing code without explicit authorization. The current request only asks for governance deliverables.
 
 Status: Accepted
+
+### D-0004 - SINOE Starts With Mock Adapter And Human CAPTCHA
+
+Date: 2026-05-24
+
+Decision: SINOE integration begins with `SinoeAdapterMock`, encrypted tenant credentials, explicit RBAC, audit logs and a human-in-the-loop CAPTCHA checkpoint flow.
+
+Reason: SINOE access must be authorized and compliant. LEXFLOW must not evade CAPTCHA, break anti-bot measures, automate CAPTCHA resolution or ship a real connector without confirming an allowed integration path.
+
+Status: Accepted

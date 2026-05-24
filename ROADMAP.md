@@ -53,6 +53,13 @@ Goal: deliver the star matter workspace with backend overview/mutation endpoints
 
 Goal: register, monitor, pause, audit, and approve updates from official or authorized judicial sources with human-in-the-loop CAPTCHA handling.
 
+SINOE extension:
+
+- Settings integration with encrypted credentials.
+- SINOE case source linking in Expediente 360.
+- Mock adapter first; real adapter only through permitted official/authorized integration.
+- CAPTCHA checkpoints remain human-in-the-loop and explicitly forbid bypass.
+
 ## P6 - Portal Cliente
 
 Goal: provide secure, mobile-first client access to authorized cases, documents, notifications, and messages.

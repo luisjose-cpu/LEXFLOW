@@ -55,6 +55,7 @@ def build_case_overview(db: Session, *, tenant_id: UUID | str, case_id: UUID | s
     documents = db.scalars(select(dbm.Document).where(dbm.Document.tenant_id == str(tenant_id), dbm.Document.case_id == legal_case.id, dbm.Document.deleted_at.is_(None)).order_by(dbm.Document.created_at.desc())).all()
     hearings = db.scalars(select(dbm.Hearing).where(dbm.Hearing.tenant_id == str(tenant_id), dbm.Hearing.case_id == legal_case.id, dbm.Hearing.deleted_at.is_(None)).order_by(dbm.Hearing.starts_at.asc())).all()
     tasks = db.scalars(select(dbm.Task).where(dbm.Task.tenant_id == str(tenant_id), dbm.Task.case_id == legal_case.id, dbm.Task.deleted_at.is_(None)).order_by(dbm.Task.created_at.desc())).all()
+    sources = db.scalars(select(dbm.CaseSource).where(dbm.CaseSource.tenant_id == str(tenant_id), dbm.CaseSource.case_id == legal_case.id, dbm.CaseSource.deleted_at.is_(None)).order_by(dbm.CaseSource.created_at.desc())).all()
     updates = db.scalars(select(dbm.JudicialUpdate).where(dbm.JudicialUpdate.tenant_id == str(tenant_id), dbm.JudicialUpdate.case_id == legal_case.id).order_by(dbm.JudicialUpdate.checked_at.desc())).all()
     messages = db.scalars(select(dbm.WhatsAppMessage).where(dbm.WhatsAppMessage.tenant_id == str(tenant_id), dbm.WhatsAppMessage.case_id == legal_case.id).order_by(dbm.WhatsAppMessage.created_at.desc())).all()
     communication_messages = db.scalars(select(dbm.CommunicationMessage).where(dbm.CommunicationMessage.tenant_id == str(tenant_id), dbm.CommunicationMessage.case_id == legal_case.id).order_by(dbm.CommunicationMessage.created_at.desc())).all()
@@ -108,6 +109,20 @@ def build_case_overview(db: Session, *, tenant_id: UUID | str, case_id: UUID | s
         ],
         "hearings": [{"id": item.id, "title": item.title, "starts_at": item.starts_at.isoformat(), "location": item.location, "status": item.status} for item in hearings],
         "tasks": [{"id": item.id, "title": item.title, "status": item.status, "due_at": item.due_at.isoformat() if item.due_at else None} for item in tasks],
+        "case_sources": [
+            {
+                "id": item.id,
+                "source_type": item.source_type,
+                "source_name": item.source_name,
+                "external_case_number": item.external_case_number,
+                "court_name": item.court_name,
+                "status": item.status,
+                "captcha_required": item.captcha_required,
+                "last_checked_at": item.last_checked_at.isoformat() if item.last_checked_at else None,
+                "last_result": item.last_result,
+            }
+            for item in sources
+        ],
         "judicial_updates": [{"id": item.id, "title": item.title, "summary": item.summary, "status": item.status, "captcha_required": item.captcha_required, "requires_human_intervention": item.requires_human_intervention, "checked_at": item.checked_at.isoformat()} for item in updates],
         "communications": [
             {"id": item.id, "direction": item.direction, "channel": "whatsapp", "body": item.body, "status": item.status, "created_at": item.created_at.isoformat()}

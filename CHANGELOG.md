@@ -1,5 +1,22 @@
 # CHANGELOG.md
 
+## 2026-05-24 - SINOE Integration Foundation
+
+### Added
+
+- Settings route for SINOE integration with encrypted credential storage.
+- SINOE-specific backend endpoints for credentials, connection test, case source linking, source checks and update history.
+- `SinoeAutomationService`, `SinoeAdapter` interface and `SinoeAdapterMock`.
+- SINOE CAPTCHA human-in-the-loop checkpoints, notifications, evidence and audit events.
+- Expediente 360 SINOE source panel, update history, source form and CAPTCHA modal.
+- SINOE backend and frontend tests plus integration/security/product/compliance docs.
+
+### Security
+
+- SINOE password is never returned by API responses and is not included in audit metadata.
+- `client_user` is blocked from SINOE integration settings and checks.
+- CAPTCHA bypass, anti-bot evasion and automated CAPTCHA solving remain forbidden.
+
 ## 2026-05-24 - Cloud Login
 
 ### Added

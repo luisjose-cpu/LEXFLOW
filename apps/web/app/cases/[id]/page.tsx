@@ -22,6 +22,12 @@ import {
   demoJudicialSources,
   demoJudicialUpdates
 } from "@/components/judicial-sources";
+import {
+  CaptchaCheckpointModal as SinoeCaptchaCheckpointModal,
+  SinoeCaseSourceForm,
+  SinoeUpdateHistory,
+  SinoeUpdatePanel
+} from "@/components/sinoe-integration";
 
 export default async function CaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -41,13 +47,17 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           <TasksPanel items={data.tasks} />
           <JudicialUpdatesPanel items={data.judicial_updates} />
           <JudicialSourcesPanel sources={demoJudicialSources} />
+          <SinoeUpdatePanel sources={data.case_sources} />
+          <SinoeUpdateHistory updates={data.judicial_updates} />
           <JudicialUpdatesList updates={demoJudicialUpdates} />
           <SourceConfigurationForm />
+          <SinoeCaseSourceForm caseId={data.case.id} />
           <CommunicationsPanel items={data.communications} />
           <IntelligenceRelatedPanel items={data.related_intelligence} />
           <AuditSummaryPanel data={data.audit_summary} />
         </section>
         <CaptchaCheckpointModal checkpoint={{ id: "chk-1", status: "pending", reason: "captcha_required" }} />
+        <SinoeCaptchaCheckpointModal checkpoint={{ id: "sinoe-chk-1", status: "pending", reason: "captcha_required" }} />
       </div>
     </AppShell>
   );

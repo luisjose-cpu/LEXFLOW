@@ -56,6 +56,30 @@ export function getDemoCase360(caseId: string): Case360Data {
       { id: "tsk-1", title: "Preparar memorial", status: "open", due_at: inDays(2) },
       { id: "tsk-2", title: "Validar poder faltante", status: "open", due_at: inDays(1) }
     ],
+    case_sources: [
+      {
+        id: "src-sinoe-1",
+        source_type: "sinoe",
+        source_name: "SINOE",
+        external_case_number: "SINOE-2026-001",
+        court_name: "Lima / Sede Central / Casilla autorizada",
+        status: "active",
+        captcha_required: false,
+        last_checked_at: agoDays(2),
+        last_result: "updates_found"
+      },
+      {
+        id: "src-sinoe-2",
+        source_type: "sinoe",
+        source_name: "SINOE",
+        external_case_number: "SINOE-CAPTCHA-001",
+        court_name: "Lima / Sede Central",
+        status: "paused_captcha",
+        captcha_required: true,
+        last_checked_at: agoDays(1),
+        last_result: "captcha_required"
+      }
+    ],
     judicial_updates: [
       { id: "jud-1", title: "Auto reconoce personeria", summary: "Actualizacion judicial registrada y auditada.", status: "recorded", captcha_required: false, requires_human_intervention: false, checked_at: agoDays(2) },
       { id: "jud-2", title: "CAPTCHA requerido", summary: "LEXFLOW pauso la consulta y solicito intervencion humana.", status: "paused", captcha_required: true, requires_human_intervention: true, checked_at: agoDays(1) }

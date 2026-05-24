@@ -51,6 +51,7 @@ from app.services.ops_center import ops_center_service
 from app.services.ops_import import ops_import_service
 from app.services.roles import role_service
 from app.services.seed import DEMO_SEED
+from app.services.sinoe_integration import sinoe_automation_service
 from app.services.storage import storage_service
 from app.services.users import user_service
 
@@ -168,6 +169,18 @@ class CaseSourceCreate(BaseModel):
     external_case_number: str
     court_name: str | None = None
     source_url: str | None = None
+
+
+class SinoeCredentialsRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=240)
+    password: str = Field(min_length=1, max_length=500)
+
+
+class SinoeCaseSourceRequest(BaseModel):
+    external_case_number: str = Field(min_length=1, max_length=120)
+    district: str | None = Field(default=None, max_length=120)
+    site: str | None = Field(default=None, max_length=120)
+    reference: str | None = Field(default=None, max_length=180)
 
 
 class CaptchaResolveRequest(BaseModel):
@@ -2040,14 +2053,73 @@ def list_case_sources(
             "id": source.id,
             "case_id": source.case_id,
             "source_type": source.source_type,
+            "source_name": source.source_name,
             "external_case_number": source.external_case_number,
             "court_name": source.court_name,
             "status": source.status,
             "captcha_required": source.captcha_required,
             "last_checked_at": source.last_checked_at.isoformat() if source.last_checked_at else None,
+            "last_result": source.last_result,
         }
         for source in sources
     ]
+
+
+@router.post("/settings/integrations/sinoe")
+def save_sinoe_credentials(
+    payload: SinoeCredentialsRequest,
+    actor: Annotated[User, Depends(require_permission("integrations:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return sinoe_automation_service.save_credentials(
+        db,
+        tenant_id=tenant_id,
+        username=payload.username,
+        password=payload.password,
+        actor_user_id=actor.id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/settings/integrations/sinoe")
+def get_sinoe_integration(
+    _: Annotated[User, Depends(require_permission("integrations:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return sinoe_automation_service.get_status(db, tenant_id=tenant_id)
+
+
+@router.delete("/settings/integrations/sinoe")
+def delete_sinoe_credentials(
+    actor: Annotated[User, Depends(require_permission("integrations:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return sinoe_automation_service.delete_credentials(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor.id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.post("/settings/integrations/sinoe/test")
+def test_sinoe_connection(
+    actor: Annotated[User, Depends(require_permission("integrations:run"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return sinoe_automation_service.test_connection(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor.id,
+        request_id=getattr(request.state, "request_id", None),
+    )
 
 
 @router.post("/cases/{case_id}/sources", status_code=status.HTTP_201_CREATED)
@@ -2073,6 +2145,38 @@ def create_case_source(
     return {"id": source.id, "case_id": source.case_id, "source_type": source.source_type, "status": source.status}
 
 
+@router.post("/cases/{case_id}/sources/sinoe", status_code=status.HTTP_201_CREATED)
+def create_sinoe_case_source(
+    case_id: UUID,
+    payload: SinoeCaseSourceRequest,
+    actor: Annotated[User, Depends(require_permission("integrations:run"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    source = sinoe_automation_service.create_case_source(
+        db,
+        tenant_id=tenant_id,
+        case_id=case_id,
+        external_case_number=payload.external_case_number,
+        district=payload.district,
+        site=payload.site,
+        reference=payload.reference,
+        actor_user_id=actor.id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+    return {
+        "id": source.id,
+        "case_id": source.case_id,
+        "source_type": source.source_type,
+        "source_name": source.source_name,
+        "external_case_number": source.external_case_number,
+        "status": source.status,
+        "last_checked_at": source.last_checked_at.isoformat() if source.last_checked_at else None,
+        "last_result": source.last_result,
+    }
+
+
 @router.post("/case-sources/{source_id}/check")
 def check_case_source(
     source_id: UUID,
@@ -2082,6 +2186,23 @@ def check_case_source(
     request: Request,
 ) -> dict[str, object]:
     return judicial_update_service.check_source(
+        db,
+        tenant_id=tenant_id,
+        source_id=source_id,
+        actor_user_id=actor.id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.post("/case-sources/{source_id}/sinoe/check")
+def check_sinoe_case_source(
+    source_id: UUID,
+    actor: Annotated[User, Depends(require_permission("integrations:run"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return sinoe_automation_service.check_case_updates(
         db,
         tenant_id=tenant_id,
         source_id=source_id,
@@ -2108,6 +2229,30 @@ def list_case_source_updates(
             "status": update.status,
             "captcha_required": update.captcha_required,
             "requires_human_intervention": update.requires_human_intervention,
+        }
+        for update in updates
+    ]
+
+
+@router.get("/case-sources/{source_id}/sinoe/updates")
+def list_sinoe_case_source_updates(
+    source_id: UUID,
+    _: Annotated[User, Depends(require_permission("integrations:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    updates = sinoe_automation_service.list_updates(db, tenant_id=tenant_id, source_id=source_id)
+    return [
+        {
+            "id": update.id,
+            "case_id": update.case_id,
+            "case_source_id": update.case_source_id,
+            "title": update.title,
+            "summary": update.summary,
+            "status": update.status,
+            "captcha_required": update.captcha_required,
+            "requires_human_intervention": update.requires_human_intervention,
+            "checked_at": update.checked_at.isoformat() if update.checked_at else None,
         }
         for update in updates
     ]

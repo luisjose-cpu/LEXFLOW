@@ -128,7 +128,8 @@ function PanelTitle({ title }: { title: string }) {
 
 export const demoJudicialSources: JudicialSourceView[] = [
   { id: "src-1", source_type: "poder_judicial", external_case_number: "PJ-2026-001", court_name: "Poder Judicial Demo", status: "active", captcha_required: false },
-  { id: "src-2", source_type: "cej", external_case_number: "CEJ-CAPTCHA", court_name: "CEJ Demo", status: "paused_captcha", captcha_required: true }
+  { id: "src-2", source_type: "cej", external_case_number: "CEJ-CAPTCHA", court_name: "CEJ Demo", status: "paused_captcha", captcha_required: true },
+  { id: "src-3", source_type: "sinoe", external_case_number: "SINOE-2026-001", court_name: "SINOE Demo", status: "active", captcha_required: false }
 ];
 
 export const demoJudicialUpdates: JudicialUpdateView[] = [

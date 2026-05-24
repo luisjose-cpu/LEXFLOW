@@ -189,12 +189,14 @@ class CaseSource(Base, TimestampMixin, SoftDeleteMixin):
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
     case_id: Mapped[str] = mapped_column(String(36), ForeignKey("cases.id"), nullable=False)
     source_type: Mapped[str] = mapped_column(String(80), default="judicial", nullable=False)
+    source_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
     external_case_number: Mapped[str] = mapped_column(String(120), nullable=False)
     court_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
     source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     captcha_required: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     status: Mapped[str] = mapped_column(String(40), default="active", nullable=False)
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_result: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     case: Mapped[Case] = relationship(back_populates="sources")
     judicial_updates: Mapped[list["JudicialUpdate"]] = relationship(back_populates="case_source")
@@ -239,11 +241,33 @@ class CaptchaCheckpoint(Base, TimestampMixin):
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
     case_id: Mapped[str] = mapped_column(String(36), ForeignKey("cases.id"), nullable=False)
     case_source_id: Mapped[str] = mapped_column(String(36), ForeignKey("case_sources.id"), nullable=False)
+    provider: Mapped[str] = mapped_column(String(80), default="judicial", nullable=False)
     status: Mapped[str] = mapped_column(String(40), default="pending", nullable=False)
     reason: Mapped[str] = mapped_column(String(240), default="captcha_required", nullable=False)
+    screenshot_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     resolved_by_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class IntegrationCredential(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "integration_credentials"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "provider", name="uq_integration_credentials_tenant_provider"),
+        Index("ix_integration_credentials_tenant_id", "tenant_id"),
+        Index("ix_integration_credentials_provider", "provider"),
+        Index("ix_integration_credentials_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    provider: Mapped[str] = mapped_column(String(80), nullable=False)
+    username_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    password_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="configured", nullable=False)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
 
 
 class JudicialEvidence(Base, TimestampMixin):

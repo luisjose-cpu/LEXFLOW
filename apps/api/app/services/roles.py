@@ -28,6 +28,9 @@ ROLE_PERMISSIONS: dict[RoleName, list[str]] = {
         "automation:read",
         "automation:write",
         "automation:run",
+        "integrations:read",
+        "integrations:write",
+        "integrations:run",
         "audit:read",
     ],
     RoleName.partner: [
@@ -54,6 +57,9 @@ ROLE_PERMISSIONS: dict[RoleName, list[str]] = {
         "automation:read",
         "automation:write",
         "automation:run",
+        "integrations:read",
+        "integrations:write",
+        "integrations:run",
         "audit:read",
     ],
     RoleName.lawyer: [

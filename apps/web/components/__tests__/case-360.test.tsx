@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it } from "vitest";
 import { CaseHeader, CaseTimeline, DocumentsPanel, JudicialUpdatesPanel, NextActionsPanel } from "@/components/case-360";
+import { SinoeUpdatePanel } from "@/components/sinoe-integration";
 import { getDemoCase360 } from "@/lib/case-360-demo";
 
 describe("Expediente 360 UI", () => {
@@ -23,6 +24,7 @@ describe("Expediente 360 UI", () => {
       <>
         <CaseTimeline items={data.timeline} />
         <JudicialUpdatesPanel items={data.judicial_updates} />
+        <SinoeUpdatePanel sources={data.case_sources} />
         <NextActionsPanel items={data.next_actions} />
       </>
     );
@@ -31,6 +33,8 @@ describe("Expediente 360 UI", () => {
     expect(screen.getByText("Fuente judicial pausada")).toBeTruthy();
     expect(screen.getByText("Actualizaciones judiciales")).toBeTruthy();
     expect(screen.getByText("CAPTCHA requerido")).toBeTruthy();
+    expect(screen.getByText("Fuentes SINOE")).toBeTruthy();
+    expect(screen.getByText("SINOE-2026-001")).toBeTruthy();
     expect(screen.getByText("Proximas acciones")).toBeTruthy();
   });
 

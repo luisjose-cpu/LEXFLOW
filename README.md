@@ -31,6 +31,7 @@ The current architecture creates:
 - Automation Studio with trigger-condition-action workflows, feature gate enforcement, auditable runs, run steps, mock actions, and no-code builder
 - Release Candidate RC1 hardening with security headers, configurable CORS/Origin guard, rate limit, upload validation, metrics, QA matrix, threat model, backup policy, observability, open risks, tech debt, production and pilot checklists
 - LEXFLOW OS Final with Legal Memory, RAG Legal, global search, Copiloto Juridico, specialized AI agents, Legal Graph, future Marketplace, Demo Mode, commercial landing, final documentation, and release readiness status
+- SINOE integration foundation with encrypted credentials, Settings surface, SINOE case source linking, mock authorized updates, CAPTCHA human-in-the-loop checkpoints, notifications, evidence, audit logs, and Expediente 360 panels
 
 ## Product Spine
 
@@ -170,6 +171,21 @@ P5 judicial automation endpoints are under `/api/v1`:
 - `POST /captcha-checkpoints/{checkpoint_id}/resolve`
 - `POST /judicial-updates/{update_id}/approve`
 - `POST /judicial-updates/{update_id}/reject`
+
+SINOE integration endpoints are under `/api/v1`:
+
+- `POST /settings/integrations/sinoe`
+- `GET /settings/integrations/sinoe`
+- `DELETE /settings/integrations/sinoe`
+- `POST /settings/integrations/sinoe/test`
+- `POST /cases/{case_id}/sources/sinoe`
+- `POST /case-sources/{source_id}/sinoe/check`
+- `GET /case-sources/{source_id}/sinoe/updates`
+- `POST /captcha-checkpoints/{checkpoint_id}/resolve`
+
+SINOE route:
+
+- `/settings/integrations/sinoe`
 
 P6 client portal endpoints are under `/api/v1`:
 
@@ -379,6 +395,10 @@ P24 cloud deploy pack:
 - [ROADMAP.md](ROADMAP.md)
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [SECURITY.md](SECURITY.md)
+- [docs/integrations/SINOE_INTEGRATION.md](docs/integrations/SINOE_INTEGRATION.md)
+- [docs/security/SINOE_CREDENTIAL_SECURITY.md](docs/security/SINOE_CREDENTIAL_SECURITY.md)
+- [docs/product/SINOE_CASE_UPDATES.md](docs/product/SINOE_CASE_UPDATES.md)
+- [docs/compliance/CAPTCHA_HUMAN_IN_THE_LOOP.md](docs/compliance/CAPTCHA_HUMAN_IN_THE_LOOP.md)
 - [QA_RULES.md](QA_RULES.md)
 - [DECISIONS.md](DECISIONS.md)
 - [RISKS.md](RISKS.md)
