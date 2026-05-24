@@ -34,6 +34,7 @@ def test_cloud_deploy_pack_files_are_present() -> None:
         "scripts/cloud-preflight.ps1",
         "scripts/cloud-smoke.ps1",
         "scripts/cloud-release-evidence.ps1",
+        "scripts/cloud-revision.ps1",
         "scripts/db-backup.ps1",
         "scripts/db-restore-drill.ps1",
         "scripts/production-gate.ps1",
@@ -119,6 +120,18 @@ def test_cloud_smoke_checks_external_provider_modes() -> None:
     assert "API revision" in smoke
     assert "Provider modes" in smoke
     assert "Provider modes unavailable on deployed API" in smoke
+
+
+def test_cloud_revision_script_compares_expected_commit_safely() -> None:
+    script = read_repo_file("scripts/cloud-revision.ps1")
+    package = json.loads(read_repo_file("package.json"))
+
+    assert "cloud:revision" in package["scripts"]
+    assert "LEXFLOW_EXPECTED_REVISION" in script
+    assert "rev-parse HEAD" in script
+    assert "/version" in script
+    assert "Cloud revision mismatch" in script
+    assert "Strict" in script
 
 
 def test_cloud_release_evidence_script_writes_safe_report() -> None:

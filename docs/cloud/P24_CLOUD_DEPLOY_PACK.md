@@ -79,6 +79,19 @@ El smoke valida `/health`, `/version`, `/metrics`, `/api/v1/status`, modos de pr
 
 `/version`, `/metrics` y `/api/v1/status` incluyen `revision` desde `RELEASE_REVISION`, `RENDER_GIT_COMMIT`, `VERCEL_GIT_COMMIT_SHA` o `GITHUB_SHA` para confirmar que cloud esta corriendo el commit esperado.
 
+Verificar revision desplegada:
+
+```powershell
+$env:LEXFLOW_API_URL="https://lexflow-api.onrender.com"
+npm run cloud:revision
+```
+
+En modo estricto, falla si cloud no expone revision o si no coincide:
+
+```powershell
+npm run cloud:revision -- -Strict
+```
+
 ## Evidencia release piloto
 
 ```powershell

@@ -37,6 +37,7 @@
     "cloud:preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cloud-preflight.ps1",
     "cloud:smoke": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cloud-smoke.ps1",
     "cloud:evidence": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cloud-release-evidence.ps1",
+    "cloud:revision": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cloud-revision.ps1",
     "db:backup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-backup.ps1",
     "db:restore-drill": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-restore-drill.ps1"
   }

@@ -57,6 +57,7 @@ Aplicar y revisar tambien:
 ```powershell
 $env:LEXFLOW_API_URL="https://lexflow-api.onrender.com"
 $env:LEXFLOW_WEB_URL="https://lexflow-web-nine.vercel.app"
+npm run cloud:revision -- -Strict
 npm run cloud:evidence
 ```
 
