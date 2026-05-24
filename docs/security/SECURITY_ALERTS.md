@@ -48,9 +48,21 @@ Owner:
 - El acceso owner exige permisos owner y bearer token cuando se marca una alerta.
 - Reconocer una alerta registra `status=acknowledged`, usuario/owner responsable y timestamp.
 
+## Operacion
+
+Procesar entregas pendientes desde un One-Off Job o cron externo:
+
+```bash
+python scripts/process_security_alert_deliveries.py --limit 100
+python scripts/process_security_alert_deliveries.py --scope owner --limit 50
+python scripts/process_security_alert_deliveries.py --scope tenant --tenant-id <tenant_id> --limit 50
+```
+
+El comando no imprime destinatarios reales ni payloads sensibles.
+
 ## Pendiente productivo
 
-- Worker Celery dedicado para procesar reintentos sin endpoint manual.
+- Worker Celery dedicado para procesar reintentos con schedule interno.
 - Push para eventos `critical`.
 - Politicas de retencion y export para auditoria externa.
 - Agrupacion/dedupe para evitar ruido por login owner frecuente.

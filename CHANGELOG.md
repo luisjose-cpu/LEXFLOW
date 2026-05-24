@@ -9,6 +9,7 @@
 - Owner delivery telemetry endpoints under `/api/v1/owner/security-alert-deliveries`.
 - Automatic prepared/email-provider delivery for `high` and `critical` security alerts.
 - Retry-ready delivery processing with attempt counters, due dates and failure state.
+- One-off script `scripts/process_security_alert_deliveries.py` for Render jobs or cron-based processing.
 
 ### Security
 
