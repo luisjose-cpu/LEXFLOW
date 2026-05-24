@@ -25,6 +25,10 @@ def test_p1_status_endpoints() -> None:
     assert status.status_code == 200
     assert status.json()["phase"] == "P24"
     assert status.json()["release"] == "CLOUD-DEPLOY-PACK"
+    assert status.json()["external_providers"]["ai"] == "mock"
+    assert status.json()["external_providers"]["whatsapp"] == "mock"
+    assert status.json()["external_providers"]["billing"] == "mock"
+    assert "secret" not in status.text.lower()
 
 
 def test_p14_security_headers_metrics_and_origin_guard() -> None:

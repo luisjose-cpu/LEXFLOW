@@ -99,6 +99,14 @@ def test_backup_restore_scripts_are_safe_by_default() -> None:
     assert "backups/" in gitignore
 
 
+def test_cloud_smoke_checks_external_provider_modes() -> None:
+    smoke = read_repo_file("scripts/cloud-smoke.ps1")
+
+    assert "external_providers" in smoke
+    assert "Provider modes" in smoke
+    assert "Provider modes unavailable on deployed API" in smoke
+
+
 def test_cloud_release_evidence_script_writes_safe_report() -> None:
     script = read_repo_file("scripts/cloud-release-evidence.ps1")
     package = json.loads(read_repo_file("package.json"))

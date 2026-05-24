@@ -77,6 +77,8 @@
 - Readiness now exposes `public_production_ready`, which requires zero blockers and zero warnings.
 - Production Gate UI now shows public production readiness separately from general deployment status.
 - Production Gate API now includes dynamic readiness blockers/warnings in the public production requirements list.
+- API status now exposes non-secret external provider modes for AI, WhatsApp, billing, email and storage.
+- Cloud smoke verifies provider modes are present.
 
 ### Security
 

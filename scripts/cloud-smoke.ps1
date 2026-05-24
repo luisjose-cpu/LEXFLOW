@@ -38,7 +38,13 @@ if (-not $ApiUrl) {
 
 Assert-HttpOk "API health" "$ApiUrl/health" | Out-Null
 Assert-HttpOk "API version" "$ApiUrl/version" | Out-Null
-Assert-HttpOk "API status" "$ApiUrl/api/v1/status" | Out-Null
+$statusResponse = Assert-HttpOk "API status" "$ApiUrl/api/v1/status"
+$statusBody = $statusResponse.Content | ConvertFrom-Json
+if (-not $statusBody.external_providers) {
+  Write-Host "Provider modes unavailable on deployed API; redeploy latest master to enable this check."
+} else {
+  Write-Host "Provider modes: ai=$($statusBody.external_providers.ai) whatsapp=$($statusBody.external_providers.whatsapp) billing=$($statusBody.external_providers.billing)"
+}
 Assert-HttpOk "API metrics" "$ApiUrl/metrics" | Out-Null
 $readiness = Assert-HttpOk "API readiness" "$ApiUrl/readiness"
 $readinessBody = $readiness.Content | ConvertFrom-Json

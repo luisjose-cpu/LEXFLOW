@@ -525,11 +525,19 @@ def health() -> dict[str, str]:
 @router.get("/status")
 def api_status() -> dict[str, object]:
     settings = get_settings()
+    external_providers = {
+        "ai": "live" if settings.openai_api_key else "mock",
+        "whatsapp": "live" if settings.whatsapp_business_token else "mock",
+        "billing": "live" if settings.billing_provider_secret else "mock",
+        "email": "live" if settings.email_provider == "http_json" and settings.email_api_key else settings.email_provider,
+        "storage": storage_service.provider_status()["provider"],
+    }
     return {
         "status": "ready",
         "phase": settings.release_phase,
         "service": settings.app_name,
         "version": settings.api_version,
+        "external_providers": external_providers,
         "capabilities": [
             "multitenant",
             "jwt-auth",
