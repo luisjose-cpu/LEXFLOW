@@ -11,6 +11,7 @@ from app.core.config import Settings
 from app.db.database import get_db
 from app.db.models import Base, OwnerAuditLog, OwnerUser, TenantFeatureFlag, TenantIntervention, TenantSubscription, User
 from app.main import app
+from app.services import login_throttle as login_throttle_module
 from app.services import owner_auth as owner_auth_module
 from app.services.seed import DEMO_SEED, seed_demo_data
 from app.services.mfa import totp_code
@@ -111,8 +112,9 @@ def test_owner_login_blocks_when_owner_mfa_required_and_not_enrolled(api: TestCl
 
 def test_owner_login_temporarily_blocks_repeated_failures(api: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     create_owner_user(db_session)
-    owner_auth_module.owner_auth_service._failed_logins.clear()
+    login_throttle_module.login_throttle.clear_all()
     monkeypatch.setattr(owner_auth_module, "get_settings", lambda: Settings(failed_login_limit=2, failed_login_window_minutes=15))
+    monkeypatch.setattr(login_throttle_module.login_throttle, "_settings_provider", lambda: Settings(failed_login_limit=2, failed_login_window_minutes=15))
     payload = {"email": "owner@lexflow.com", "password": "wrong-password"}
 
     first = api.post("/api/v1/owner/auth/login", json=payload)

@@ -15,31 +15,29 @@ from app.core.config import get_settings
 from app.db import models as dbm
 from app.db.models import now_utc
 from app.services.mfa import build_otpauth_url, generate_totp_secret, verify_totp
+from app.services.login_throttle import login_throttle
 from app.services.security import verify_password
 from app.services.security_alerts import security_alert_service
 from app.services.sinoe_integration import CredentialCipher
 
 
 class OwnerAuthService:
-    def __init__(self) -> None:
-        self._failed_logins: dict[str, list[datetime]] = {}
-
     def login(self, db: Session, *, email: str, password: str, mfa_code: str | None = None, request_id: str | None = None) -> dict[str, object]:
-        failure_key = self._failure_key(email)
-        self._raise_if_too_many_failures(failure_key)
+        failure_key = login_throttle.normalize_key(email=email)
+        login_throttle.assert_allowed(scope="owner", key=failure_key)
         owner = self._owner_by_email(db, email)
         if not owner or owner.status != "active" or not owner.hashed_password:
-            self._record_failed_login(failure_key)
+            login_throttle.record_failure(scope="owner", key=failure_key)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid owner credentials")
         if owner.role not in OWNER_ROLE_PERMISSIONS or not verify_password(password, owner.hashed_password):
-            self._record_failed_login(failure_key)
+            login_throttle.record_failure(scope="owner", key=failure_key)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid owner credentials")
         if get_settings().require_owner_mfa and not self._mfa_is_enabled(owner):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner MFA enrollment required")
         if self._mfa_is_enabled(owner):
             self._verify_owner_mfa(db, owner=owner, code=mfa_code, request_id=request_id)
 
-        self._clear_failed_logins(failure_key)
+        login_throttle.clear(scope="owner", key=failure_key)
         owner.last_login_at = now_utc()
         self._audit(db, owner=owner, action="owner_login", entity_type="owner_user", entity_id=owner.id, request_id=request_id)
         db.commit()
@@ -273,30 +271,6 @@ class OwnerAuthService:
                 request_id=request_id,
                 metadata={"owner_role": owner.role},
             )
-
-    @staticmethod
-    def _failure_key(email: str) -> str:
-        return email.strip().lower()
-
-    def _recent_failures(self, key: str) -> list[datetime]:
-        settings = get_settings()
-        cutoff = now_utc() - timedelta(minutes=settings.failed_login_window_minutes)
-        recent = [item for item in self._failed_logins.get(key, []) if item > cutoff]
-        self._failed_logins[key] = recent
-        return recent
-
-    def _raise_if_too_many_failures(self, key: str) -> None:
-        settings = get_settings()
-        if settings.failed_login_limit <= 0:
-            return
-        if len(self._recent_failures(key)) >= settings.failed_login_limit:
-            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many failed login attempts")
-
-    def _record_failed_login(self, key: str) -> None:
-        self._failed_logins[key] = [*self._recent_failures(key), now_utc()]
-
-    def _clear_failed_logins(self, key: str) -> None:
-        self._failed_logins.pop(key, None)
 
 
 owner_auth_service = OwnerAuthService()

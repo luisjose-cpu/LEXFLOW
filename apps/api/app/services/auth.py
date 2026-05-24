@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from hashlib import sha256
 from secrets import token_urlsafe
 from uuid import UUID
@@ -16,6 +16,7 @@ from app.domain.models import AuditAction, User
 from app.services.audit import audit_service
 from app.services.email_delivery import get_email_provider
 from app.services.email_delivery_logs import email_delivery_log_service
+from app.services.login_throttle import login_throttle
 from app.services.mfa import build_otpauth_url, generate_totp_secret, verify_totp
 from app.services.security import create_token, decode_token, hash_password, verify_password
 from app.services.security_alerts import security_alert_service
@@ -28,18 +29,17 @@ from app.services.users import user_service
 class AuthService:
     def __init__(self) -> None:
         self._memory_password_resets: dict[str, dict[str, object]] = {}
-        self._failed_logins: dict[str, list[datetime]] = {}
 
     def login(self, *, email: str, password: str, tenant_slug: str | None = None, mfa_code: str | None = None, request_id: str | None = None) -> dict[str, object]:
-        failure_key = self._failure_key(email=email, tenant_slug=tenant_slug)
-        self._raise_if_too_many_failures(failure_key)
+        failure_key = login_throttle.normalize_key(email=email, tenant_slug=tenant_slug)
+        login_throttle.assert_allowed(scope="tenant", key=failure_key)
         tenant_id: UUID | None = None
         if tenant_slug:
             tenant = tenant_service.find_by_slug(tenant_slug)
             if not tenant:
                 tenant = self._load_tenant_by_slug(tenant_slug)
             if not tenant:
-                self._record_failed_login(failure_key)
+                login_throttle.record_failure(scope="tenant", key=failure_key)
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
             tenant_id = tenant.id
 
@@ -47,7 +47,7 @@ class AuthService:
         if not user:
             user = self._load_user_by_email(email=email, tenant_id=tenant_id)
         if not user or not verify_password(password, user.hashed_password):
-            self._record_failed_login(failure_key)
+            login_throttle.record_failure(scope="tenant", key=failure_key)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
         if not user.is_active:
@@ -58,7 +58,7 @@ class AuthService:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="MFA enrollment required")
 
         tokens = self._issue_session(user)
-        self._clear_failed_logins(failure_key)
+        login_throttle.clear(scope="tenant", key=failure_key)
         audit_service.record(
             tenant_id=user.tenant_id,
             actor_user_id=user.id,
@@ -565,30 +565,6 @@ class AuthService:
     @staticmethod
     def _token_hash(raw_token: str) -> str:
         return sha256(raw_token.encode("utf-8")).hexdigest()
-
-    @staticmethod
-    def _failure_key(*, email: str, tenant_slug: str | None) -> str:
-        return f"{(tenant_slug or '').strip().lower()}:{email.strip().lower()}"
-
-    def _recent_failures(self, key: str) -> list[datetime]:
-        settings = get_settings()
-        cutoff = dbm.now_utc() - timedelta(minutes=settings.failed_login_window_minutes)
-        recent = [item for item in self._failed_logins.get(key, []) if item > cutoff]
-        self._failed_logins[key] = recent
-        return recent
-
-    def _raise_if_too_many_failures(self, key: str) -> None:
-        settings = get_settings()
-        if settings.failed_login_limit <= 0:
-            return
-        if len(self._recent_failures(key)) >= settings.failed_login_limit:
-            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many failed login attempts")
-
-    def _record_failed_login(self, key: str) -> None:
-        self._failed_logins[key] = [*self._recent_failures(key), dbm.now_utc()]
-
-    def _clear_failed_logins(self, key: str) -> None:
-        self._failed_logins.pop(key, None)
 
     def _deliver_password_reset(self, *, email: str, token: str):
         settings = get_settings()
