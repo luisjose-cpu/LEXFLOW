@@ -120,7 +120,7 @@ Para salida comercial publica:
 npm run cloud:public-ready
 ```
 
-Este gate falla si existe cualquier blocker o warning de readiness.
+Este gate falla si existe cualquier blocker o warning de readiness y genera evidencia no sensible en `reports/cloud/lexflow-public-ready-*.json`.
 
 ## Validacion ejecutada
 

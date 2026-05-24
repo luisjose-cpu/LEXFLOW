@@ -1,5 +1,6 @@
 param(
-  [string]$ApiUrl = $env:LEXFLOW_API_URL
+  [string]$ApiUrl = $env:LEXFLOW_API_URL,
+  [string]$ReportDir = "reports/cloud"
 )
 
 $ErrorActionPreference = "Stop"
@@ -52,6 +53,9 @@ $statusResponse = Invoke-WebRequestWithRetry -Uri "$ApiUrl/api/v1/status"
 $apiStatus = $statusResponse.Content | ConvertFrom-Json
 $versionResponse = Invoke-WebRequestWithRetry -Uri "$ApiUrl/version"
 $version = $versionResponse.Content | ConvertFrom-Json
+$blockers = @($readiness.blockers)
+$warnings = @($readiness.warnings)
+$passed = $readiness.public_production_ready -eq $true
 
 Write-Host "LEXFLOW public production gate"
 Write-Host "API URL: $ApiUrl"
@@ -61,12 +65,34 @@ Write-Host "Production ready: $($readiness.production_ready)"
 Write-Host "Public production ready: $($readiness.public_production_ready)"
 Write-Host "External providers: ai=$($apiStatus.external_providers.ai) whatsapp=$($apiStatus.external_providers.whatsapp) billing=$($apiStatus.external_providers.billing) email=$($apiStatus.external_providers.email) storage=$($apiStatus.external_providers.storage) malware_scanner=$($apiStatus.external_providers.malware_scanner)"
 
-$blockers = @($readiness.blockers)
-$warnings = @($readiness.warnings)
 Write-IssueList "Blockers:" $blockers
 Write-IssueList "Warnings:" $warnings
 
-if ($readiness.public_production_ready -ne $true) {
+$targetDir = Join-Path (Resolve-Path -Path "." | Select-Object -ExpandProperty Path) $ReportDir
+New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
+$timestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
+$reportPath = Join-Path $targetDir "lexflow-public-ready-$timestamp.json"
+$report = @{
+  product = "LEXFLOW"
+  generated_at = (Get-Date).ToUniversalTime().ToString("o")
+  api_url = $ApiUrl
+  passed = $passed
+  revision = "$($version.revision)"
+  production_ready = $readiness.production_ready
+  public_production_ready = $readiness.public_production_ready
+  blocker_keys = @($blockers | ForEach-Object { $_.key })
+  warning_keys = @($warnings | ForEach-Object { $_.key })
+  external_providers = $apiStatus.external_providers
+  security = @{
+    secrets_included = $false
+    credentials_included = $false
+    tenant_data_included = $false
+  }
+}
+$report | ConvertTo-Json -Depth 8 | Set-Content -Path $reportPath -Encoding UTF8
+Write-Host "Public readiness evidence ready: $reportPath"
+
+if (-not $passed) {
   throw "Public production gate failed. Resolve all readiness blockers and warnings before commercial public launch."
 }
 

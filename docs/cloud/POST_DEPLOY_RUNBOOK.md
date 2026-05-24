@@ -55,6 +55,7 @@ npm run cloud:public-ready
 7. Revisar el JSON mas reciente en `reports/cloud/`.
 8. Confirmar `revision.matches_expected=true` cuando Render/Vercel ya expongan revision.
 9. Si `cloud:wait-revision` expira, usar `Manual Deploy -> Deploy latest commit` en Render y repetir desde el paso 3.
+10. Si `cloud:public-ready` falla, revisar `reports/cloud/lexflow-public-ready-*.json` para las claves pendientes.
 
 El workflow manual `Cloud CI` acepta `wait_for_revision=true` y `public_ready_gate=true` para ejecutar estos pasos desde GitHub Actions.
 

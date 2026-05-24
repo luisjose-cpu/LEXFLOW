@@ -193,6 +193,9 @@ def test_public_production_gate_script_blocks_warnings() -> None:
     assert "public_production_ready" in script
     assert "External providers" in script
     assert "Public production gate failed" in script
+    assert "lexflow-public-ready-" in script
+    assert "secrets_included = $false" in script
+    assert "warning_keys" in script
 
 
 def test_cloud_rollback_runbook_documents_safe_recovery() -> None:
