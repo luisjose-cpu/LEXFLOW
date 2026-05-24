@@ -20,7 +20,7 @@ import {
   Users
 } from "lucide-react";
 import Link from "next/link";
-import React, { FormEvent, ReactNode, useMemo, useState } from "react";
+import React, { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import {
   OwnerTenant,
   findOwnerTenant,
@@ -34,6 +34,21 @@ import {
   ownerTenants,
   ownerTickets
 } from "@/lib/owner-demo";
+import {
+  API_URL,
+  hasOwnerSession,
+  loadOwnerAuditLogs,
+  loadOwnerDashboard,
+  loadOwnerDemos,
+  loadOwnerFeatures,
+  loadOwnerInterventions,
+  loadOwnerPlans,
+  loadOwnerSystemChecks,
+  loadOwnerTenantDetail,
+  loadOwnerTenantUsage,
+  loadOwnerTenants,
+  loadOwnerTickets
+} from "@/lib/owner-api";
 
 const ownerNav = [
   { href: "/owner", label: "Dashboard" },
@@ -46,7 +61,8 @@ const ownerNav = [
   { href: "/owner/audit", label: "Auditoria" }
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://lexflow-api.onrender.com";
+type OwnerDataSource = "demo" | "loading" | "live" | "fallback";
+type UsageTuple = readonly [string, number, number];
 
 export function OwnerLogin() {
   const [email, setEmail] = useState("");
@@ -138,6 +154,35 @@ export function OwnerConsoleShell({ children }: { children: ReactNode }) {
 }
 
 export function OwnerDashboard() {
+  const [metrics, setMetrics] = useState(ownerDashboardMetrics());
+  const [tenants, setTenants] = useState(ownerTenants);
+  const [checks, setChecks] = useState(ownerSystemChecks);
+  const [source, setSource] = useState<OwnerDataSource>("demo");
+
+  useEffect(() => {
+    if (!hasOwnerSession()) {
+      setSource("demo");
+      return;
+    }
+    let active = true;
+    setSource("loading");
+    Promise.all([loadOwnerDashboard(), loadOwnerTenants(), loadOwnerSystemChecks()])
+      .then(([nextMetrics, nextTenants, nextChecks]) => {
+        if (!active) return;
+        setMetrics(nextMetrics.length ? nextMetrics : ownerDashboardMetrics());
+        setTenants(nextTenants.length ? nextTenants : ownerTenants);
+        setChecks(nextChecks.length ? nextChecks : ownerSystemChecks);
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <OwnerConsoleShell>
       <PageHeader
@@ -145,21 +190,22 @@ export function OwnerDashboard() {
         title="Command Center SaaS"
         description="Administra tenants, planes, cobranzas, soporte, consumo, feature flags y salud del sistema sin abrir datos sensibles de estudios juridicos."
       />
+      <OwnerDataSourceNotice source={source} />
       <SecurityBoundaryNotice />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {ownerDashboardMetrics().map((metric) => <MetricCard key={metric.label} {...metric} />)}
+        {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
       </div>
       <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <Card>
           <SectionTitle icon={<Building2 size={18} />} title="Tenants en observacion" />
           <div className="mt-4 grid gap-3">
-            {ownerTenants.map((tenant) => <TenantRow key={tenant.id} tenant={tenant} />)}
+            {tenants.map((tenant) => <TenantRow key={tenant.id} tenant={tenant} />)}
           </div>
         </Card>
         <Card>
           <SectionTitle icon={<Activity size={18} />} title="Salud del sistema" />
           <div className="mt-4 grid gap-3">
-            {ownerSystemChecks.slice(0, 5).map((check) => (
+            {checks.slice(0, 5).map((check) => (
               <StatusLine key={check.service} label={check.service} value={check.detail} status={check.status} />
             ))}
           </div>
@@ -176,11 +222,36 @@ export function OwnerDashboard() {
 
 export function TenantsList() {
   const [query, setQuery] = useState("");
-  const tenants = useMemo(() => ownerTenants.filter((tenant) => `${tenant.name} ${tenant.slug} ${tenant.plan}`.toLowerCase().includes(query.toLowerCase())), [query]);
+  const [source, setSource] = useState<OwnerDataSource>("demo");
+  const [loadedTenants, setLoadedTenants] = useState(ownerTenants);
+  const tenants = useMemo(() => loadedTenants.filter((tenant) => `${tenant.name} ${tenant.slug} ${tenant.plan}`.toLowerCase().includes(query.toLowerCase())), [loadedTenants, query]);
+
+  useEffect(() => {
+    if (!hasOwnerSession()) {
+      setSource("demo");
+      return;
+    }
+    let active = true;
+    setSource("loading");
+    loadOwnerTenants()
+      .then((payload) => {
+        if (!active) return;
+        setLoadedTenants(payload.length ? payload : ownerTenants);
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Tenants" title="Gestion de estudios" description="Crea, suspende, reactiva, cambia planes y controla limites por tenant desde una consola separada." />
+      <OwnerDataSourceNotice source={source} />
       <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
         <input
           className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-legal-500"
@@ -202,10 +273,37 @@ export function TenantsList() {
 }
 
 export function TenantDetail({ tenantId }: { tenantId: string }) {
-  const tenant = findOwnerTenant(tenantId);
+  const [tenant, setTenant] = useState(findOwnerTenant(tenantId));
+  const [source, setSource] = useState<OwnerDataSource>("demo");
+
+  useEffect(() => {
+    if (!hasOwnerSession()) {
+      setTenant(findOwnerTenant(tenantId));
+      setSource("demo");
+      return;
+    }
+    let active = true;
+    setSource("loading");
+    loadOwnerTenantDetail(tenantId)
+      .then((payload) => {
+        if (!active) return;
+        setTenant(payload);
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setTenant(findOwnerTenant(tenantId));
+        setSource("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, [tenantId]);
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Tenant" title={tenant.name} description="Vista administrativa con metadata operativa, billing, limites, soporte y flags. Los datos sensibles del estudio permanecen ocultos." />
+      <OwnerDataSourceNotice source={source} />
       <SecurityBoundaryNotice />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Health score" value={`${tenant.health}`} trend={tenant.health > 80 ? "Adopcion saludable" : "Requiere seguimiento"} />
@@ -246,7 +344,7 @@ export function TenantDetail({ tenantId }: { tenantId: string }) {
 
 export function TenantUsage({ tenantId }: { tenantId: string }) {
   const tenant = findOwnerTenant(tenantId);
-  const usage = [
+  const fallbackUsage = [
     ["Usuarios", tenant.users, 40],
     ["Expedientes", tenant.cases, 1500],
     ["Documentos", tenant.documents, 5000],
@@ -255,9 +353,35 @@ export function TenantUsage({ tenantId }: { tenantId: string }) {
     ["WhatsApp", tenant.whatsappMessages, 5000],
     ["SINOE syncs", tenant.sinoeSyncs, 1000]
   ] as const;
+  const [usage, setUsage] = useState<readonly UsageTuple[]>(fallbackUsage);
+  const [source, setSource] = useState<OwnerDataSource>("demo");
+
+  useEffect(() => {
+    if (!hasOwnerSession()) {
+      setSource("demo");
+      return;
+    }
+    let active = true;
+    setSource("loading");
+    loadOwnerTenantUsage(tenantId)
+      .then((payload) => {
+        if (!active) return;
+        setUsage(payload);
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, [tenantId]);
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Uso" title={`Consumo de ${tenant.name}`} description="Usuarios, expedientes, documentos, IA, OCR, WhatsApp, automatizaciones y SINOE syncs medidos por tenant." />
+      <OwnerDataSourceNotice source={source} />
       <Card>
         <div className="grid gap-4">
           {usage.map(([label, value, max]) => <UsageBar key={label} label={label} value={value} max={max} />)}
@@ -284,12 +408,39 @@ export function TenantBilling({ tenantId }: { tenantId: string }) {
 export function TenantFeatures({ tenantId }: { tenantId: string }) {
   const tenant = findOwnerTenant(tenantId);
   const [enabled, setEnabled] = useState(new Set(tenant.modules));
+  const [featureKeys, setFeatureKeys] = useState(ownerFeatureFlags);
+  const [source, setSource] = useState<OwnerDataSource>("demo");
+
+  useEffect(() => {
+    if (!hasOwnerSession()) {
+      setSource("demo");
+      return;
+    }
+    let active = true;
+    setSource("loading");
+    loadOwnerFeatures(tenantId)
+      .then((payload) => {
+        if (!active) return;
+        setFeatureKeys(payload.map((feature) => feature.feature_key));
+        setEnabled(new Set(payload.filter((feature) => feature.enabled).map((feature) => feature.feature_key)));
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, [tenantId]);
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Feature flags" title={`Modulos de ${tenant.name}`} description="Activa o desactiva modulos por tenant con auditoria y limites de plan." />
+      <OwnerDataSourceNotice source={source} />
       <Card>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {ownerFeatureFlags.map((feature) => (
+          {featureKeys.map((feature) => (
             <button
               className={`flex items-center justify-between rounded-lg border p-4 text-left ${enabled.has(feature) ? "border-legal-200 bg-legal-50" : "border-slate-200 bg-white"}`}
               key={feature}
@@ -312,11 +463,37 @@ export function TenantFeatures({ tenantId }: { tenantId: string }) {
 }
 
 export function PlansManager() {
+  const [plans, setPlans] = useState(ownerPlans);
+  const [source, setSource] = useState<OwnerDataSource>("demo");
+
+  useEffect(() => {
+    if (!hasOwnerSession()) {
+      setSource("demo");
+      return;
+    }
+    let active = true;
+    setSource("loading");
+    loadOwnerPlans()
+      .then((payload) => {
+        if (!active) return;
+        setPlans(payload.length ? payload : ownerPlans);
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Planes" title="Planes y licencias" description="Precios mensual/anual, limites y modulos incluidos para START, PRO, AI y ENTERPRISE." />
+      <OwnerDataSourceNotice source={source} />
       <div className="grid gap-4 lg:grid-cols-2">
-        {ownerPlans.map((plan) => (
+        {plans.map((plan) => (
           <Card key={plan.name}>
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -337,12 +514,38 @@ export function PlansManager() {
 }
 
 export function SupportTickets() {
+  const [tickets, setTickets] = useState(ownerTickets);
+  const [source, setSource] = useState<OwnerDataSource>("demo");
+
+  useEffect(() => {
+    if (!hasOwnerSession()) {
+      setSource("demo");
+      return;
+    }
+    let active = true;
+    setSource("loading");
+    loadOwnerTickets()
+      .then((payload) => {
+        if (!active) return;
+        setTickets(payload.length ? payload : ownerTickets);
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Soporte" title="Tickets y SLA" description="Mesa de ayuda con prioridades, responsables, categorias, historial y resolucion auditada." />
+      <OwnerDataSourceNotice source={source} />
       <Card>
         <div className="grid gap-3">
-          {ownerTickets.map((ticket) => (
+          {tickets.map((ticket) => (
             <div className="rounded-lg border border-slate-200 bg-white p-4" key={ticket.id}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -360,11 +563,37 @@ export function SupportTickets() {
 }
 
 export function SystemHealth() {
+  const [checks, setChecks] = useState(ownerSystemChecks);
+  const [source, setSource] = useState<OwnerDataSource>("demo");
+
+  useEffect(() => {
+    if (!hasOwnerSession()) {
+      setSource("demo");
+      return;
+    }
+    let active = true;
+    setSource("loading");
+    loadOwnerSystemChecks()
+      .then((payload) => {
+        if (!active) return;
+        setChecks(payload.length ? payload : ownerSystemChecks);
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Monitoreo" title="Salud tecnica" description="API, DB, Redis, storage, IA, WhatsApp, SINOE, jobs, logs y backups en un panel operativo." />
+      <OwnerDataSourceNotice source={source} />
       <div className="grid gap-4 lg:grid-cols-2">
-        {ownerSystemChecks.map((check) => (
+        {checks.map((check) => (
           <Card key={check.service}>
             <StatusLine label={check.service} value={`${check.detail} - ${check.latency}`} status={check.status} />
           </Card>
@@ -375,11 +604,37 @@ export function SystemHealth() {
 }
 
 export function DemoTenants() {
+  const [demos, setDemos] = useState(ownerDemos);
+  const [source, setSource] = useState<OwnerDataSource>("demo");
+
+  useEffect(() => {
+    if (!hasOwnerSession()) {
+      setSource("demo");
+      return;
+    }
+    let active = true;
+    setSource("loading");
+    loadOwnerDemos()
+      .then((payload) => {
+        if (!active) return;
+        setDemos(payload.length ? payload : ownerDemos);
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Demos" title="Demos comerciales" description="Crea, resetea y carga datos demo por tipo de estudio sin contaminar tenants productivos." />
+      <OwnerDataSourceNotice source={source} />
       <div className="grid gap-4 lg:grid-cols-3">
-        {ownerDemos.map((demo) => (
+        {demos.map((demo) => (
           <OwnerQuickCard key={demo.tenant} icon={<Sparkles size={18} />} title={demo.name} value={demo.status} detail={`${demo.tenant} - reset ${demo.reset}`} href="/owner/demos" />
         ))}
       </div>
@@ -388,12 +643,38 @@ export function DemoTenants() {
 }
 
 export function OwnerAuditLogs() {
+  const [audits, setAudits] = useState(ownerAuditLogs);
+  const [source, setSource] = useState<OwnerDataSource>("demo");
+
+  useEffect(() => {
+    if (!hasOwnerSession()) {
+      setSource("demo");
+      return;
+    }
+    let active = true;
+    setSource("loading");
+    loadOwnerAuditLogs()
+      .then((payload) => {
+        if (!active) return;
+        setAudits(payload.length ? payload : ownerAuditLogs);
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Auditoria" title="Owner audit logs" description="Registro de acciones criticas: planes, suspensiones, features, soporte e intervenciones." />
+      <OwnerDataSourceNotice source={source} />
       <Card>
         <div className="grid gap-3">
-          {ownerAuditLogs.map((audit) => (
+          {audits.map((audit) => (
             <StatusLine key={`${audit.action}-${audit.at}`} label={audit.action} value={`${audit.actor} -> ${audit.target} (${audit.at})`} status="audit" />
           ))}
         </div>
@@ -403,13 +684,39 @@ export function OwnerAuditLogs() {
 }
 
 export function InterventionRequests() {
+  const [interventions, setInterventions] = useState(ownerInterventions);
+  const [source, setSource] = useState<OwnerDataSource>("demo");
+
+  useEffect(() => {
+    if (!hasOwnerSession()) {
+      setSource("demo");
+      return;
+    }
+    let active = true;
+    setSource("loading");
+    loadOwnerInterventions()
+      .then((payload) => {
+        if (!active) return;
+        setInterventions(payload.length ? payload : ownerInterventions);
+        setSource("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setSource("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Seguridad soporte" title="Intervenciones temporales" description="Acceso excepcional, con motivo, duracion, alcance limitado, expiracion y audit_log." />
+      <OwnerDataSourceNotice source={source} />
       <SecurityBoundaryNotice />
       <Card>
         <div className="grid gap-3">
-          {ownerInterventions.map((item) => (
+          {interventions.map((item) => (
             <div className="rounded-lg border border-slate-200 bg-white p-4" key={`${item.tenant}-${item.expires}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -436,6 +743,15 @@ function SecurityBoundaryNotice() {
           Boundary owner activo: metadata SaaS permitida; contenido sensible de clientes, expedientes, documentos y comunicaciones requiere autorizacion temporal y auditada.
         </p>
       </div>
+    </div>
+  );
+}
+
+function OwnerDataSourceNotice({ source }: { source: OwnerDataSource }) {
+  const label = source === "live" ? "Owner Console conectado al API cloud." : source === "loading" ? "Consultando Owner API..." : source === "fallback" ? "Owner API no disponible, mostrando demo seguro." : "Modo demo owner sin sesion JWT.";
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600">
+      {label}
     </div>
   );
 }

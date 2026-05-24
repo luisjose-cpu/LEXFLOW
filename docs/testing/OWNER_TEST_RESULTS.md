@@ -61,7 +61,7 @@ npm run test
 
 Result:
 
-- 51 passed.
+- 52 passed.
 
 Build and cloud checks:
 
@@ -88,3 +88,4 @@ Coverage:
 - DemoTenants.
 - InterventionRequests.
 - OwnerAuditLogs.
+- Owner dashboard conectado al Owner API cuando existe JWT owner.

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -54,6 +54,43 @@ describe("Owner Console UI", () => {
     expect(screen.getByText("Tenants activos")).toBeTruthy();
     expect(screen.getByText(/Boundary owner activo/i)).toBeTruthy();
     expect(screen.getByText("Tenants en observacion")).toBeTruthy();
+  });
+
+  it("loads owner dashboard from cloud API when owner token exists", async () => {
+    localStorage.setItem("lexflow.owner_access_token", "owner-token");
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/owner/dashboard")) {
+        return {
+          ok: true,
+          json: async () => ({
+            tenants: { active: 7, trial: 2, suspended: 1 },
+            revenue: { mrr_cents: 99000, arr_cents: 1188000 },
+            support: { open_tickets: 4, sla_risk: 1 },
+            usage: { ai_tokens: 123000 }
+          })
+        } as Response;
+      }
+      if (url.includes("/owner/tenants")) {
+        return {
+          ok: true,
+          json: async () => [{ id: "tenant-live", name: "Tenant Live", slug: "live", status: "active", plan: "AI", users: 3, cases: 9, health_score: 88 }]
+        } as Response;
+      }
+      if (url.includes("/owner/system/health")) {
+        return {
+          ok: true,
+          json: async () => ({ checks: [{ component: "api", status: "ok", latency_ms: 10 }] })
+        } as Response;
+      }
+      return { ok: false, json: async () => ({}) } as Response;
+    });
+
+    render(<OwnerDashboard />);
+
+    await waitFor(() => expect(screen.getByText("Owner Console conectado al API cloud.")).toBeTruthy());
+    expect(screen.getByText("Tenant Live")).toBeTruthy();
+    expect(screen.getByText("$990")).toBeTruthy();
   });
 
   it("renders tenants list with search and lifecycle actions", () => {
