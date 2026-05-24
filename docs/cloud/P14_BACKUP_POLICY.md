@@ -39,6 +39,8 @@ npm run db:restore-drill -- -BackupPath backups/postgres/lexflow-staging-YYYYMMD
 
 The scripts do not print database URLs or credentials. Backup artifacts are ignored by git under `backups/`.
 
+`db:backup` writes a non-secret manifest under `reports/backup/lexflow-backup-*.json` with backup filename, bytes, duration and security flags.
+
 `db:restore-drill` writes structured evidence under `reports/restore/lexflow-restore-drill-*.json`. The report includes backup filename, backup bytes, catalog sample, status, duration and security flags. It does not include database URLs, passwords, tokens or tenant data.
 
 ## Restore

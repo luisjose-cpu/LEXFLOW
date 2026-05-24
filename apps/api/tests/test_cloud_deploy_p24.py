@@ -93,6 +93,10 @@ def test_backup_restore_scripts_are_safe_by_default() -> None:
     assert "--format custom" in backup
     assert "DATABASE_URL" in backup
     assert "Write-Host \"Backup ready" in backup
+    assert "reports/backup" in backup
+    assert "database_urls_included = $false" in backup
+    assert "credentials_included = $false" in backup
+    assert "lexflow-backup-" in backup
     assert "pg_restore" in restore
     assert "--list" in restore
     assert "-Execute" in restore

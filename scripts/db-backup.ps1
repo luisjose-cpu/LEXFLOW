@@ -1,10 +1,12 @@
 param(
   [string]$DatabaseUrl = $env:DATABASE_URL,
   [string]$BackupDir = $env:LEXFLOW_BACKUP_DIR,
+  [string]$ReportDir = "reports/backup",
   [string]$Label = "manual"
 )
 
 $ErrorActionPreference = "Stop"
+$startedAt = (Get-Date).ToUniversalTime()
 
 if (-not $DatabaseUrl) {
   throw "DATABASE_URL or -DatabaseUrl is required"
@@ -39,5 +41,28 @@ if ($item.Length -le 0) {
   throw "Backup file is empty"
 }
 
+$finishedAt = (Get-Date).ToUniversalTime()
+$resolvedReportDir = New-Item -ItemType Directory -Force -Path $ReportDir
+$reportPath = Join-Path $resolvedReportDir.FullName "lexflow-backup-$safeLabel-$timestamp.json"
+$report = @{
+  product = "LEXFLOW"
+  generated_at = $finishedAt.ToString("o")
+  status = "backup_completed"
+  label = $safeLabel
+  backup_file = $item.Name
+  backup_bytes = $item.Length
+  started_at = $startedAt.ToString("o")
+  finished_at = $finishedAt.ToString("o")
+  duration_seconds = [Math]::Round(($finishedAt - $startedAt).TotalSeconds, 2)
+  format = "postgres-custom"
+  security = @{
+    database_urls_included = $false
+    credentials_included = $false
+    tenant_data_included = $false
+  }
+}
+$report | ConvertTo-Json -Depth 6 | Set-Content -Path $reportPath -Encoding UTF8
+
 Write-Host "Backup ready: $backupPath"
 Write-Host "Backup bytes: $($item.Length)"
+Write-Host "Backup evidence ready: $reportPath"

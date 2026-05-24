@@ -69,6 +69,7 @@
 ### Added
 
 - Restore drill script now writes non-secret JSON evidence under `reports/restore/`.
+- Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Owner system health now includes live API request metrics, production readiness summary and storage backend metadata.
 - Owner Console frontend now renders live health details from the API instead of generic placeholder health text.
 - Added `cloud:evidence` to generate a local JSON release evidence report from cloud preflight, smoke, readiness and version checks.
