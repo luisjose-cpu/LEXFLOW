@@ -115,6 +115,8 @@ def test_cloud_release_evidence_script_writes_safe_report() -> None:
     assert "cloud:evidence" in package["scripts"]
     assert "scripts/cloud-preflight.ps1" in script
     assert "scripts/cloud-smoke.ps1" in script
+    assert "api/v1/status" in script
+    assert "external_providers" in script
     assert "secrets_included = $false" in script
     assert "credentials_included = $false" in script
     assert "tenant_data_included = $false" in script

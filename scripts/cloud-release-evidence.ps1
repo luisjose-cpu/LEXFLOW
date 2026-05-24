@@ -61,6 +61,8 @@ $steps += Invoke-ReleaseStep "cloud-smoke" $smokeCommand
 
 $readinessResponse = Invoke-WebRequest -Uri "$ApiUrl/readiness" -Method GET -UseBasicParsing -TimeoutSec 30
 $readiness = $readinessResponse.Content | ConvertFrom-Json
+$statusResponse = Invoke-WebRequest -Uri "$ApiUrl/api/v1/status" -Method GET -UseBasicParsing -TimeoutSec 30
+$apiStatus = $statusResponse.Content | ConvertFrom-Json
 $versionResponse = Invoke-WebRequest -Uri "$ApiUrl/version" -Method GET -UseBasicParsing -TimeoutSec 30
 $version = $versionResponse.Content | ConvertFrom-Json
 $blockerCount = @($readiness.blockers).Count
@@ -76,6 +78,7 @@ $report = @{
   api_url = $ApiUrl
   web_url = $WebUrl
   version = $version
+  external_providers = $apiStatus.external_providers
   readiness = @{
     status = $readiness.status
     app_env = $readiness.app_env
