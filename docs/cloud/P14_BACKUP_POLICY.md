@@ -39,6 +39,8 @@ npm run db:restore-drill -- -BackupPath backups/postgres/lexflow-staging-YYYYMMD
 
 The scripts do not print database URLs or credentials. Backup artifacts are ignored by git under `backups/`.
 
+`db:restore-drill` writes structured evidence under `reports/restore/lexflow-restore-drill-*.json`. The report includes backup filename, backup bytes, catalog sample, status, duration and security flags. It does not include database URLs, passwords, tokens or tenant data.
+
 ## Restore
 
 Before public production, run a restore drill:
@@ -52,4 +54,4 @@ Before public production, run a restore drill:
 
 ## RC1 Status
 
-Policy and scripts are documented. Restore drill evidence remains open for pilot/prod readiness.
+Policy, scripts and local evidence generation are documented. Public production still requires a real restore drill against an isolated database and evidence review.

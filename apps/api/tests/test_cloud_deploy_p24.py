@@ -97,7 +97,12 @@ def test_backup_restore_scripts_are_safe_by_default() -> None:
     assert "--list" in restore
     assert "-Execute" in restore
     assert "RESTORE_DATABASE_URL" in restore
+    assert "reports/restore" in restore
+    assert "database_urls_included = $false" in restore
+    assert "credentials_included = $false" in restore
+    assert "lexflow-restore-drill-" in restore
     assert "backups/" in gitignore
+    assert "reports/" in gitignore
 
 
 def test_cloud_smoke_checks_external_provider_modes() -> None:
