@@ -133,6 +133,11 @@ export const ownerSystemChecks = [
   { service: "SINOE", status: "human_review", latency: "n/a", detail: "CAPTCHA human-in-the-loop" }
 ];
 
+export const ownerSystemIncidents = [
+  { id: "incident-demo-1", component: "storage", title: "Latencia S3 elevada", severity: "high", status: "open", summary: "Carga de documentos lenta en entorno piloto.", createdAt: "2026-05-24 09:10", resolvedAt: null },
+  { id: "incident-demo-2", component: "jobs", title: "Reintentos de cola normalizados", severity: "medium", status: "resolved", summary: "Worker recuperado tras redeploy.", createdAt: "2026-05-23 22:40", resolvedAt: "2026-05-23 23:05" }
+];
+
 export const ownerDemos = [
   { name: "Demo litigios", status: "ready", tenant: "demo-litigios", reset: "2026-05-24 06:00" },
   { name: "Demo corporativo", status: "ready", tenant: "demo-corp", reset: "2026-05-24 06:00" },

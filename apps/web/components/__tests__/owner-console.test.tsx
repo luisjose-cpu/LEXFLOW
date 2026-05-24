@@ -339,6 +339,46 @@ describe("Owner Console UI", () => {
     expect(screen.getByText("Owner audit logs")).toBeTruthy();
   });
 
+  it("creates and resolves system incidents through owner API", async () => {
+    localStorage.setItem("lexflow.owner_access_token", "owner-token");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/owner/system/health")) {
+        return {
+          ok: true,
+          json: async () => ({ checks: [{ component: "api", status: "ok", latency_ms: 35 }] })
+        } as Response;
+      }
+      if (url.includes("/owner/system/incidents/incident-new/resolve")) {
+        return {
+          ok: true,
+          json: async () => ({ id: "incident-new", component: "api", title: "API error rate", severity: "high", status: "resolved", summary: "5xx elevados", created_at: "2026-05-24T21:00:00Z", resolved_at: "2026-05-24T21:05:00Z" })
+        } as Response;
+      }
+      if (url.includes("/owner/system/incidents") && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({ id: "incident-new", component: "api", title: "API error rate", severity: "high", status: "open", summary: "5xx elevados", created_at: "2026-05-24T21:00:00Z", resolved_at: null })
+        } as Response;
+      }
+      if (url.includes("/owner/system/incidents")) return { ok: true, json: async () => [] } as Response;
+      return { ok: false, json: async () => ({}) } as Response;
+    });
+
+    render(<SystemHealth />);
+    await waitFor(() => expect(screen.getByText("Owner Console conectado al API cloud.")).toBeTruthy());
+    fireEvent.change(screen.getByPlaceholderText("Titulo del incidente"), { target: { value: "API error rate" } });
+    fireEvent.change(screen.getByDisplayValue("medium"), { target: { value: "high" } });
+    fireEvent.change(screen.getByPlaceholderText("Resumen operativo"), { target: { value: "5xx elevados" } });
+    fireEvent.click(screen.getByText("Crear incidente"));
+
+    await waitFor(() => expect(screen.getByText("Incidente creado: API error rate.")).toBeTruthy());
+    fireEvent.click(screen.getByText("Resolver"));
+    await waitFor(() => expect(screen.getByText("Incidente resuelto: API error rate.")).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/system/incidents"), expect.objectContaining({ method: "POST" }));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/system/incidents/incident-new/resolve"), expect.objectContaining({ method: "POST" }));
+  });
+
   it("creates support tickets, demo tenants and interventions through owner API", async () => {
     localStorage.setItem("lexflow.owner_access_token", "owner-token");
     const tenantId = "11111111-1111-1111-1111-111111111111";

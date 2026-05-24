@@ -8,6 +8,7 @@ import {
   ownerInterventions,
   ownerPlans,
   ownerSystemChecks,
+  ownerSystemIncidents,
   ownerTickets
 } from "@/lib/owner-demo";
 import { API_URL } from "@/lib/lexflow-api";
@@ -116,6 +117,17 @@ type ApiOwnerIntervention = {
   expires_at: string;
   scopes: string[];
   closed_at?: string | null;
+};
+
+type ApiOwnerIncident = {
+  id: string;
+  component: string;
+  title: string;
+  severity: string;
+  status: string;
+  summary?: string;
+  created_at?: string;
+  resolved_at?: string | null;
 };
 
 export type OwnerLimit = {
@@ -265,6 +277,27 @@ export async function loadOwnerSystemChecks() {
   return (body.checks ?? []).map((check) => ({ service: check.component.toUpperCase(), status: check.status, latency: `${check.latency_ms} ms`, detail: "API health" }));
 }
 
+export async function loadOwnerSystemIncidents() {
+  const body = await ownerApiRequest<ApiOwnerIncident[]>("/owner/system/incidents");
+  return body.map(normalizeOwnerIncident);
+}
+
+export async function createOwnerSystemIncident(payload: { component: string; title: string; severity?: string; summary?: string }) {
+  const body = await ownerApiRequest<ApiOwnerIncident>("/owner/system/incidents", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  return normalizeOwnerIncident(body);
+}
+
+export async function resolveOwnerSystemIncident(incidentId: string, reason = "Incidente resuelto desde Owner Console") {
+  const body = await ownerApiRequest<ApiOwnerIncident>(`/owner/system/incidents/${incidentId}/resolve`, {
+    method: "POST",
+    body: JSON.stringify({ reason })
+  });
+  return normalizeOwnerIncident(body);
+}
+
 export async function loadOwnerDemos() {
   const body = await ownerApiRequest<ApiOwnerDemo[]>("/owner/demos");
   return body.map(normalizeOwnerDemo);
@@ -315,6 +348,7 @@ export const ownerDemoFallback = {
   plans: () => Promise.resolve(ownerPlans),
   tickets: () => Promise.resolve(ownerTickets),
   system: () => Promise.resolve(ownerSystemChecks),
+  incidents: () => Promise.resolve(ownerSystemIncidents),
   demos: () => Promise.resolve(ownerDemos),
   interventions: () => Promise.resolve(ownerInterventions),
   audit: () => Promise.resolve(ownerAuditLogs),
@@ -382,6 +416,19 @@ function normalizeOwnerIntervention(item: ApiOwnerIntervention) {
     expires: item.expires_at,
     scopes: item.scopes,
     closedAt: item.closed_at ?? null
+  };
+}
+
+function normalizeOwnerIncident(item: ApiOwnerIncident) {
+  return {
+    id: item.id,
+    component: item.component,
+    title: item.title,
+    severity: item.severity,
+    status: item.status,
+    summary: item.summary ?? "",
+    createdAt: item.created_at ?? "API cloud",
+    resolvedAt: item.resolved_at ?? null
   };
 }
 

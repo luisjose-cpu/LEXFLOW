@@ -31,6 +31,10 @@ Toda intervencion debe registrar:
 
 Owner Console permite cierre manual con `/api/v1/owner/interventions/{id}/close`. El cierre marca `status=closed`, llena `closed_at` y genera `tenant_intervention_closed`.
 
+## Incidentes tecnicos
+
+Solo `owner_admin` y `owner_devops` pueden crear o resolver incidentes con `/api/v1/owner/system/incidents`. Cada alta genera `system_incident_created`; cada resolucion genera `system_incident_resolved` con motivo, componente y timestamp.
+
 ## Pendiente productivo
 
 Owner Console usa JWT owner dedicado con refresh token versionado, logout revocando tokens y bootstrap por variables de entorno. El fallback por headers owner queda permitido solo en `APP_ENV=local` o `APP_ENV=test`.

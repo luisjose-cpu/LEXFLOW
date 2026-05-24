@@ -32,6 +32,7 @@ import {
   ownerInterventions,
   ownerPlans,
   ownerSystemChecks,
+  ownerSystemIncidents,
   ownerTenants,
   ownerTickets
 } from "@/lib/owner-demo";
@@ -42,6 +43,7 @@ import {
   createOwnerPlan,
   createOwnerDemo,
   createOwnerIntervention,
+  createOwnerSystemIncident,
   createOwnerTenant,
   createOwnerTicket,
   hasOwnerSession,
@@ -53,12 +55,14 @@ import {
   loadOwnerLimits,
   loadOwnerPlans,
   loadOwnerSystemChecks,
+  loadOwnerSystemIncidents,
   loadOwnerTenantDetail,
   loadOwnerTenantUsage,
   loadOwnerTenants,
   loadOwnerTickets,
   logoutOwner,
   reactivateOwnerTenant,
+  resolveOwnerSystemIncident,
   resolveOwnerTicket,
   suspendOwnerTenant,
   updateOwnerLimits,
@@ -952,7 +956,12 @@ export function SupportTickets() {
 
 export function SystemHealth() {
   const [checks, setChecks] = useState(ownerSystemChecks);
+  const [incidents, setIncidents] = useState(ownerSystemIncidents);
   const [source, setSource] = useState<OwnerDataSource>("demo");
+  const [incidentForm, setIncidentForm] = useState({ component: "api", title: "", severity: "medium", summary: "" });
+  const [incidentState, setIncidentState] = useState<"idle" | "saving" | "error" | "success">("idle");
+  const [incidentMessage, setIncidentMessage] = useState("");
+  const [resolvingIncidentId, setResolvingIncidentId] = useState("");
 
   useEffect(() => {
     if (!hasOwnerSession()) {
@@ -961,10 +970,11 @@ export function SystemHealth() {
     }
     let active = true;
     setSource("loading");
-    loadOwnerSystemChecks()
-      .then((payload) => {
+    Promise.all([loadOwnerSystemChecks(), loadOwnerSystemIncidents()])
+      .then(([payload, nextIncidents]) => {
         if (!active) return;
         setChecks(payload.length ? payload : ownerSystemChecks);
+        setIncidents(nextIncidents);
         setSource("live");
       })
       .catch(() => {
@@ -976,10 +986,87 @@ export function SystemHealth() {
     };
   }, []);
 
+  async function submitIncident(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!hasOwnerSession()) {
+      setIncidentState("error");
+      setIncidentMessage("Inicia sesion owner devops para crear incidentes auditados.");
+      return;
+    }
+    setIncidentState("saving");
+    setIncidentMessage("");
+    try {
+      const incident = await createOwnerSystemIncident(incidentForm);
+      setIncidents((current) => [incident, ...current.filter((item) => item.id !== incident.id)]);
+      setIncidentForm({ component: "api", title: "", severity: "medium", summary: "" });
+      setSource("live");
+      setIncidentState("success");
+      setIncidentMessage(`Incidente creado: ${incident.title}.`);
+    } catch (caught) {
+      setIncidentState("error");
+      setIncidentMessage(caught instanceof Error ? caught.message : "No se pudo crear el incidente.");
+    }
+  }
+
+  async function resolveIncident(incidentId: string) {
+    if (!hasOwnerSession()) {
+      setIncidentState("error");
+      setIncidentMessage("Inicia sesion owner devops para resolver incidentes auditados.");
+      return;
+    }
+    setResolvingIncidentId(incidentId);
+    setIncidentMessage("");
+    try {
+      const incident = await resolveOwnerSystemIncident(incidentId);
+      setIncidents((current) => current.map((item) => item.id === incident.id ? incident : item));
+      setSource("live");
+      setIncidentState("success");
+      setIncidentMessage(`Incidente resuelto: ${incident.title}.`);
+    } catch (caught) {
+      setIncidentState("error");
+      setIncidentMessage(caught instanceof Error ? caught.message : "No se pudo resolver el incidente.");
+    } finally {
+      setResolvingIncidentId("");
+    }
+  }
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Monitoreo" title="Salud tecnica" description="API, DB, Redis, storage, IA, WhatsApp, SINOE, jobs, logs y backups en un panel operativo." />
       <OwnerDataSourceNotice source={source} />
+      <form className="grid gap-3 rounded-lg border border-white/80 bg-white p-4 shadow-soft lg:grid-cols-[160px_1fr_160px_1fr_auto]" onSubmit={submitIncident}>
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setIncidentForm((current) => ({ ...current, component: event.target.value }))}
+          placeholder="api"
+          required
+          value={incidentForm.component}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setIncidentForm((current) => ({ ...current, title: event.target.value }))}
+          placeholder="Titulo del incidente"
+          required
+          value={incidentForm.title}
+        />
+        <select
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-legal-500"
+          onChange={(event) => setIncidentForm((current) => ({ ...current, severity: event.target.value }))}
+          value={incidentForm.severity}
+        >
+          {["low", "medium", "high", "critical"].map((severity) => <option key={severity} value={severity}>{severity}</option>)}
+        </select>
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setIncidentForm((current) => ({ ...current, summary: event.target.value }))}
+          placeholder="Resumen operativo"
+          value={incidentForm.summary}
+        />
+        <button className="inline-flex h-11 items-center justify-center rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={incidentState === "saving"} type="submit">
+          {incidentState === "saving" ? "Creando..." : "Crear incidente"}
+        </button>
+      </form>
+      {incidentMessage ? <p className={`rounded-md px-3 py-2 text-sm ${incidentState === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{incidentMessage}</p> : null}
       <div className="grid gap-4 lg:grid-cols-2">
         {checks.map((check) => (
           <Card key={check.service}>
@@ -987,6 +1074,35 @@ export function SystemHealth() {
           </Card>
         ))}
       </div>
+      <Card>
+        <SectionTitle icon={<AlertTriangle size={18} />} title="Incidentes tecnicos" />
+        <div className="mt-4 grid gap-3">
+          {incidents.map((incident) => (
+            <div className="rounded-lg border border-slate-200 bg-white p-4" key={incident.id}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge>{incident.severity}</Badge>
+                    <span className="text-xs font-semibold text-slate-500">{incident.component}</span>
+                  </div>
+                  <p className="mt-2 font-semibold text-ink">{incident.title}</p>
+                  <p className="mt-1 text-sm text-slate-600">{incident.summary || "Sin resumen operativo."}</p>
+                  <p className="mt-1 text-xs text-slate-500">Creado: {incident.createdAt}{incident.resolvedAt ? ` - resuelto: ${incident.resolvedAt}` : ""}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge>{incident.status}</Badge>
+                  {incident.status !== "resolved" ? (
+                    <button className="rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-legal-50 disabled:opacity-60" disabled={resolvingIncidentId === incident.id} onClick={() => void resolveIncident(incident.id)} type="button">
+                      {resolvingIncidentId === incident.id ? "Resolviendo..." : "Resolver"}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ))}
+          {!incidents.length ? <EmptyState title="Sin incidentes" description="No hay incidentes tecnicos registrados." /> : null}
+        </div>
+      </Card>
     </OwnerConsoleShell>
   );
 }

@@ -12,7 +12,7 @@ python -m pytest tests/test_owner_console.py -q
 
 Result:
 
-- 6 passed.
+- 7 passed.
 
 Coverage:
 
@@ -31,6 +31,7 @@ Coverage:
 - crear y resolver ticket.
 - crear y expirar intervencion.
 - cerrar intervencion temporal manualmente.
+- crear y resolver incidente tecnico owner.
 - health score calculado.
 - audit log creado.
 
@@ -42,7 +43,7 @@ python -m pytest -q
 
 Result:
 
-- 102 passed.
+- 103 passed.
 
 ## Frontend
 
@@ -54,7 +55,7 @@ npm --workspace apps/web run test -- components/__tests__/owner-console.test.tsx
 
 Result:
 
-- 14 passed.
+- 15 passed.
 
 Global web command:
 
@@ -64,7 +65,7 @@ npm --workspace apps/web run test
 
 Result:
 
-- 59 passed.
+- 60 passed.
 
 Build and cloud checks:
 
@@ -103,3 +104,4 @@ Coverage:
 - Owner commercial demo tenant creation via Owner API.
 - Owner temporary intervention creation via Owner API.
 - Owner temporary intervention manual close via Owner API.
+- Owner system incident creation and resolution via Owner API.

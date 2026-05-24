@@ -264,7 +264,32 @@ class OwnerConsoleService:
         return {"checks": [{"component": item.component, "status": item.status, "latency_ms": item.latency_ms, "checked_at": item.checked_at.isoformat()} for item in checks]}
 
     def incidents(self, db: Session) -> list[dict[str, object]]:
-        return [{"id": item.id, "component": item.component, "title": item.title, "severity": item.severity, "status": item.status} for item in db.scalars(select(dbm.SystemIncident)).all()]
+        rows = db.scalars(select(dbm.SystemIncident).order_by(dbm.SystemIncident.created_at.desc())).all()
+        return [self._incident(row) for row in rows]
+
+    def create_incident(self, db: Session, *, owner: OwnerPrincipal, payload: dict[str, object], request_id: str | None = None) -> dict[str, object]:
+        incident = dbm.SystemIncident(
+            component=str(payload["component"]).strip().lower(),
+            title=str(payload["title"]).strip(),
+            severity=str(payload.get("severity", "medium")),
+            summary=str(payload.get("summary", "")),
+            status="open",
+        )
+        db.add(incident)
+        db.flush()
+        self.audit(db, owner=owner, action="system_incident_created", entity_type="system_incident", entity_id=incident.id, reason=incident.title, metadata={"component": incident.component, "severity": incident.severity}, request_id=request_id)
+        db.commit()
+        return self._incident(incident)
+
+    def resolve_incident(self, db: Session, *, owner: OwnerPrincipal, incident_id: UUID | str, reason: str, request_id: str | None = None) -> dict[str, object]:
+        incident = db.get(dbm.SystemIncident, str(incident_id))
+        if not incident:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
+        incident.status = "resolved"
+        incident.resolved_at = now_utc()
+        self.audit(db, owner=owner, action="system_incident_resolved", entity_type="system_incident", entity_id=incident.id, reason=reason, metadata={"component": incident.component, "resolved_at": incident.resolved_at.isoformat()}, request_id=request_id)
+        db.commit()
+        return self._incident(incident)
 
     def demos(self, db: Session) -> list[dict[str, object]]:
         demos = db.scalars(select(dbm.DemoTenant).order_by(dbm.DemoTenant.created_at.desc())).all()
@@ -445,6 +470,19 @@ class OwnerConsoleService:
     @staticmethod
     def _intervention(row: dbm.TenantIntervention) -> dict[str, object]:
         return {"id": row.id, "tenant_id": row.tenant_id, "requested_by_email": row.requested_by_email, "approved_by_email": row.approved_by_email, "reason": row.reason, "scopes": row.scopes_json, "status": row.status, "expires_at": row.expires_at.isoformat(), "closed_at": row.closed_at.isoformat() if row.closed_at else None}
+
+    @staticmethod
+    def _incident(row: dbm.SystemIncident) -> dict[str, object]:
+        return {
+            "id": row.id,
+            "component": row.component,
+            "title": row.title,
+            "severity": row.severity,
+            "status": row.status,
+            "summary": row.summary,
+            "created_at": row.created_at.isoformat(),
+            "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None,
+        }
 
     @staticmethod
     def _plan_price_cents(plan: str) -> int:

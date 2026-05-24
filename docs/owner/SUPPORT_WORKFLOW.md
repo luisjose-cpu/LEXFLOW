@@ -8,7 +8,9 @@
 4. La intervencion define scopes, motivo y expiracion.
 5. Se ejecuta soporte dentro del alcance autorizado.
 6. Se cierra la intervencion temporal si el soporte termina antes de expirar.
-7. Se resuelve ticket desde Owner Console y se registra audit log.
+7. Se crea incidente tecnico si el ticket revela degradacion de API, DB, Redis, storage, IA, WhatsApp, SINOE, jobs o backups.
+8. Se resuelve el incidente con motivo operativo cuando el sistema queda estable.
+9. Se resuelve ticket desde Owner Console y se registra audit log.
 
 ## Categorias iniciales
 

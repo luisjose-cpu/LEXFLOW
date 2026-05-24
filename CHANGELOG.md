@@ -12,6 +12,7 @@
 - Owner Console plan management with audited create/update endpoints for SaaS plan catalog.
 - Owner Console tenant limit management with audited read/update endpoints and tenant detail controls.
 - Owner Console temporary intervention manual close action with owner audit trail.
+- Owner Console system incidents can now be created and resolved from the system health UI with devops-only audited API writes.
 - Owner Console creation flows for tenants, support tickets, commercial demo tenants and temporary interventions through audited backend endpoints.
 - Owner Console support ticket resolution through audited backend endpoint.
 - Owner Console tenant lifecycle actions for suspend, reactivate and change plan through audited backend endpoints.

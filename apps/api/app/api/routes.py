@@ -342,6 +342,13 @@ class OwnerInterventionCreate(BaseModel):
     scopes: list[str] = Field(default_factory=lambda: ["metadata:read"])
 
 
+class OwnerIncidentCreate(BaseModel):
+    component: str = Field(min_length=2, max_length=120)
+    title: str = Field(min_length=3, max_length=240)
+    severity: str = Field(default="medium", pattern="^(low|medium|high|critical)$")
+    summary: str = Field(default="", max_length=2000)
+
+
 class NotificationTestRequest(BaseModel):
     template_id: UUID
     variables: dict[str, object] = Field(default_factory=dict)
@@ -638,6 +645,16 @@ def owner_system_health(_: Annotated[OwnerPrincipal, Depends(require_owner_permi
 @router.get("/owner/system/incidents")
 def owner_system_incidents(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
     return owner_console_service.incidents(db)
+
+
+@router.post("/owner/system/incidents", status_code=status.HTTP_201_CREATED)
+def owner_create_system_incident(payload: OwnerIncidentCreate, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("system:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.create_incident(db, owner=owner, payload=payload.model_dump(), request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/owner/system/incidents/{incident_id}/resolve")
+def owner_resolve_system_incident(incident_id: UUID, payload: OwnerReasonRequest, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("system:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.resolve_incident(db, owner=owner, incident_id=incident_id, reason=payload.reason, request_id=getattr(request.state, "request_id", None))
 
 
 @router.get("/owner/demos")

@@ -148,6 +148,26 @@ def test_support_ticket_resolution_intervention_expiry_and_owner_surfaces(api: T
     assert api.get("/api/v1/owner/audit-logs", headers=owner_headers()).json()
 
 
+def test_owner_system_incident_lifecycle_and_audit(api: TestClient, db_session: Session) -> None:
+    created = api.post(
+        "/api/v1/owner/system/incidents",
+        headers=owner_headers("owner_devops"),
+        json={"component": "api", "title": "Error rate elevado", "severity": "high", "summary": "Aumento de 5xx en ventana piloto."},
+    )
+    listed = api.get("/api/v1/owner/system/incidents", headers=owner_headers("owner_readonly"))
+    resolved = api.post(f"/api/v1/owner/system/incidents/{created.json()['id']}/resolve", headers=owner_headers("owner_devops"), json={"reason": "rollback aplicado"})
+    forbidden = api.post("/api/v1/owner/system/incidents", headers=owner_headers("owner_support"), json={"component": "db", "title": "No autorizado"})
+
+    audits = db_session.scalars(select(OwnerAuditLog).where(OwnerAuditLog.entity_type == "system_incident")).all()
+    assert created.status_code == 201
+    assert created.json()["status"] == "open"
+    assert any(item["title"] == "Error rate elevado" for item in listed.json())
+    assert resolved.json()["status"] == "resolved"
+    assert resolved.json()["resolved_at"]
+    assert forbidden.status_code == 403
+    assert {audit.action for audit in audits} >= {"system_incident_created", "system_incident_resolved"}
+
+
 def test_owner_plan_create_update_and_audit(api: TestClient, db_session: Session) -> None:
     created = api.post(
         "/api/v1/owner/plans",
