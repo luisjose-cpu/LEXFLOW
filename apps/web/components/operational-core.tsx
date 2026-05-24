@@ -16,7 +16,8 @@ import {
   Workflow
 } from "lucide-react";
 import Link from "next/link";
-import React, { FormEvent, ReactNode, useMemo, useState } from "react";
+import React, { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { hasCloudSession, searchOperational } from "@/lib/lexflow-api";
 import {
   CaseOps,
   ClientOps,
@@ -35,7 +36,59 @@ export function SearchGlobalBar({ compact = false }: { compact?: boolean }) {
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState(["Nova Capital", "SINOE", "audiencia"]);
   const [favorites, setFavorites] = useState(["Cobro ejecutivo Nova"]);
-  const results = useMemo(() => filterResults(query), [query]);
+  const [liveResults, setLiveResults] = useState<SearchResult[] | null>(null);
+  const [searchState, setSearchState] = useState<"demo" | "loading" | "live" | "fallback">("demo");
+  const demoResults = useMemo(() => filterResults(query), [query]);
+  const results = liveResults ?? demoResults;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storedRecent = localStorage.getItem("lexflow.search.recent");
+    const storedFavorites = localStorage.getItem("lexflow.search.favorites");
+    if (storedRecent) setRecent(JSON.parse(storedRecent) as string[]);
+    if (storedFavorites) setFavorites(JSON.parse(storedFavorites) as string[]);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("lexflow.search.recent", JSON.stringify(recent.slice(0, 5)));
+  }, [recent]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("lexflow.search.favorites", JSON.stringify(favorites.slice(0, 5)));
+  }, [favorites]);
+
+  useEffect(() => {
+    const clean = query.trim();
+    if (clean.length < 2 || !hasCloudSession()) {
+      setLiveResults(null);
+      setSearchState("demo");
+      return;
+    }
+
+    let active = true;
+    const timeout = window.setTimeout(async () => {
+      setSearchState("loading");
+      try {
+        const payload = await searchOperational(clean);
+        if (!active) return;
+        setLiveResults(payload.results);
+        setSearchState("live");
+        if (payload.recent.length) setRecent((current) => mergeUnique([...payload.recent, ...current], 5));
+        if (payload.favorites.length) setFavorites((current) => mergeUnique([...payload.favorites, ...current], 5));
+      } catch {
+        if (!active) return;
+        setLiveResults(null);
+        setSearchState("fallback");
+      }
+    }, 260);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [query]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,8 +113,12 @@ export function SearchGlobalBar({ compact = false }: { compact?: boolean }) {
           Buscar
         </button>
       </form>
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
+        <span>{searchState === "live" ? "Conectado a API cloud" : searchState === "loading" ? "Consultando Legal OS..." : "Modo demo con fallback seguro"}</span>
+        {searchState === "fallback" ? <span className="text-amber-700">API no disponible, mostrando datos demo.</span> : null}
+      </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        {[...recent, ...favorites].slice(0, 8).map((item) => (
+        {mergeUnique([...recent, ...favorites], 8).map((item) => (
           <button className="rounded-md border border-slate-200 bg-mist px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-legal-50" key={item} onClick={() => setQuery(item)} type="button">
             {item}
           </button>
@@ -92,6 +149,10 @@ export function SearchGlobalBar({ compact = false }: { compact?: boolean }) {
       ) : null}
     </Card>
   );
+}
+
+function mergeUnique(items: string[], limit: number) {
+  return Array.from(new Set(items.filter(Boolean))).slice(0, limit);
 }
 
 export function ClientList({ clients = clientsOps }: { clients?: ClientOps[] }) {

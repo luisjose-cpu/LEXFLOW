@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CaseCreateWizard,
   CaseResourcePage,
@@ -12,6 +12,16 @@ import {
 import { findCase, findClient } from "@/lib/operational-demo";
 
 describe("Operational core UI", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
   it("renders global search with autocomplete, recent searches, favorites and advanced buckets", () => {
     render(<SearchGlobalBar />);
 
@@ -20,6 +30,35 @@ describe("Operational core UI", () => {
     expect(screen.getAllByText("Nova Capital")[0]).toBeTruthy();
     expect(screen.getByText("Resultado avanzado")).toBeTruthy();
     expect(screen.getAllByText("Favorito")[0]).toBeTruthy();
+  });
+
+  it("uses cloud search when a session token exists", async () => {
+    localStorage.setItem("lexflow.access_token", "token");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        quick_results: [
+          {
+            id: "case-live",
+            type: "case",
+            title: "Expediente live",
+            subtitle: "00042-2026",
+            href: "/cases/case-live",
+            tags: ["risk"]
+          }
+        ],
+        recent_searches: ["Expediente live"],
+        favorites: [{ id: "case-live", type: "case", title: "Expediente live", subtitle: "", href: "/cases/case-live", tags: [] }]
+      })
+    } as Response);
+
+    render(<SearchGlobalBar />);
+    fireEvent.change(screen.getByPlaceholderText(/Buscar cliente/i), { target: { value: "live" } });
+
+    await waitFor(() => expect(screen.getAllByText("Expediente live")[0]).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/dashboard/search?q=live"), expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: "Bearer token" })
+    }));
   });
 
   it("renders client detail with cases, risk, documents, timeline and communications", () => {

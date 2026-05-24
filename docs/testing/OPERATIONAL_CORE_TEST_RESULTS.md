@@ -22,13 +22,14 @@ Coverage includes:
 ## Frontend Results
 
 - `npm run lint`: passed.
-- `npm run test -- --run components/__tests__/operational-core.test.tsx`: passed, 4 tests.
-- `npm run test -- --run`: passed, 41 tests across 16 files.
+- `npm run test -- --run components/__tests__/operational-core.test.tsx`: passed, 5 tests.
+- `npm run test -- --run`: passed, 42 tests across 16 files.
 - `npm run build`: passed, Next.js generated 47 app routes.
 
 Coverage includes:
 
 - Global search autocomplete, recent searches, favorites and advanced result buckets.
+- Authenticated global search calls the cloud API with JWT and normalizes backend result types.
 - Client detail with cases, documents, risk, timeline and communications.
 - Client and case creation wizards.
 - Cases dashboard and SINOE resource page without duplicated judicial logic.
