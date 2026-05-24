@@ -39,6 +39,7 @@ if (-not $ApiUrl) {
 Assert-HttpOk "API health" "$ApiUrl/health" | Out-Null
 Assert-HttpOk "API version" "$ApiUrl/version" | Out-Null
 Assert-HttpOk "API status" "$ApiUrl/api/v1/status" | Out-Null
+Assert-HttpOk "API metrics" "$ApiUrl/metrics" | Out-Null
 $readiness = Assert-HttpOk "API readiness" "$ApiUrl/readiness"
 $readinessBody = $readiness.Content | ConvertFrom-Json
 if ($readinessBody.app_env -eq "production" -and $readinessBody.status -ne "ready") {
