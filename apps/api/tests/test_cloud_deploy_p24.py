@@ -53,6 +53,9 @@ def test_render_blueprint_declares_required_runtime_contracts() -> None:
     assert "SEED_DEMO_ON_STARTUP" in render_yaml
     assert "ALLOWED_ORIGINS" in render_yaml
     assert "STORAGE_LOCAL_ROOT" in render_yaml
+    assert "lexflow-security-alert-deliveries" in render_yaml
+    assert "type: cron" in render_yaml
+    assert "process_security_alert_deliveries.py" in render_yaml
 
 
 def test_vercel_config_targets_nextjs_workspace_build() -> None:

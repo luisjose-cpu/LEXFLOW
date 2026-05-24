@@ -60,9 +60,11 @@ python scripts/process_security_alert_deliveries.py --scope tenant --tenant-id <
 
 El comando no imprime destinatarios reales ni payloads sensibles.
 
+En Render, el blueprint declara `lexflow-security-alert-deliveries` como cron cada 15 minutos para procesar pendientes automaticamente.
+
 ## Pendiente productivo
 
-- Worker Celery dedicado para procesar reintentos con schedule interno.
+- Worker Celery dedicado para alto volumen y metricas avanzadas de reintentos.
 - Push para eventos `critical`.
 - Politicas de retencion y export para auditoria externa.
 - Agrupacion/dedupe para evitar ruido por login owner frecuente.

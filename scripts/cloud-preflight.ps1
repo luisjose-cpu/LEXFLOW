@@ -23,6 +23,12 @@ foreach ($needle in @("lexflow-api", "lexflow-postgres", "lexflow-redis", "REQUI
   }
 }
 
+foreach ($needle in @("lexflow-security-alert-deliveries", "type: cron", "process_security_alert_deliveries.py")) {
+  if ($render -notlike "*$needle*") {
+    throw "render.yaml missing cron delivery processor: $needle"
+  }
+}
+
 $vercel = Get-Content "vercel.json" -Raw
 foreach ($needle in @("nextjs", "apps/web/.next", "npm --workspace apps/web run build")) {
   if ($vercel -notlike "*$needle*") {

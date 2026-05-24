@@ -25,12 +25,13 @@ Ruta recomendada para staging:
 - Normalizacion de `postgres://` y `postgresql://` a `postgresql+psycopg://`.
 - Backend S3/R2 real para documentos via API proxy firmado.
 - Readiness warning `storage_backend_public_ready` cuando produccion sigue usando `STORAGE_BACKEND=local`.
+- Render cron `lexflow-security-alert-deliveries` para procesar entregas criticas cada 15 minutos.
 
 ## Render
 
 1. Crear Blueprint desde `render.yaml`.
 2. Revisar `lexflow-api`.
-3. Confirmar `lexflow-postgres` y `lexflow-redis`.
+3. Confirmar `lexflow-postgres`, `lexflow-redis` y cron `lexflow-security-alert-deliveries`.
 4. Configurar manualmente:
    - `ALLOWED_ORIGINS`
    - `STORAGE_PUBLIC_BASE_URL`

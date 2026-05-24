@@ -29,6 +29,7 @@
 - `npm run cloud:smoke` for repeatable post-deploy validation.
 - GitHub Actions now runs on `main` and `master` and exposes a manual post-deploy smoke job.
 - Settings Production Gate now loads live `/ops/production-gate` readiness checks when a tenant session exists.
+- Render blueprint now includes cron `lexflow-security-alert-deliveries` for scheduled security alert delivery processing.
 
 ### Security
 
