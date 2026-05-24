@@ -53,6 +53,7 @@ import {
   loadOwnerFeatures,
   loadOwnerInterventions,
   loadOwnerLimits,
+  loadOwnerMfaStatus,
   loadOwnerPlans,
   loadOwnerSystemChecks,
   loadOwnerSystemIncidents,
@@ -65,10 +66,13 @@ import {
   resolveOwnerSystemIncident,
   resolveOwnerTicket,
   resetOwnerDemo,
+  startOwnerMfaEnrollment,
   suspendOwnerTenant,
+  verifyOwnerMfaEnrollment,
   updateOwnerLimits,
   updateOwnerPlan,
-  updateOwnerFeatures
+  updateOwnerFeatures,
+  disableOwnerMfa
 } from "@/lib/owner-api";
 
 const ownerNav = [
@@ -88,6 +92,7 @@ type UsageTuple = readonly [string, number, number];
 export function OwnerLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
   const [state, setState] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [message, setMessage] = useState("");
 
@@ -99,7 +104,7 @@ export function OwnerLogin() {
       const response = await fetch(`${API_URL}/api/v1/owner/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, ...(mfaCode.trim() ? { mfa_code: mfaCode.trim() } : {}) })
       });
       if (!response.ok) throw new Error("Credenciales owner invalidas.");
       const payload = await response.json() as { access_token: string; refresh_token: string; owner: { email: string; role: string } };
@@ -134,6 +139,10 @@ export function OwnerLogin() {
           <label className="grid gap-2 text-sm font-semibold text-ink">
             Password
             <input className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500" onChange={(event) => setPassword(event.target.value)} placeholder="Password owner" type="password" value={password} />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-ink">
+            Codigo MFA
+            <input className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500" inputMode="numeric" onChange={(event) => setMfaCode(event.target.value)} placeholder="Opcional si MFA esta activo" value={mfaCode} />
           </label>
           <button className="inline-flex h-11 items-center justify-center rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={state === "loading"} type="submit">
             {state === "loading" ? "Validando..." : "Entrar al Owner Console"}
@@ -204,6 +213,150 @@ export function OwnerConsoleShell({ children }: { children: ReactNode }) {
   );
 }
 
+export function OwnerSecurityPanel() {
+  const [loaded, setLoaded] = useState(false);
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [mfaPending, setMfaPending] = useState(false);
+  const [secret, setSecret] = useState("");
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [state, setState] = useState<"idle" | "loading" | "saving" | "error" | "success">("idle");
+  const [message, setMessage] = useState("");
+
+  async function loadStatus() {
+    if (!hasOwnerSession()) {
+      setState("error");
+      setMessage("Inicia sesion owner para gestionar MFA.");
+      return;
+    }
+    setState("loading");
+    setMessage("");
+    try {
+      const status = await loadOwnerMfaStatus();
+      setLoaded(true);
+      setMfaEnabled(status.mfa_enabled);
+      setMfaPending(status.enrollment_pending);
+      setState("idle");
+    } catch (caught) {
+      setState("error");
+      setMessage(caught instanceof Error ? caught.message : "No se pudo cargar MFA owner.");
+    }
+  }
+
+  async function beginEnrollment() {
+    setState("saving");
+    setMessage("");
+    try {
+      const enrollment = await startOwnerMfaEnrollment();
+      setSecret(enrollment.secret);
+      setMfaPending(true);
+      setMfaEnabled(false);
+      setLoaded(true);
+      setState("success");
+      setMessage("Secreto owner generado. Confirmalo con tu autenticador.");
+    } catch (caught) {
+      setState("error");
+      setMessage(caught instanceof Error ? caught.message : "No se pudo iniciar MFA owner.");
+    }
+  }
+
+  async function confirmEnrollment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setState("saving");
+    setMessage("");
+    try {
+      const session = await verifyOwnerMfaEnrollment({ code: code.trim() });
+      storeOwnerSession(session);
+      setMfaEnabled(true);
+      setMfaPending(false);
+      setCode("");
+      setState("success");
+      setMessage("MFA owner activado. Las sesiones anteriores quedaron revocadas.");
+    } catch (caught) {
+      setState("error");
+      setMessage(caught instanceof Error ? caught.message : "No se pudo verificar MFA owner.");
+    }
+  }
+
+  async function removeMfa(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setState("saving");
+    setMessage("");
+    try {
+      const session = await disableOwnerMfa({ current_password: password, code: code.trim() || undefined });
+      storeOwnerSession(session);
+      setMfaEnabled(false);
+      setMfaPending(false);
+      setSecret("");
+      setPassword("");
+      setCode("");
+      setState("success");
+      setMessage("MFA owner desactivado y sesiones anteriores revocadas.");
+    } catch (caught) {
+      setState("error");
+      setMessage(caught instanceof Error ? caught.message : "No se pudo desactivar MFA owner.");
+    }
+  }
+
+  return (
+    <Card>
+      <SectionTitle icon={<LockKeyhole size={18} />} title="Seguridad owner" />
+      <p className="mt-3 text-sm leading-6 text-slate-600">
+        MFA TOTP protege el panel propietario. Los cambios revocan sesiones y quedan en owner audit logs.
+      </p>
+      <div className="mt-4 grid gap-3">
+        <button className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-ink disabled:opacity-60" disabled={state === "loading"} onClick={loadStatus} type="button">
+          {state === "loading" ? "Consultando..." : "Consultar MFA owner"}
+        </button>
+        {loaded ? (
+          <p className="rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-ink">
+            Estado: {mfaEnabled ? "Activo" : mfaPending ? "Pendiente de verificacion" : "Inactivo"}
+          </p>
+        ) : null}
+        {!mfaEnabled ? (
+          <>
+            <button className="inline-flex h-10 items-center justify-center rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={state === "saving"} onClick={beginEnrollment} type="button">
+              {mfaPending ? "Regenerar MFA owner" : "Activar MFA owner"}
+            </button>
+            {secret ? (
+              <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-legal-900">
+                <p className="font-semibold">Secreto MFA owner</p>
+                <p className="break-all font-mono">{secret}</p>
+              </div>
+            ) : null}
+            {mfaPending ? (
+              <form className="grid gap-3" onSubmit={confirmEnrollment}>
+                <label className="grid gap-2 text-sm font-semibold text-ink">
+                  Codigo MFA
+                  <input className="h-10 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500" inputMode="numeric" onChange={(event) => setCode(event.target.value)} value={code} />
+                </label>
+                <button className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-ink disabled:opacity-60" disabled={state === "saving"} type="submit">
+                  Confirmar MFA owner
+                </button>
+              </form>
+            ) : null}
+          </>
+        ) : (
+          <form className="grid gap-3" onSubmit={removeMfa}>
+            <label className="grid gap-2 text-sm font-semibold text-ink">
+              Password owner
+              <input className="h-10 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500" onChange={(event) => setPassword(event.target.value)} type="password" value={password} />
+            </label>
+            <label className="grid gap-2 text-sm font-semibold text-ink">
+              Codigo MFA
+              <input className="h-10 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500" inputMode="numeric" onChange={(event) => setCode(event.target.value)} value={code} />
+            </label>
+            <button className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-ink disabled:opacity-60" disabled={state === "saving"} type="submit">
+              Desactivar MFA owner
+            </button>
+          </form>
+        )}
+      </div>
+      {message ? <p className={`mt-4 rounded-md px-3 py-2 text-sm ${state === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{message}</p> : null}
+    </Card>
+  );
+}
+
 export function OwnerDashboard() {
   const [metrics, setMetrics] = useState(ownerDashboardMetrics());
   const [tenants, setTenants] = useState(ownerTenants);
@@ -262,6 +415,7 @@ export function OwnerDashboard() {
           </div>
         </Card>
       </div>
+      <OwnerSecurityPanel />
       <div className="grid gap-5 lg:grid-cols-3">
         <OwnerQuickCard icon={<CreditCard size={18} />} title="Billing" value="$457 MRR" detail="ARR $5484, churn mock 2.4%" href="/owner/plans" />
         <OwnerQuickCard icon={<Headphones size={18} />} title="Soporte" value="3 tickets" detail="1 critico, 2 dentro de SLA" href="/owner/support" />
@@ -1531,6 +1685,12 @@ function OwnerQuickCard({ icon, title, value, detail, href }: { icon: ReactNode;
 
 function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
   return <div className="flex items-center gap-2 text-sm font-semibold text-legal-700">{icon}<span>{title}</span></div>;
+}
+
+function storeOwnerSession(session: { access_token: string; refresh_token: string; owner: { email: string; role: string; mfa_enabled?: boolean } }) {
+  localStorage.setItem("lexflow.owner_access_token", session.access_token);
+  localStorage.setItem("lexflow.owner_refresh_token", session.refresh_token);
+  localStorage.setItem("lexflow.owner_user", JSON.stringify(session.owner));
 }
 
 function HealthPill({ score }: { score: number }) {

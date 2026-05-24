@@ -79,6 +79,7 @@ Goal: give LEXFLOW's owner a separate control plane to manage tenants, plans, bi
 Delivered scope:
 
 - Owner backend tables and endpoints under `/owner/*`.
+- Owner JWT auth with MFA TOTP enrollment and login enforcement.
 - Owner RBAC boundary separate from tenant users.
 - Owner SaaS dashboard, tenant list/detail, usage, billing, feature flags, plans, support, system health, demos, interventions and audit views.
 - Security docs for temporary authorized support access and sensitive data redaction.

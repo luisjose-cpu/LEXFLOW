@@ -47,6 +47,36 @@ export async function logoutOwner() {
   }
 }
 
+export type OwnerMfaStatus = {
+  mfa_enabled: boolean;
+  enrollment_pending: boolean;
+};
+
+export async function loadOwnerMfaStatus() {
+  return ownerApiRequest<OwnerMfaStatus>("/owner/auth/mfa/status");
+}
+
+export async function startOwnerMfaEnrollment() {
+  return ownerApiRequest<{ status: string; secret: string; otpauth_url: string }>("/owner/auth/mfa/enroll", {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+}
+
+export async function verifyOwnerMfaEnrollment(payload: { code: string }) {
+  return ownerApiRequest<{ access_token: string; refresh_token: string; token_type: string; owner: { email: string; role: string; mfa_enabled: boolean } }>("/owner/auth/mfa/verify", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function disableOwnerMfa(payload: { current_password: string; code?: string }) {
+  return ownerApiRequest<{ access_token: string; refresh_token: string; token_type: string; owner: { email: string; role: string; mfa_enabled: boolean } }>("/owner/auth/mfa/disable", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function ownerApiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getOwnerAccessToken();
   const response = await fetch(`${API_URL}/api/v1${path}`, {

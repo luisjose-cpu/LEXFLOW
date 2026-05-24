@@ -138,6 +138,7 @@ class TokenResponse(BaseModel):
 class OwnerLoginRequest(BaseModel):
     email: EmailStr
     password: str
+    mfa_code: str | None = Field(default=None, min_length=6, max_length=12)
 
 
 class OwnerOut(BaseModel):
@@ -500,6 +501,15 @@ def resolve_tenant(x_tenant_id: str | None = Header(default=None)) -> UUID:
     return UUID(x_tenant_id) if x_tenant_id else UUID("00000000-0000-0000-0000-000000000001")
 
 
+def get_owner_db_user(db: Session, owner: OwnerPrincipal) -> dbm.OwnerUser:
+    if not owner.user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner bearer token required")
+    db_owner = db.get(dbm.OwnerUser, owner.user_id)
+    if not db_owner or db_owner.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid owner token subject")
+    return db_owner
+
+
 @router.get("/health")
 def health() -> dict[str, str]:
     settings = get_settings()
@@ -597,7 +607,7 @@ def update_tenant_security_policy(
 
 @router.post("/owner/auth/login", response_model=OwnerLoginResponse)
 def owner_login(payload: OwnerLoginRequest, db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
-    return owner_auth_service.login(db, email=payload.email, password=payload.password, request_id=getattr(request.state, "request_id", None))
+    return owner_auth_service.login(db, email=payload.email, password=payload.password, mfa_code=payload.mfa_code, request_id=getattr(request.state, "request_id", None))
 
 
 @router.post("/owner/auth/refresh", response_model=TokenResponse)
@@ -618,6 +628,47 @@ def owner_logout(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid owner token subject")
     owner_auth_service.logout(db, owner=db_owner, request_id=getattr(request.state, "request_id", None))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/owner/auth/mfa/status")
+def owner_mfa_status(
+    owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    db_owner = get_owner_db_user(db, owner)
+    return owner_auth_service.mfa_status(owner=db_owner)
+
+
+@router.post("/owner/auth/mfa/enroll")
+def owner_enroll_mfa(
+    owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    db_owner = get_owner_db_user(db, owner)
+    return owner_auth_service.start_mfa_enrollment(db, owner=db_owner, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/owner/auth/mfa/verify", response_model=OwnerLoginResponse)
+def owner_verify_mfa(
+    payload: MfaCodeRequest,
+    owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    db_owner = get_owner_db_user(db, owner)
+    return owner_auth_service.confirm_mfa_enrollment(db, owner=db_owner, code=payload.code, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/owner/auth/mfa/disable", response_model=OwnerLoginResponse)
+def owner_disable_mfa(
+    payload: MfaDisableRequest,
+    owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    db_owner = get_owner_db_user(db, owner)
+    return owner_auth_service.disable_mfa(db, owner=db_owner, current_password=payload.current_password, code=payload.code, request_id=getattr(request.state, "request_id", None))
 
 
 @router.get("/owner/auth/me")

@@ -1,5 +1,21 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Owner MFA Security
+
+### Added
+
+- Owner MFA TOTP persistence with Alembic migration `20260524_0019`.
+- `/api/v1/owner/auth/mfa/status|enroll|verify|disable` endpoints.
+- Owner login accepts `mfa_code` and enforces it when MFA is active.
+- Owner Console security panel for MFA enrollment, verification and disable flow.
+- Backend and frontend tests for owner MFA enforcement and UI flow.
+
+### Security
+
+- Owner MFA secrets are encrypted at rest and never logged.
+- MFA verify/disable rotates owner sessions through `refresh_token_version`.
+- Owner MFA actions generate `owner_audit_logs`.
+
 ## 2026-05-24 - Tenant MFA Security Policy
 
 ### Added

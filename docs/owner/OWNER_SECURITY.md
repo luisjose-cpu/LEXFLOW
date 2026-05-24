@@ -41,9 +41,11 @@ Owner Console usa JWT owner dedicado con refresh token versionado, logout revoca
 
 El frontend owner expone logout dedicado, llama `/owner/auth/logout` cuando existe JWT y limpia `lexflow.owner_access_token`, `lexflow.owner_refresh_token` y `lexflow.owner_user`.
 
+Owner Console soporta MFA TOTP en `/owner/auth/mfa/status|enroll|verify|disable`. El login acepta `mfa_code` y lo exige cuando el propietario tiene MFA activo. Verificar o desactivar MFA revoca sesiones previas y registra `owner_audit_logs`.
+
 Pendientes antes de produccion publica:
 
-- MFA enforcement real.
+- MFA obligatorio para todos los roles owner antes de pilotos externos.
 - IP allowlist opcional.
 - alertas por login owner.
 - rotacion periodica de owner passwords.

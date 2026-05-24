@@ -7,6 +7,7 @@ import {
   OwnerAuditLogs,
   OwnerDashboard,
   OwnerLogin,
+  OwnerSecurityPanel,
   PlansManager,
   SupportTickets,
   SystemHealth,
@@ -47,6 +48,29 @@ describe("Owner Console UI", () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/owner/auth/login"), expect.objectContaining({ method: "POST" }));
   });
 
+  it("sends owner MFA code during login when provided", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        access_token: "owner-access",
+        refresh_token: "owner-refresh",
+        owner: { email: "owner@lexflow.test", role: "owner_admin", mfa_enabled: true }
+      })
+    } as Response);
+
+    render(<OwnerLogin />);
+    fireEvent.change(screen.getByPlaceholderText("owner@lexflow.com"), { target: { value: "owner@lexflow.test" } });
+    fireEvent.change(screen.getByPlaceholderText("Password owner"), { target: { value: "OwnerPassword123!" } });
+    fireEvent.change(screen.getByPlaceholderText("Opcional si MFA esta activo"), { target: { value: "123456" } });
+    fireEvent.click(screen.getByText("Entrar al Owner Console"));
+
+    await waitFor(() => expect(screen.getByText(/Owner conectado/i)).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/owner/auth/login"),
+      expect.objectContaining({ body: expect.stringContaining('"mfa_code":"123456"') })
+    );
+  });
+
   it("logs out owner sessions and clears stored owner tokens", async () => {
     localStorage.setItem("lexflow.owner_access_token", "owner-token");
     localStorage.setItem("lexflow.owner_refresh_token", "owner-refresh");
@@ -77,6 +101,36 @@ describe("Owner Console UI", () => {
     expect(screen.getByText("Tenants activos")).toBeTruthy();
     expect(screen.getByText(/Boundary owner activo/i)).toBeTruthy();
     expect(screen.getByText("Tenants en observacion")).toBeTruthy();
+  });
+
+  it("enrolls owner MFA from the security panel", async () => {
+    localStorage.setItem("lexflow.owner_access_token", "owner-token");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ mfa_enabled: false, enrollment_pending: false })
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "pending", secret: "OWNERSECRET", otpauth_url: "otpauth://totp/LEXFLOWOwner:test" })
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: "new-owner-access", refresh_token: "new-owner-refresh", token_type: "bearer", owner: { email: "owner@lexflow.test", role: "owner_admin", mfa_enabled: true } })
+      } as Response);
+
+    render(<OwnerSecurityPanel />);
+    fireEvent.click(screen.getByText("Consultar MFA owner"));
+    await waitFor(() => expect(screen.getByText("Estado: Inactivo")).toBeTruthy());
+    fireEvent.click(screen.getByText("Activar MFA owner"));
+    expect(await screen.findByText("Secreto MFA owner")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Codigo MFA"), { target: { value: "123456" } });
+    fireEvent.click(screen.getByText("Confirmar MFA owner"));
+
+    await waitFor(() => expect(screen.getByText("MFA owner activado. Las sesiones anteriores quedaron revocadas.")).toBeTruthy());
+    expect(localStorage.getItem("lexflow.owner_access_token")).toBe("new-owner-access");
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/owner/auth/mfa/verify"), expect.objectContaining({ method: "POST" }));
   });
 
   it("loads owner dashboard from cloud API when owner token exists", async () => {

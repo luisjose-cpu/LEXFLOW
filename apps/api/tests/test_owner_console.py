@@ -1,5 +1,5 @@
 from collections.abc import Generator
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,6 +11,7 @@ from app.db.database import get_db
 from app.db.models import Base, OwnerAuditLog, OwnerUser, TenantFeatureFlag, TenantIntervention, TenantSubscription, User
 from app.main import app
 from app.services.seed import DEMO_SEED, seed_demo_data
+from app.services.mfa import totp_code
 from app.services.security import hash_password
 
 
@@ -94,6 +95,39 @@ def test_owner_jwt_login_refresh_me_logout_and_access_control(api: TestClient, d
     assert refreshed.status_code == 200
     assert api.post("/api/v1/owner/auth/logout", headers=bearer).status_code == 204
     assert api.get("/api/v1/owner/dashboard", headers=bearer).status_code == 401
+
+
+def test_owner_mfa_enrollment_requires_totp_and_can_be_disabled(api: TestClient, db_session: Session) -> None:
+    create_owner_user(db_session)
+    logged = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!"})
+    access = logged.json()["access_token"]
+    headers = {"Authorization": f"Bearer {access}"}
+
+    status_before = api.get("/api/v1/owner/auth/mfa/status", headers=headers)
+    enrollment = api.post("/api/v1/owner/auth/mfa/enroll", headers=headers)
+    secret = enrollment.json()["secret"]
+    code = totp_code(secret, int(datetime.now(UTC).timestamp() // 30))
+    verified = api.post("/api/v1/owner/auth/mfa/verify", headers=headers, json={"code": code})
+    rotated_headers = {"Authorization": f"Bearer {verified.json()['access_token']}"}
+    no_mfa_login = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!"})
+    bad_mfa_login = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!", "mfa_code": "000000"})
+    good_mfa_login = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!", "mfa_code": code})
+    disabled = api.post("/api/v1/owner/auth/mfa/disable", headers=rotated_headers, json={"current_password": "OwnerPassword123!", "code": code})
+    login_after_disable = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!"})
+    audits = db_session.scalars(select(OwnerAuditLog).where(OwnerAuditLog.entity_type == "owner_mfa")).all()
+
+    assert status_before.json()["mfa_enabled"] is False
+    assert enrollment.status_code == 200
+    assert enrollment.json()["otpauth_url"].startswith("otpauth://totp/")
+    assert verified.status_code == 200
+    assert verified.json()["owner"]["mfa_enabled"] is True
+    assert no_mfa_login.status_code == 401
+    assert bad_mfa_login.status_code == 401
+    assert good_mfa_login.status_code == 200
+    assert disabled.status_code == 200
+    assert disabled.json()["owner"]["mfa_enabled"] is False
+    assert login_after_disable.status_code == 200
+    assert {audit.action for audit in audits} >= {"owner_mfa_enrollment_started", "owner_mfa_enabled", "owner_mfa_disabled"}
 
 
 def test_owner_support_limited(api: TestClient) -> None:
