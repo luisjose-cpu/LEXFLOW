@@ -34,6 +34,7 @@
     "p15:check": "npm run p14:check",
     "production:gate": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/production-gate.ps1",
     "production:gate:fast": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/production-gate.ps1 -Fast",
-    "cloud:preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cloud-preflight.ps1"
+    "cloud:preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cloud-preflight.ps1",
+    "cloud:smoke": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cloud-smoke.ps1"
   }
 }

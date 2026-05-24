@@ -18,6 +18,18 @@
 - Delivery payloads never include passwords, MFA secrets, recovery codes, tokens or tenant secrets.
 - Tenant deliveries target active `tenant_admin` and `partner` users; owner deliveries stay inside Owner Console scope.
 
+## 2026-05-24 - Cloud Post-Deploy Smoke
+
+### Added
+
+- `scripts/cloud-smoke.ps1` to verify public API health, version, API status, web home and web login after deploy.
+- Optional tenant admin login smoke using `LEXFLOW_SMOKE_TENANT_SLUG`, `LEXFLOW_SMOKE_ADMIN_EMAIL` and `LEXFLOW_SMOKE_ADMIN_PASSWORD`.
+- `npm run cloud:smoke` for repeatable post-deploy validation.
+
+### Security
+
+- Smoke test does not print passwords, bearer tokens or response payloads with secrets.
+
 ## 2026-05-24 - Security Alerts
 
 ### Added

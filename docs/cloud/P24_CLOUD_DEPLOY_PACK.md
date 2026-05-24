@@ -19,7 +19,9 @@ Ruta recomendada para staging:
 - API Dockerfile con Alembic antes de Uvicorn.
 - Web Dockerfile productivo para alternativa container.
 - `scripts/cloud-preflight.ps1`.
+- `scripts/cloud-smoke.ps1`.
 - `npm run cloud:preflight`.
+- `npm run cloud:smoke`.
 - Normalizacion de `postgres://` y `postgresql://` a `postgresql+psycopg://`.
 
 ## Render
@@ -49,6 +51,25 @@ Ruta recomendada para staging:
 ```bash
 npm run cloud:preflight
 ```
+
+## Smoke post-deploy
+
+```powershell
+$env:LEXFLOW_API_URL="https://lexflow-api.onrender.com"
+$env:LEXFLOW_WEB_URL="https://lexflow-web-nine.vercel.app"
+npm run cloud:smoke
+```
+
+Con login tenant:
+
+```powershell
+$env:LEXFLOW_SMOKE_TENANT_SLUG="piloto"
+$env:LEXFLOW_SMOKE_ADMIN_EMAIL="admin@estudio.com"
+$env:LEXFLOW_SMOKE_ADMIN_PASSWORD="<password-seguro>"
+npm run cloud:smoke
+```
+
+El smoke valida `/health`, `/version`, `/api/v1/status`, home web, login web y login tenant opcional sin imprimir secretos.
 
 ## Validacion ejecutada
 
