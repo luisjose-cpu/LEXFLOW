@@ -112,6 +112,12 @@ def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
             message="Billing provider secret is required before paid SaaS subscriptions.",
         ),
         ReadinessCheck(
+            key="malware_scanner_configured",
+            ok=settings.malware_scanner_provider.lower() not in {"", "mock", "prepared"},
+            severity="warning",
+            message="A real malware scanner provider is required before public document uploads.",
+        ),
+        ReadinessCheck(
             key="email_configured",
             ok=settings.email_provider == "prepared"
             or (

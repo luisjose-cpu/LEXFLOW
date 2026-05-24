@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     storage_backend: str = "local"
     storage_local_root: str = ".lexflow-storage"
     require_verified_document_downloads: bool = False
+    malware_scanner_provider: str = "mock"
     openai_api_key: str | None = None
     whatsapp_business_token: str | None = None
     billing_provider_secret: str | None = None

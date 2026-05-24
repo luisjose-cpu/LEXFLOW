@@ -30,6 +30,7 @@ def test_p1_status_endpoints() -> None:
     assert status.json()["external_providers"]["ai"] == "mock"
     assert status.json()["external_providers"]["whatsapp"] == "mock"
     assert status.json()["external_providers"]["billing"] == "mock"
+    assert status.json()["external_providers"]["malware_scanner"] == "mock"
     assert "secret" not in status.text.lower()
 
 

@@ -58,6 +58,7 @@ def test_public_production_readiness_requires_no_warnings() -> None:
         openai_api_key="sk-production-openai-key-value-123456",
         whatsapp_business_token="production-whatsapp-token-value-123456",
         billing_provider_secret="production-billing-secret-value-123456",
+        malware_scanner_provider="clamav",
     )
     report = production_readiness_report(settings)
 

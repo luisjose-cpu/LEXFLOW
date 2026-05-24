@@ -45,7 +45,7 @@ describe("Ops center UI", () => {
         status: "blocked",
         public_production_status: "blocked",
         revision: "abc123",
-        external_providers: { ai: "mock", whatsapp: "mock", billing: "mock" },
+        external_providers: { ai: "mock", whatsapp: "mock", billing: "mock", malware_scanner: "mock" },
         summary: { blockers: 1, warnings: 2 },
         readiness: {
           public_production_ready: false,

@@ -248,7 +248,7 @@ def test_support_ticket_resolution_intervention_expiry_and_owner_surfaces(api: T
     health_components = {item["component"] for item in health.json()["checks"]}
     assert health.status_code == 200
     assert {"api_requests", "readiness", "storage_backend", "external_providers"}.issubset(health_components)
-    assert any("ai=mock" in item["detail"] for item in health.json()["checks"] if item["component"] == "external_providers")
+    assert any("ai=mock" in item["detail"] and "malware_scanner=mock" in item["detail"] for item in health.json()["checks"] if item["component"] == "external_providers")
     assert api.get("/api/v1/owner/demos", headers=owner_headers()).status_code == 200
     assert api.get("/api/v1/owner/audit-logs", headers=owner_headers()).json()
 

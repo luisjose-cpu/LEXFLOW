@@ -36,11 +36,12 @@ Agregar ciclo de confianza documental sobre los bytes reales de P18: verificacio
 - Documento infectado se oculta del portal.
 - Documento rechazado se oculta del portal.
 - `REQUIRE_VERIFIED_DOCUMENT_DOWNLOADS=true` bloquea descargas del portal hasta que el documento tenga storage verificado, estado `verified` y escaneo `clean`.
+- `MALWARE_SCANNER_PROVIDER` debe dejar de ser `mock` antes de produccion publica.
 - Toda accion interna queda auditada.
 
 ## Produccion pendiente
 
-- Integracion antivirus real.
+- Configurar proveedor antivirus real y documentar su SLA operativo.
 - Politica de cuarentena.
 - Retencion y borrado fisico del objeto rechazado.
 - Escaneo asincrono con Celery.

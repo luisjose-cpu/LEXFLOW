@@ -83,6 +83,7 @@ class OpsCenterService:
             "whatsapp": "live" if settings.whatsapp_business_token else "mock",
             "billing": "live" if settings.billing_provider_secret else "mock",
             "email": "live" if settings.email_provider == "http_json" and settings.email_api_key else settings.email_provider,
+            "malware_scanner": settings.malware_scanner_provider,
             "storage": storage_service.provider_status()["provider"],
         }
         static_requirements = [

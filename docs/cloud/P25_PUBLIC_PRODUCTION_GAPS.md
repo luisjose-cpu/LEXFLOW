@@ -20,6 +20,7 @@ Mientras no se configuren proveedores reales, readiness mantiene warnings:
 - `openai_configured`: configurar `OPENAI_API_KEY` antes de usar IA real.
 - `whatsapp_configured`: configurar `WHATSAPP_BUSINESS_TOKEN` antes de despacho WhatsApp real.
 - `billing_configured`: configurar `BILLING_PROVIDER_SECRET` antes de suscripciones/pagos reales.
+- `malware_scanner_configured`: configurar `MALWARE_SCANNER_PROVIDER` real antes de cargas publicas.
 
 ## Variables a cerrar
 
@@ -38,6 +39,7 @@ S3_ACCESS_KEY=replace-with-real-access-key
 S3_SECRET_KEY=replace-with-real-secret-key
 S3_BUCKET=lexflow-production
 REQUIRE_VERIFIED_DOCUMENT_DOWNLOADS=true
+MALWARE_SCANNER_PROVIDER=clamav
 ```
 
 Aplicar y revisar tambien:
