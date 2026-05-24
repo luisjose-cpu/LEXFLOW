@@ -156,7 +156,10 @@ def test_billing_webhook_signature_is_required_when_enabled(api: TestClient, db_
 
     unsigned = api.post("/api/v1/billing/webhook/mock", headers=headers, json=payload)
     signed = api.post("/api/v1/billing/webhook/mock", headers={**headers, "X-Lexflow-Billing-Signature": signature}, json=payload)
+    invalid_audit = db_session.scalar(select(AuditLog).where(AuditLog.action == "billing.webhook_signature_invalid"))
 
     assert unsigned.status_code == 401
     assert unsigned.json()["detail"] == "Invalid billing webhook signature"
+    assert invalid_audit is not None
+    assert "mock-signed" not in str(invalid_audit.metadata_json)
     assert signed.status_code == 200
