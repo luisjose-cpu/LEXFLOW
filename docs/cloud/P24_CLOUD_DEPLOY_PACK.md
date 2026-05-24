@@ -24,6 +24,7 @@ Ruta recomendada para staging:
 - `npm run cloud:preflight`.
 - `npm run cloud:smoke`.
 - `npm run cloud:evidence`.
+- `npm run cloud:revision` y `npm run cloud:wait-revision`.
 - Normalizacion de `postgres://` y `postgresql://` a `postgresql+psycopg://`.
 - Backend S3/R2 real para documentos via API proxy firmado.
 - Readiness warning `storage_backend_public_ready` cuando produccion sigue usando `STORAGE_BACKEND=local`.
@@ -89,6 +90,12 @@ $env:LEXFLOW_API_URL="https://lexflow-api.onrender.com"
 npm run cloud:revision
 ```
 
+Para esperar a que Render termine el redeploy y sirva el commit esperado:
+
+```powershell
+npm run cloud:wait-revision
+```
+
 En modo estricto, falla si cloud no expone revision o si no coincide:
 
 ```powershell
@@ -123,6 +130,7 @@ GitHub Actions ejecuta:
 - API tests
 - production gate fast
 - revision check manual con `cloud:revision`
+- espera de redeploy con `cloud:wait-revision`
 - post-deploy release evidence manual con `workflow_dispatch` e inputs `api_url` / `web_url`
 - artifact `lexflow-cloud-release-evidence` con el JSON generado por `cloud:evidence`
 

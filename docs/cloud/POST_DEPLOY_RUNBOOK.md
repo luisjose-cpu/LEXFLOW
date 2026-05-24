@@ -22,6 +22,12 @@ $env:LEXFLOW_WEB_URL="https://lexflow-web-nine.vercel.app"
 npm run cloud:revision
 ```
 
+Si Render acaba de iniciar deploy automatico, esperar hasta que sirva el commit esperado:
+
+```powershell
+npm run cloud:wait-revision
+```
+
 Cuando Render ya exponga revision y se quiera bloquear mismatch:
 
 ```powershell
@@ -42,6 +48,7 @@ npm run cloud:evidence
 
 6. Revisar el JSON mas reciente en `reports/cloud/`.
 7. Confirmar `revision.matches_expected=true` cuando Render/Vercel ya expongan revision.
+8. Si `cloud:wait-revision` expira, usar `Manual Deploy -> Deploy latest commit` en Render y repetir desde el paso 3.
 
 ## Criterios de salida
 
