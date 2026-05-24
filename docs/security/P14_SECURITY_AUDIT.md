@@ -8,6 +8,7 @@ LEXFLOW RC1 is acceptable for controlled pilot, not public production.
 
 - Security response headers, including `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and HSTS.
 - Rate limit buckets are pruned by active time window to avoid unbounded memory growth.
+- Early 403/429 middleware responses include security headers and request ids.
 - Configurable CORS origins.
 - Unsafe-method Origin guard.
 - Configurable rate limit.

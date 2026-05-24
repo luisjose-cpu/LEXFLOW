@@ -13,16 +13,20 @@ REQUEST_METRICS = {
 }
 
 
+def apply_security_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+    response.headers.setdefault("Cache-Control", "no-store")
+    return response
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
-        response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("X-Frame-Options", "DENY")
-        response.headers.setdefault("Referrer-Policy", "no-referrer")
-        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-        response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
-        response.headers.setdefault("Cache-Control", "no-store")
-        return response
+        return apply_security_headers(response)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -48,7 +52,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             key = (client_host, bucket)
             self._buckets[key] = self._buckets.get(key, 0) + 1
             if self._buckets[key] > self.limit_per_minute:
-                return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
+                request_id = request.headers.get("X-Request-Id", str(uuid4()))
+                response = JSONResponse(status_code=429, content={"detail": "Rate limit exceeded", "request_id": request_id})
+                response.headers["X-Request-Id"] = request_id
+                return apply_security_headers(response)
         return await call_next(request)
 
 
@@ -61,7 +68,10 @@ class CSRFSafeOriginMiddleware(BaseHTTPMiddleware):
         if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
             origin = request.headers.get("origin")
             if origin and origin not in self.allowed_origins:
-                return JSONResponse(status_code=403, content={"detail": "Origin not allowed"})
+                request_id = request.headers.get("X-Request-Id", str(uuid4()))
+                response = JSONResponse(status_code=403, content={"detail": "Origin not allowed", "request_id": request_id})
+                response.headers["X-Request-Id"] = request_id
+                return apply_security_headers(response)
         return await call_next(request)
 
 

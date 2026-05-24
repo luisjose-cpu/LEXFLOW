@@ -43,6 +43,9 @@ def test_p14_security_headers_metrics_and_origin_guard() -> None:
     assert response.headers["X-Frame-Options"] == "DENY"
     assert response.headers["Referrer-Policy"] == "no-referrer"
     assert "includeSubDomains" in response.headers["Strict-Transport-Security"]
+    assert blocked.headers["X-Content-Type-Options"] == "nosniff"
+    assert blocked.headers["X-Frame-Options"] == "DENY"
+    assert blocked.headers["X-Request-Id"]
     assert metrics.status_code == 200
     assert metrics.json()["release"] == "CLOUD-DEPLOY-PACK"
     assert blocked.status_code == 403

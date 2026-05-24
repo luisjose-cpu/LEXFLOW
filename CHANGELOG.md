@@ -82,6 +82,7 @@
 - Cloud release evidence now records observed API and web security headers.
 - Public production gate now writes non-sensitive evidence reports under `reports/cloud/`.
 - API rate limiter now prunes stale in-memory buckets to reduce long-running service memory growth.
+- Early API 403/429 middleware responses now include security headers and request IDs.
 - Restore drill script now writes non-secret JSON evidence under `reports/restore/`.
 - Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.
