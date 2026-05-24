@@ -31,4 +31,12 @@ Toda intervencion debe registrar:
 
 ## Pendiente productivo
 
-La base actual usa headers owner para pruebas y staging. Produccion requiere autenticacion dedicada, MFA, rotacion de sesiones, alertas de acceso, IP allowlist opcional y revision de auditoria.
+Owner Console usa JWT owner dedicado con refresh token versionado, logout revocando tokens y bootstrap por variables de entorno. El fallback por headers owner queda permitido solo en `APP_ENV=local` o `APP_ENV=test`.
+
+Pendientes antes de produccion publica:
+
+- MFA enforcement real.
+- IP allowlist opcional.
+- alertas por login owner.
+- rotacion periodica de owner passwords.
+- revision mensual de `owner_audit_logs`.

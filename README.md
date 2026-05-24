@@ -32,7 +32,7 @@ The current architecture creates:
 - Release Candidate RC1 hardening with security headers, configurable CORS/Origin guard, rate limit, upload validation, metrics, QA matrix, threat model, backup policy, observability, open risks, tech debt, production and pilot checklists
 - LEXFLOW OS Final with Legal Memory, RAG Legal, global search, Copiloto Juridico, specialized AI agents, Legal Graph, future Marketplace, Demo Mode, commercial landing, final documentation, and release readiness status
 - SINOE integration foundation with encrypted credentials, Settings surface, SINOE case source linking, mock authorized updates, CAPTCHA human-in-the-loop checkpoints, notifications, evidence, audit logs, and Expediente 360 panels
-- Owner Console foundation with a separate SaaS control plane for tenants, plans, billing, support, usage, feature flags, demos, interventions, audit logs and system health without exposing sensitive tenant content by default
+- Owner Console foundation with owner JWT auth, bootstrap script, and a separate SaaS control plane for tenants, plans, billing, support, usage, feature flags, demos, interventions, audit logs and system health without exposing sensitive tenant content by default
 
 ## Product Spine
 

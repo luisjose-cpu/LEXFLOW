@@ -61,3 +61,13 @@ Decision: Owner Console is implemented as a SaaS owner control plane under `/own
 Reason: LEXFLOW's product owner must manage tenants, billing, plans, support, feature flags, demos and health without becoming a privileged tenant user or exposing sensitive legal content by default.
 
 Status: Accepted
+
+### D-0007 - Owner Auth Uses Dedicated JWT Scope
+
+Date: 2026-05-24
+
+Decision: Owner Console authentication uses dedicated owner JWTs with `scope=owner`, refresh-token versioning and a separate owner bootstrap script.
+
+Reason: Tenant JWTs must not grant control-plane access, and production/staging owner access cannot depend on ad hoc headers.
+
+Status: Accepted

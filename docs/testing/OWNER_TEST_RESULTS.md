@@ -16,6 +16,8 @@ Result:
 
 Coverage:
 
+- owner JWT login/refresh/logout/me.
+- initial owner bootstrap script.
 - owner_admin accede.
 - tenant normal bloqueado.
 - owner_support limitado.
@@ -37,7 +39,7 @@ python -m pytest -q
 
 Result:
 
-- 99 passed.
+- 101 passed.
 
 ## Frontend
 
@@ -59,7 +61,7 @@ npm run test
 
 Result:
 
-- 50 passed.
+- 51 passed.
 
 Build and cloud checks:
 

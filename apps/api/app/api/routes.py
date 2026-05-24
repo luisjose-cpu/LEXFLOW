@@ -51,6 +51,7 @@ from app.services.mobile import mobile_client_service, mobile_lawyer_service
 from app.services.ops_center import ops_center_service
 from app.services.ops_import import ops_import_service
 from app.services.operational_core import operational_core_service
+from app.services.owner_auth import owner_auth_service
 from app.services.owner_console import owner_console_service
 from app.services.roles import role_service
 from app.services.seed import DEMO_SEED
@@ -97,6 +98,27 @@ class LoginResponse(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
+
+
+class OwnerLoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class OwnerOut(BaseModel):
+    id: UUID
+    email: EmailStr
+    full_name: str
+    role: str
+    mfa_enabled: bool
+    last_login_at: str | None = None
+
+
+class OwnerLoginResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
+    owner: OwnerOut
 
 
 class UserCreate(BaseModel):
@@ -450,6 +472,36 @@ def api_status() -> dict[str, object]:
 @router.get("/readiness")
 def api_readiness() -> dict[str, object]:
     return production_readiness_report(get_settings())
+
+
+@router.post("/owner/auth/login", response_model=OwnerLoginResponse)
+def owner_login(payload: OwnerLoginRequest, db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_auth_service.login(db, email=payload.email, password=payload.password, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/owner/auth/refresh", response_model=TokenResponse)
+def owner_refresh(payload: RefreshRequest, db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_auth_service.refresh(db, refresh_token=payload.refresh_token, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/owner/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+def owner_logout(
+    owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> Response:
+    if not owner.user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner token required")
+    db_owner = db.get(dbm.OwnerUser, owner.user_id)
+    if not db_owner:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid owner token subject")
+    owner_auth_service.logout(db, owner=db_owner, request_id=getattr(request.state, "request_id", None))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/owner/auth/me")
+def owner_me(owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))]) -> dict[str, object]:
+    return {"email": owner.email, "role": owner.role, "id": owner.user_id}
 
 
 @router.get("/owner/dashboard")

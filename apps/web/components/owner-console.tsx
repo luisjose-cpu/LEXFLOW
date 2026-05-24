@@ -20,7 +20,7 @@ import {
   Users
 } from "lucide-react";
 import Link from "next/link";
-import React, { ReactNode, useMemo, useState } from "react";
+import React, { FormEvent, ReactNode, useMemo, useState } from "react";
 import {
   OwnerTenant,
   findOwnerTenant,
@@ -45,6 +45,69 @@ const ownerNav = [
   { href: "/owner/interventions", label: "Intervenciones" },
   { href: "/owner/audit", label: "Auditoria" }
 ];
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://lexflow-api.onrender.com";
+
+export function OwnerLogin() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [state, setState] = useState<"idle" | "loading" | "error" | "success">("idle");
+  const [message, setMessage] = useState("");
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setState("loading");
+    setMessage("");
+    try {
+      const response = await fetch(`${API_URL}/api/v1/owner/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+      if (!response.ok) throw new Error("Credenciales owner invalidas.");
+      const payload = await response.json() as { access_token: string; refresh_token: string; owner: { email: string; role: string } };
+      localStorage.setItem("lexflow.owner_access_token", payload.access_token);
+      localStorage.setItem("lexflow.owner_refresh_token", payload.refresh_token);
+      localStorage.setItem("lexflow.owner_user", JSON.stringify(payload.owner));
+      setState("success");
+      setMessage(`Owner conectado: ${payload.owner.email} (${payload.owner.role})`);
+    } catch (caught) {
+      setState("error");
+      setMessage(caught instanceof Error ? caught.message : "No se pudo iniciar sesion owner.");
+    }
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-mist px-4 py-10 text-ink">
+      <section className="w-full max-w-xl rounded-lg border border-white/80 bg-white p-6 shadow-soft">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-legal-900 text-white">
+            <ShieldCheck size={22} aria-hidden="true" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-legal-700">LEXFLOW Owner Console</p>
+            <h1 className="text-2xl font-semibold text-ink">Acceso propietario</h1>
+          </div>
+        </div>
+        <form className="mt-6 grid gap-4" onSubmit={submit}>
+          <label className="grid gap-2 text-sm font-semibold text-ink">
+            Correo owner
+            <input className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500" onChange={(event) => setEmail(event.target.value)} placeholder="owner@lexflow.com" type="email" value={email} />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-ink">
+            Password
+            <input className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500" onChange={(event) => setPassword(event.target.value)} placeholder="Password owner" type="password" value={password} />
+          </label>
+          <button className="inline-flex h-11 items-center justify-center rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={state === "loading"} type="submit">
+            {state === "loading" ? "Validando..." : "Entrar al Owner Console"}
+          </button>
+        </form>
+        {message ? <p className={`mt-4 rounded-md px-3 py-2 text-sm ${state === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{message}</p> : null}
+        <p className="mt-5 text-sm leading-6 text-slate-500">Este acceso administra SaaS metadata. Los datos sensibles de tenants requieren intervencion temporal auditada.</p>
+      </section>
+    </main>
+  );
+}
 
 export function OwnerConsoleShell({ children }: { children: ReactNode }) {
   return (

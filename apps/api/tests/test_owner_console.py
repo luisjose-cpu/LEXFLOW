@@ -8,9 +8,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db.database import get_db
-from app.db.models import Base, OwnerAuditLog, TenantIntervention
+from app.db.models import Base, OwnerAuditLog, OwnerUser, TenantIntervention
 from app.main import app
 from app.services.seed import DEMO_SEED, seed_demo_data
+from app.services.security import hash_password
 
 
 @pytest.fixture()
@@ -39,7 +40,21 @@ def api(db_session: Session) -> Generator[TestClient, None, None]:
 
 
 def owner_headers(role: str = "owner_admin") -> dict[str, str]:
-    return {"X-Owner-Email": "owner@lexflow.test", "X-Owner-Role": role}
+    return {"X-Owner-Email": "owner@lexflow.com", "X-Owner-Role": role}
+
+
+def create_owner_user(db_session: Session, *, email: str = "owner@lexflow.com", role: str = "owner_admin", password: str = "OwnerPassword123!") -> OwnerUser:
+    owner = OwnerUser(email=email, full_name="Owner Admin", role=role, hashed_password=hash_password(password), status="active")
+    db_session.add(owner)
+    db_session.commit()
+    return owner
+
+
+def owner_bearer_headers(api: TestClient, db_session: Session, *, email: str = "owner@lexflow.com", role: str = "owner_admin", password: str = "OwnerPassword123!") -> dict[str, str]:
+    create_owner_user(db_session, email=email, role=role, password=password)
+    response = api.post("/api/v1/owner/auth/login", json={"email": email, "password": password})
+    assert response.status_code == 200
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 def tenant_headers(api: TestClient) -> dict[str, str]:
@@ -61,7 +76,24 @@ def create_owner_tenant(api: TestClient) -> str:
 
 def test_owner_admin_access_and_tenant_user_blocked(api: TestClient) -> None:
     assert api.get("/api/v1/owner/dashboard", headers=owner_headers()).status_code == 200
-    assert api.get("/api/v1/owner/dashboard", headers=tenant_headers(api)).status_code == 403
+    assert api.get("/api/v1/owner/dashboard", headers=tenant_headers(api)).status_code == 401
+
+
+def test_owner_jwt_login_refresh_me_logout_and_access_control(api: TestClient, db_session: Session) -> None:
+    create_owner_user(db_session)
+    logged = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!"})
+    access = logged.json()["access_token"]
+    refresh = logged.json()["refresh_token"]
+    bearer = {"Authorization": f"Bearer {access}"}
+
+    assert logged.status_code == 200
+    assert logged.json()["owner"]["role"] == "owner_admin"
+    assert api.get("/api/v1/owner/auth/me", headers=bearer).json()["email"] == "owner@lexflow.com"
+    assert api.get("/api/v1/owner/dashboard", headers=bearer).status_code == 200
+    refreshed = api.post("/api/v1/owner/auth/refresh", json={"refresh_token": refresh})
+    assert refreshed.status_code == 200
+    assert api.post("/api/v1/owner/auth/logout", headers=bearer).status_code == 204
+    assert api.get("/api/v1/owner/dashboard", headers=bearer).status_code == 401
 
 
 def test_owner_support_limited(api: TestClient) -> None:

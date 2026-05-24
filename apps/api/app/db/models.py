@@ -900,9 +900,12 @@ class OwnerUser(Base, TimestampMixin, SoftDeleteMixin):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     email: Mapped[str] = mapped_column(String(240), nullable=False)
     full_name: Mapped[str] = mapped_column(String(180), nullable=False)
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(String(80), nullable=False)
     status: Mapped[str] = mapped_column(String(40), default="active", nullable=False)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    refresh_token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class OwnerAuditLog(Base):

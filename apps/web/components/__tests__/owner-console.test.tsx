@@ -1,11 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DemoTenants,
   InterventionRequests,
   OwnerAuditLogs,
   OwnerDashboard,
+  OwnerLogin,
   PlansManager,
   SupportTickets,
   SystemHealth,
@@ -16,6 +17,36 @@ import {
 } from "@/components/owner-console";
 
 describe("Owner Console UI", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("renders owner login and stores owner JWT session", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        access_token: "owner-access",
+        refresh_token: "owner-refresh",
+        owner: { email: "owner@lexflow.test", role: "owner_admin" }
+      })
+    } as Response);
+
+    render(<OwnerLogin />);
+    fireEvent.change(screen.getByPlaceholderText("owner@lexflow.com"), { target: { value: "owner@lexflow.test" } });
+    fireEvent.change(screen.getByPlaceholderText("Password owner"), { target: { value: "OwnerPassword123!" } });
+    fireEvent.click(screen.getByText("Entrar al Owner Console"));
+
+    expect(await screen.findByText(/Owner conectado/i)).toBeTruthy();
+    expect(localStorage.getItem("lexflow.owner_access_token")).toBe("owner-access");
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/owner/auth/login"), expect.objectContaining({ method: "POST" }));
+  });
+
   it("renders owner dashboard with SaaS metrics and security boundary", () => {
     render(<OwnerDashboard />);
 

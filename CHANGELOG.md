@@ -4,6 +4,9 @@
 
 ### Added
 
+- Owner JWT authentication endpoints for login, refresh, logout and me.
+- Initial owner bootstrap script using `INITIAL_OWNER_*` environment variables.
+- `/owner/login` page with owner token storage isolated from tenant sessions.
 - Owner-only backend models for owner users, roles, audit logs, health scores, support tickets, feature flags, limits, usage, interventions, demos, system health and incidents.
 - `/api/v1/owner/*` endpoints for dashboard, tenants, lifecycle, plans, billing, support, health, demos, interventions and audit logs.
 - Owner RBAC boundary with owner roles separated from tenant users.
@@ -16,6 +19,7 @@
 - Owner views show SaaS metadata and redact sensitive tenant content unless a temporary intervention exists.
 - Tenant JWT users are blocked from owner endpoints.
 - Critical owner actions create `owner_audit_logs`.
+- Owner header fallback is limited to local/test environments; staging and production require owner JWT.
 
 ## 2026-05-24 - Operational Core: Clients, Cases And Advanced Expediente 360
 

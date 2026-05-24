@@ -9,6 +9,7 @@ No es una pantalla para estudios juridicos clientes. Vive separado del tenant op
 ## Superficies
 
 - `/owner`: dashboard propietario.
+- `/owner/login`: login propietario con JWT owner separado de la sesion tenant.
 - `/owner/tenants`: lista y gestion de tenants.
 - `/owner/tenants/{id}`: detalle administrativo del tenant.
 - `/owner/tenants/{id}/usage`: consumo y limites.
@@ -25,6 +26,10 @@ No es una pantalla para estudios juridicos clientes. Vive separado del tenant op
 
 Endpoints implementados bajo `/api/v1/owner/*`:
 
+- `POST /owner/auth/login`
+- `POST /owner/auth/refresh`
+- `POST /owner/auth/logout`
+- `GET /owner/auth/me`
 - `GET /owner/dashboard`
 - `GET|POST /owner/tenants`
 - `GET /owner/tenants/{id}`
@@ -46,4 +51,22 @@ Endpoints implementados bajo `/api/v1/owner/*`:
 
 ## Estado
 
-READY para piloto controlado con autenticacion owner mock por headers internos. Antes de produccion publica, reemplazar por login owner real con JWT, MFA, session control y allowlist administrativa.
+READY para piloto controlado con autenticacion owner JWT. El fallback por headers queda limitado a `APP_ENV=local|test`.
+
+## Bootstrap owner
+
+Crear el primer propietario con:
+
+```bash
+cd apps/api
+python scripts/create_initial_owner.py
+```
+
+Variables requeridas:
+
+- `INITIAL_OWNER_EMAIL`
+- `INITIAL_OWNER_NAME`
+- `INITIAL_OWNER_PASSWORD`
+- `INITIAL_OWNER_ROLE`
+
+La password se guarda hasheada y nunca se imprime.
