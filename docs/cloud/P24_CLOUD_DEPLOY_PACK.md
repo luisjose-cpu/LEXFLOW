@@ -25,6 +25,7 @@ Ruta recomendada para staging:
 - `npm run cloud:smoke`.
 - `npm run cloud:evidence`.
 - `npm run cloud:revision` y `npm run cloud:wait-revision`.
+- `npm run cloud:public-ready`.
 - Normalizacion de `postgres://` y `postgresql://` a `postgresql+psycopg://`.
 - Backend S3/R2 real para documentos via API proxy firmado.
 - Readiness warning `storage_backend_public_ready` cuando produccion sigue usando `STORAGE_BACKEND=local`.
@@ -111,6 +112,14 @@ npm run cloud:evidence
 ```
 
 El comando ejecuta `cloud:preflight`, luego `cloud:smoke`, consulta `/api/v1/status`, `/readiness` y `/version`, y genera un JSON local en `reports/cloud/lexflow-cloud-release-*.json`. El reporte incluye revision esperada/actual, `matches_expected`, modos de proveedores externos, `production_ready`, `public_production_ready`, conteo y claves de blockers/warnings de readiness para seguimiento operativo. No incluye passwords, tokens, secretos ni datos de tenants; `reports/` queda fuera de git.
+
+Para salida comercial publica:
+
+```powershell
+npm run cloud:public-ready
+```
+
+Este gate falla si existe cualquier blocker o warning de readiness.
 
 ## Validacion ejecutada
 

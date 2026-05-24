@@ -36,6 +36,7 @@ def test_cloud_deploy_pack_files_are_present() -> None:
         "scripts/cloud-release-evidence.ps1",
         "scripts/cloud-revision.ps1",
         "scripts/cloud-wait-revision.ps1",
+        "scripts/cloud-public-ready.ps1",
         "scripts/db-backup.ps1",
         "scripts/db-restore-drill.ps1",
         "scripts/production-gate.ps1",
@@ -165,6 +166,19 @@ def test_cloud_release_evidence_script_writes_safe_report() -> None:
     assert "blocker_keys" in script
     assert "public_production_ready" in script
     assert "reports/" in gitignore
+
+
+def test_public_production_gate_script_blocks_warnings() -> None:
+    script = read_repo_file("scripts/cloud-public-ready.ps1")
+    package = json.loads(read_repo_file("package.json"))
+
+    assert "cloud:public-ready" in package["scripts"]
+    assert "/readiness" in script
+    assert "/api/v1/status" in script
+    assert "/version" in script
+    assert "public_production_ready" in script
+    assert "External providers" in script
+    assert "Public production gate failed" in script
 
 
 def test_s3_storage_policy_templates_are_safe() -> None:

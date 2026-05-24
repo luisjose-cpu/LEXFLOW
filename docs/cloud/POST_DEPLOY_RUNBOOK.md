@@ -46,9 +46,15 @@ npm run cloud:smoke
 npm run cloud:evidence
 ```
 
-6. Revisar el JSON mas reciente en `reports/cloud/`.
-7. Confirmar `revision.matches_expected=true` cuando Render/Vercel ya expongan revision.
-8. Si `cloud:wait-revision` expira, usar `Manual Deploy -> Deploy latest commit` en Render y repetir desde el paso 3.
+6. Para salida publica, ejecutar gate estricto:
+
+```powershell
+npm run cloud:public-ready
+```
+
+7. Revisar el JSON mas reciente en `reports/cloud/`.
+8. Confirmar `revision.matches_expected=true` cuando Render/Vercel ya expongan revision.
+9. Si `cloud:wait-revision` expira, usar `Manual Deploy -> Deploy latest commit` en Render y repetir desde el paso 3.
 
 ## Criterios de salida
 
@@ -60,6 +66,7 @@ npm run cloud:evidence
 - `production_ready=true`.
 - `public_production_ready=false` es aceptable para piloto controlado si las warnings estan documentadas.
 - Para produccion publica: `public_production_ready=true` y `warnings=0`.
+- `cloud:public-ready` debe pasar antes de venta publica sin acompaniamiento.
 
 ## Si falla
 
