@@ -7,7 +7,7 @@
 3. Si requiere datos protegidos, solicita intervencion temporal desde Owner Console.
 4. La intervencion define scopes, motivo y expiracion.
 5. Se ejecuta soporte dentro del alcance autorizado.
-6. Se resuelve ticket y se registra audit log.
+6. Se resuelve ticket desde Owner Console y se registra audit log.
 
 ## Categorias iniciales
 

@@ -238,6 +238,12 @@ describe("Owner Console UI", () => {
     const tenantId = "11111111-1111-1111-1111-111111111111";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
+      if (url.includes("/owner/support/tickets/ticket-new/resolve")) {
+        return {
+          ok: true,
+          json: async () => ({ id: "ticket-new", tenant_id: tenantId, priority: "high", status: "resolved", category: "support", title: "Cliente necesita ayuda", resolution: "Resuelto desde Owner Console" })
+        } as Response;
+      }
       if (url.includes("/owner/support/tickets") && init?.method === "POST") {
         return {
           ok: true,
@@ -276,6 +282,8 @@ describe("Owner Console UI", () => {
     fireEvent.change(screen.getByDisplayValue("medium"), { target: { value: "high" } });
     fireEvent.click(screen.getByText("Crear ticket"));
     await waitFor(() => expect(screen.getByText("Ticket creado: Cliente necesita ayuda.")).toBeTruthy());
+    fireEvent.click(screen.getAllByText("Resolver")[0]);
+    await waitFor(() => expect(screen.getByText("Ticket resuelto: Cliente necesita ayuda.")).toBeTruthy());
 
     fireEvent.change(screen.getByPlaceholderText("Nombre demo comercial"), { target: { value: "Demo Laboral" } });
     fireEvent.change(screen.getByDisplayValue("litigation"), { target: { value: "labor" } });
@@ -288,6 +296,7 @@ describe("Owner Console UI", () => {
     await waitFor(() => expect(screen.getByText(`Intervencion creada para ${tenantId}.`)).toBeTruthy());
 
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/support/tickets"), expect.objectContaining({ method: "POST" }));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/support/tickets/ticket-new/resolve"), expect.objectContaining({ method: "POST" }));
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/demos"), expect.objectContaining({ method: "POST" }));
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/interventions"), expect.objectContaining({ method: "POST" }));
   });

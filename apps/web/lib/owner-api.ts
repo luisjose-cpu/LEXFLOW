@@ -74,6 +74,7 @@ type ApiOwnerTicket = {
   status: string;
   category: string;
   title: string;
+  resolution?: string | null;
 };
 
 type ApiOwnerDemo = {
@@ -193,6 +194,14 @@ export async function createOwnerTicket(payload: { title: string; tenant_id?: st
   const body = await ownerApiRequest<ApiOwnerTicket>("/owner/support/tickets", {
     method: "POST",
     body: JSON.stringify(payload)
+  });
+  return normalizeOwnerTicket(body);
+}
+
+export async function resolveOwnerTicket(ticketId: string, resolution = "Resuelto desde Owner Console") {
+  const body = await ownerApiRequest<ApiOwnerTicket>(`/owner/support/tickets/${ticketId}/resolve`, {
+    method: "POST",
+    body: JSON.stringify({ resolution })
   });
   return normalizeOwnerTicket(body);
 }

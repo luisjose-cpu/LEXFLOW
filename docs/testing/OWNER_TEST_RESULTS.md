@@ -93,5 +93,6 @@ Coverage:
 - Owner tenant lifecycle actions via Owner API.
 - Owner feature flag save via Owner API.
 - Owner support ticket creation via Owner API.
+- Owner support ticket resolution via Owner API.
 - Owner commercial demo tenant creation via Owner API.
 - Owner temporary intervention creation via Owner API.

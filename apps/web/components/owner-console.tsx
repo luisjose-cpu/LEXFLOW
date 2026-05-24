@@ -54,6 +54,7 @@ import {
   loadOwnerTenants,
   loadOwnerTickets,
   reactivateOwnerTenant,
+  resolveOwnerTicket,
   suspendOwnerTenant,
   updateOwnerFeatures
 } from "@/lib/owner-api";
@@ -645,6 +646,8 @@ export function SupportTickets() {
   const [ticketForm, setTicketForm] = useState({ title: "", tenantId: "", category: "support", priority: "medium" });
   const [createState, setCreateState] = useState<"idle" | "saving" | "error" | "success">("idle");
   const [createMessage, setCreateMessage] = useState("");
+  const [resolvingTicketId, setResolvingTicketId] = useState("");
+  const [resolveMessage, setResolveMessage] = useState("");
 
   useEffect(() => {
     if (!hasOwnerSession()) {
@@ -696,6 +699,25 @@ export function SupportTickets() {
     }
   }
 
+  async function resolveTicket(ticketId: string) {
+    if (!hasOwnerSession()) {
+      setResolveMessage("Inicia sesion owner para resolver tickets auditados.");
+      return;
+    }
+    setResolvingTicketId(ticketId);
+    setResolveMessage("");
+    try {
+      const ticket = await resolveOwnerTicket(ticketId);
+      setTickets((current) => current.map((item) => item.id === ticket.id ? ticket : item));
+      setSource("live");
+      setResolveMessage(`Ticket resuelto: ${ticket.title}.`);
+    } catch (caught) {
+      setResolveMessage(caught instanceof Error ? caught.message : "No se pudo resolver el ticket.");
+    } finally {
+      setResolvingTicketId("");
+    }
+  }
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Soporte" title="Tickets y SLA" description="Mesa de ayuda con prioridades, responsables, categorias, historial y resolucion auditada." />
@@ -726,6 +748,7 @@ export function SupportTickets() {
         </button>
       </form>
       {createMessage ? <p className={`rounded-md px-3 py-2 text-sm ${createState === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{createMessage}</p> : null}
+      {resolveMessage ? <p className={`rounded-md px-3 py-2 text-sm ${resolveMessage.includes("error") || resolveMessage.includes("No se") || resolveMessage.includes("Inicia") ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{resolveMessage}</p> : null}
       <Card>
         <div className="grid gap-3">
           {tickets.map((ticket) => (
@@ -733,9 +756,17 @@ export function SupportTickets() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-ink">{ticket.title}</p>
-                  <p className="mt-1 text-xs text-slate-500">{ticket.tenant} - {ticket.category} - SLA {ticket.sla}</p>
+                  <p className="mt-1 text-xs text-slate-500">{ticket.tenant} - {ticket.category} - SLA {ticket.sla} - {ticket.status}</p>
+                  {ticket.resolution ? <p className="mt-2 rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{ticket.resolution}</p> : null}
                 </div>
-                <Badge>{ticket.priority}</Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge>{ticket.priority}</Badge>
+                  {ticket.status !== "resolved" ? (
+                    <button className="rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-legal-50 disabled:opacity-60" disabled={resolvingTicketId === ticket.id} onClick={() => void resolveTicket(ticket.id)} type="button">
+                      {resolvingTicketId === ticket.id ? "Resolviendo..." : "Resolver"}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
           ))}

@@ -27,6 +27,18 @@ export type OwnerPlan = {
   features: string[];
 };
 
+export type OwnerTicket = {
+  id: string;
+  tenant: string;
+  tenant_id?: string | null;
+  priority: string;
+  status: string;
+  category: string;
+  title: string;
+  sla: string;
+  resolution?: string | null;
+};
+
 export const ownerTenants: OwnerTenant[] = [
   {
     id: "tenant-nova",
@@ -106,7 +118,7 @@ export const ownerFeatureFlags = [
   "mobile_pwa"
 ];
 
-export const ownerTickets = [
+export const ownerTickets: OwnerTicket[] = [
   { id: "ticket-901", tenant: "Nova Legal Studio", priority: "high", status: "open", category: "SINOE", title: "Checkpoint CAPTCHA pendiente", sla: "2h" },
   { id: "ticket-902", tenant: "Andes & Asociados", priority: "medium", status: "open", category: "Billing", title: "Validar cambio de plan PRO", sla: "8h" },
   { id: "ticket-903", tenant: "Mercurio Retail Legal", priority: "critical", status: "open", category: "Cobranza", title: "Tenant suspendido por deuda", sla: "1h" }
