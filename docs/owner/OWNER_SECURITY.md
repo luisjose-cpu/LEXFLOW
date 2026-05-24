@@ -29,6 +29,8 @@ Toda intervencion debe registrar:
 - cierre o expiracion automatica
 - audit log
 
+Owner Console permite cierre manual con `/api/v1/owner/interventions/{id}/close`. El cierre marca `status=closed`, llena `closed_at` y genera `tenant_intervention_closed`.
+
 ## Pendiente productivo
 
 Owner Console usa JWT owner dedicado con refresh token versionado, logout revocando tokens y bootstrap por variables de entorno. El fallback por headers owner queda permitido solo en `APP_ENV=local` o `APP_ENV=test`.

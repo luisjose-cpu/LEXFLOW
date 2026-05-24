@@ -38,6 +38,7 @@ import {
 import {
   API_URL,
   changeOwnerTenantPlan,
+  closeOwnerIntervention,
   createOwnerPlan,
   createOwnerDemo,
   createOwnerIntervention,
@@ -1132,6 +1133,7 @@ export function InterventionRequests() {
   const [interventionForm, setInterventionForm] = useState({ tenantId: "", reason: "", duration: "60", scopes: "metadata:read" });
   const [createState, setCreateState] = useState<"idle" | "saving" | "error" | "success">("idle");
   const [createMessage, setCreateMessage] = useState("");
+  const [closingId, setClosingId] = useState("");
 
   useEffect(() => {
     if (!hasOwnerSession()) {
@@ -1182,6 +1184,28 @@ export function InterventionRequests() {
     }
   }
 
+  async function closeIntervention(interventionId: string) {
+    if (!hasOwnerSession()) {
+      setCreateState("error");
+      setCreateMessage("Inicia sesion owner para cerrar intervenciones auditadas.");
+      return;
+    }
+    setClosingId(interventionId);
+    setCreateMessage("");
+    try {
+      const closed = await closeOwnerIntervention(interventionId);
+      setInterventions((current) => current.map((item) => item.id === closed.id ? closed : item));
+      setSource("live");
+      setCreateState("success");
+      setCreateMessage(`Intervencion cerrada para ${closed.tenant}.`);
+    } catch (caught) {
+      setCreateState("error");
+      setCreateMessage(caught instanceof Error ? caught.message : "No se pudo cerrar la intervencion.");
+    } finally {
+      setClosingId("");
+    }
+  }
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Seguridad soporte" title="Intervenciones temporales" description="Acceso excepcional, con motivo, duracion, alcance limitado, expiracion y audit_log." />
@@ -1224,14 +1248,21 @@ export function InterventionRequests() {
       <Card>
         <div className="grid gap-3">
           {interventions.map((item) => (
-            <div className="rounded-lg border border-slate-200 bg-white p-4" key={`${item.tenant}-${item.expires}`}>
+            <div className="rounded-lg border border-slate-200 bg-white p-4" key={item.id ?? `${item.tenant}-${item.expires}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-ink">{item.tenant}</p>
                   <p className="mt-1 text-sm text-slate-600">{item.reason}</p>
                   <p className="mt-1 text-xs text-slate-500">Expira: {item.expires} - scopes: {item.scopes.join(", ")}</p>
                 </div>
-                <Badge>{item.status}</Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge>{item.status}</Badge>
+                  {item.status === "active" ? (
+                    <button className="rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-legal-50 disabled:opacity-60" disabled={closingId === item.id} onClick={() => void closeIntervention(item.id)} type="button">
+                      {closingId === item.id ? "Cerrando..." : "Cerrar"}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
           ))}

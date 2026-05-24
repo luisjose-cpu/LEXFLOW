@@ -305,6 +305,16 @@ class OwnerConsoleService:
         db.commit()
         return self._intervention(intervention)
 
+    def close_intervention(self, db: Session, *, owner: OwnerPrincipal, intervention_id: UUID | str, reason: str, request_id: str | None = None) -> dict[str, object]:
+        intervention = db.get(dbm.TenantIntervention, str(intervention_id))
+        if not intervention:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Intervention not found")
+        intervention.status = "closed"
+        intervention.closed_at = now_utc()
+        self.audit(db, owner=owner, action="tenant_intervention_closed", entity_type="tenant_intervention", entity_id=intervention.id, tenant_id=intervention.tenant_id, reason=reason, metadata={"closed_at": intervention.closed_at.isoformat()}, request_id=request_id)
+        db.commit()
+        return self._intervention(intervention)
+
     def expire_interventions(self, db: Session) -> int:
         now = now_utc()
         rows = db.scalars(select(dbm.TenantIntervention).where(dbm.TenantIntervention.status == "active", dbm.TenantIntervention.expires_at <= now)).all()

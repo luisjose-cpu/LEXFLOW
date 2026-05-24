@@ -127,16 +127,20 @@ def test_support_ticket_resolution_intervention_expiry_and_owner_surfaces(api: T
     ticket = api.post("/api/v1/owner/support/tickets", headers=owner_headers(), json={"tenant_id": tenant_id, "title": "Error SINOE", "priority": "high"})
     resolved = api.post(f"/api/v1/owner/support/tickets/{ticket.json()['id']}/resolve", headers=owner_headers(), json={"resolution": "resuelto"})
     intervention = api.post("/api/v1/owner/interventions", headers=owner_headers(), json={"tenant_id": tenant_id, "reason": "diagnostico autorizado", "duration_minutes": 5, "scopes": ["metadata:read"]})
+    closed = api.post(f"/api/v1/owner/interventions/{intervention.json()['id']}/close", headers=owner_headers(), json={"reason": "soporte finalizado"})
 
     row = db_session.get(TenantIntervention, intervention.json()["id"])
     assert row is not None
+    assert closed.json()["status"] == "closed"
     row.expires_at = row.created_at - timedelta(minutes=1)
+    row.status = "active"
     db_session.commit()
     interventions = api.get("/api/v1/owner/interventions", headers=owner_headers())
 
     assert ticket.status_code == 201
     assert resolved.json()["status"] == "resolved"
     assert any(item["status"] == "expired" for item in interventions.json())
+    assert any(audit.action == "tenant_intervention_closed" for audit in db_session.scalars(select(OwnerAuditLog)).all())
     assert api.get("/api/v1/owner/plans", headers=owner_headers()).status_code == 200
     assert api.get("/api/v1/owner/billing", headers=owner_headers()).status_code == 200
     assert api.get("/api/v1/owner/system/health", headers=owner_headers()).status_code == 200

@@ -364,10 +364,16 @@ describe("Owner Console UI", () => {
         } as Response;
       }
       if (url.includes("/owner/demos")) return { ok: true, json: async () => [] } as Response;
+      if (url.includes("/owner/interventions/intervention-new/close")) {
+        return {
+          ok: true,
+          json: async () => ({ id: "intervention-new", tenant_id: tenantId, status: "closed", reason: "Soporte autorizado por admin", expires_at: "2026-05-24T23:59:00Z", scopes: ["metadata:read"], closed_at: "2026-05-24T21:00:00Z" })
+        } as Response;
+      }
       if (url.includes("/owner/interventions") && init?.method === "POST") {
         return {
           ok: true,
-          json: async () => ({ tenant_id: tenantId, status: "active", reason: "Soporte autorizado por admin", expires_at: "2026-05-24T23:59:00Z", scopes: ["metadata:read"] })
+          json: async () => ({ id: "intervention-new", tenant_id: tenantId, status: "active", reason: "Soporte autorizado por admin", expires_at: "2026-05-24T23:59:00Z", scopes: ["metadata:read"] })
         } as Response;
       }
       if (url.includes("/owner/interventions")) return { ok: true, json: async () => [] } as Response;
@@ -400,10 +406,13 @@ describe("Owner Console UI", () => {
     fireEvent.change(screen.getByPlaceholderText("Motivo autorizado"), { target: { value: "Soporte autorizado por admin" } });
     fireEvent.click(screen.getByText("Crear intervencion"));
     await waitFor(() => expect(screen.getByText(`Intervencion creada para ${tenantId}.`)).toBeTruthy());
+    fireEvent.click(screen.getAllByText("Cerrar")[0]);
+    await waitFor(() => expect(screen.getByText(`Intervencion cerrada para ${tenantId}.`)).toBeTruthy());
 
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/support/tickets"), expect.objectContaining({ method: "POST" }));
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/support/tickets/ticket-new/resolve"), expect.objectContaining({ method: "POST" }));
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/demos"), expect.objectContaining({ method: "POST" }));
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/interventions"), expect.objectContaining({ method: "POST" }));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/interventions/intervention-new/close"), expect.objectContaining({ method: "POST" }));
   });
 });

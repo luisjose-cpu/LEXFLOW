@@ -660,6 +660,11 @@ def owner_create_intervention(payload: OwnerInterventionCreate, owner: Annotated
     return owner_console_service.create_intervention(db, owner=owner, payload=payload.model_dump(), request_id=getattr(request.state, "request_id", None))
 
 
+@router.post("/owner/interventions/{intervention_id}/close")
+def owner_close_intervention(intervention_id: UUID, payload: OwnerReasonRequest, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("interventions:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.close_intervention(db, owner=owner, intervention_id=intervention_id, reason=payload.reason, request_id=getattr(request.state, "request_id", None))
+
+
 @router.get("/owner/audit-logs")
 def owner_audit_logs(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
     return owner_console_service.audit_logs(db)

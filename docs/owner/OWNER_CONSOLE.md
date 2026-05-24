@@ -49,6 +49,7 @@ Endpoints implementados bajo `/api/v1/owner/*`:
 - `GET /owner/system/incidents`
 - `GET|POST /owner/demos`
 - `GET|POST /owner/interventions`
+- `POST /owner/interventions/{id}/close`
 - `GET /owner/audit-logs`
 
 ## Estado

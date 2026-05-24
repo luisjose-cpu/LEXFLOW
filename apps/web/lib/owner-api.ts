@@ -109,11 +109,13 @@ type ApiOwnerDemo = {
 };
 
 type ApiOwnerIntervention = {
+  id: string;
   tenant_id: string;
   status: string;
   reason: string;
   expires_at: string;
   scopes: string[];
+  closed_at?: string | null;
 };
 
 export type OwnerLimit = {
@@ -294,6 +296,14 @@ export async function createOwnerIntervention(payload: { tenant_id: string; reas
   return normalizeOwnerIntervention(body);
 }
 
+export async function closeOwnerIntervention(interventionId: string, reason = "Intervencion cerrada desde Owner Console") {
+  const body = await ownerApiRequest<ApiOwnerIntervention>(`/owner/interventions/${interventionId}/close`, {
+    method: "POST",
+    body: JSON.stringify({ reason })
+  });
+  return normalizeOwnerIntervention(body);
+}
+
 export async function loadOwnerAuditLogs() {
   const body = await ownerApiRequest<{ owner_email: string; action: string; tenant_id?: string | null; created_at: string }[]>("/owner/audit-logs");
   return body.map((item) => ({ actor: item.owner_email, action: item.action, target: item.tenant_id ?? "system", at: item.created_at }));
@@ -365,11 +375,13 @@ function normalizeOwnerDemo(demo: ApiOwnerDemo) {
 
 function normalizeOwnerIntervention(item: ApiOwnerIntervention) {
   return {
+    id: item.id,
     tenant: item.tenant_id,
     status: item.status,
     reason: item.reason,
     expires: item.expires_at,
-    scopes: item.scopes
+    scopes: item.scopes,
+    closedAt: item.closed_at ?? null
   };
 }
 

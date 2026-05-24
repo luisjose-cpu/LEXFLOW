@@ -146,8 +146,8 @@ export const ownerAuditLogs = [
 ];
 
 export const ownerInterventions = [
-  { tenant: "Nova Legal Studio", status: "active", reason: "Revision de metadata SINOE autorizada", expires: "2026-05-24 11:00", scopes: ["metadata:read", "logs:read"] },
-  { tenant: "Mercurio Retail Legal", status: "expired", reason: "Diagnostico de soporte cerrado", expires: "2026-05-23 19:00", scopes: ["billing:read"] }
+  { id: "intervention-demo-1", tenant: "Nova Legal Studio", status: "active", reason: "Revision de metadata SINOE autorizada", expires: "2026-05-24 11:00", scopes: ["metadata:read", "logs:read"] },
+  { id: "intervention-demo-2", tenant: "Mercurio Retail Legal", status: "expired", reason: "Diagnostico de soporte cerrado", expires: "2026-05-23 19:00", scopes: ["billing:read"] }
 ];
 
 export function findOwnerTenant(id: string) {

@@ -30,6 +30,7 @@ Coverage:
 - configurar limites comerciales por tenant.
 - crear y resolver ticket.
 - crear y expirar intervencion.
+- cerrar intervencion temporal manualmente.
 - health score calculado.
 - audit log creado.
 
@@ -101,3 +102,4 @@ Coverage:
 - Owner support ticket resolution via Owner API.
 - Owner commercial demo tenant creation via Owner API.
 - Owner temporary intervention creation via Owner API.
+- Owner temporary intervention manual close via Owner API.
