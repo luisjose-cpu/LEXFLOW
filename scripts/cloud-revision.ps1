@@ -30,6 +30,21 @@ function Resolve-ExpectedRevision {
   return $head.Trim()
 }
 
+function Invoke-WebRequestWithRetry {
+  param([string]$Uri)
+  for ($attempt = 1; $attempt -le 3; $attempt += 1) {
+    try {
+      return Invoke-WebRequest -Uri $Uri -Method GET -UseBasicParsing -TimeoutSec 30
+    } catch {
+      if ($attempt -eq 3) {
+        throw
+      }
+      Write-Host "Transient request failure for $Uri. Retrying attempt $($attempt + 1)/3..."
+      Start-Sleep -Seconds (5 * $attempt)
+    }
+  }
+}
+
 $ApiUrl = Normalize-Url $ApiUrl
 $ExpectedRevision = Resolve-ExpectedRevision $ExpectedRevision
 
@@ -41,7 +56,7 @@ if (-not $ExpectedRevision) {
   throw "LEXFLOW_EXPECTED_REVISION, -ExpectedRevision or local git HEAD is required"
 }
 
-$versionResponse = Invoke-WebRequest -Uri "$ApiUrl/version" -Method GET -UseBasicParsing -TimeoutSec 30
+$versionResponse = Invoke-WebRequestWithRetry -Uri "$ApiUrl/version"
 $version = $versionResponse.Content | ConvertFrom-Json
 $actualRevision = "$($version.revision)".Trim()
 

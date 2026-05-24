@@ -74,6 +74,7 @@
 - Added `cloud:public-ready` as a strict commercial launch gate for zero readiness blockers and warnings.
 - Web now declares baseline production security headers in Next.js config.
 - API security headers now include HSTS for production transport hardening.
+- Cloud smoke, revision, and public-ready checks now retry transient HTTP failures during redeploy windows.
 - Restore drill script now writes non-secret JSON evidence under `reports/restore/`.
 - Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.

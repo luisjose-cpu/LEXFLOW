@@ -125,6 +125,8 @@ def test_cloud_smoke_checks_external_provider_modes() -> None:
     assert "API revision" in smoke
     assert "Provider modes" in smoke
     assert "Provider modes unavailable on deployed API" in smoke
+    assert "Invoke-WebRequestWithRetry" in smoke
+    assert "Transient request failure" in smoke
 
 
 def test_cloud_revision_script_compares_expected_commit_safely() -> None:
@@ -139,6 +141,7 @@ def test_cloud_revision_script_compares_expected_commit_safely() -> None:
     assert "/version" in script
     assert "Cloud revision mismatch" in script
     assert "Strict" in script
+    assert "Invoke-WebRequestWithRetry" in script
     assert "TimeoutSeconds" in wait_script
     assert "IntervalSeconds" in wait_script
     assert "Start-Sleep" in wait_script

@@ -26,16 +26,31 @@ function Write-IssueList {
   }
 }
 
+function Invoke-WebRequestWithRetry {
+  param([string]$Uri)
+  for ($attempt = 1; $attempt -le 3; $attempt += 1) {
+    try {
+      return Invoke-WebRequest -Uri $Uri -Method GET -UseBasicParsing -TimeoutSec 30
+    } catch {
+      if ($attempt -eq 3) {
+        throw
+      }
+      Write-Host "Transient request failure for $Uri. Retrying attempt $($attempt + 1)/3..."
+      Start-Sleep -Seconds (5 * $attempt)
+    }
+  }
+}
+
 $ApiUrl = Normalize-Url $ApiUrl
 if (-not $ApiUrl) {
   throw "LEXFLOW_API_URL or -ApiUrl is required"
 }
 
-$readinessResponse = Invoke-WebRequest -Uri "$ApiUrl/readiness" -Method GET -UseBasicParsing -TimeoutSec 30
+$readinessResponse = Invoke-WebRequestWithRetry -Uri "$ApiUrl/readiness"
 $readiness = $readinessResponse.Content | ConvertFrom-Json
-$statusResponse = Invoke-WebRequest -Uri "$ApiUrl/api/v1/status" -Method GET -UseBasicParsing -TimeoutSec 30
+$statusResponse = Invoke-WebRequestWithRetry -Uri "$ApiUrl/api/v1/status"
 $apiStatus = $statusResponse.Content | ConvertFrom-Json
-$versionResponse = Invoke-WebRequest -Uri "$ApiUrl/version" -Method GET -UseBasicParsing -TimeoutSec 30
+$versionResponse = Invoke-WebRequestWithRetry -Uri "$ApiUrl/version"
 $version = $versionResponse.Content | ConvertFrom-Json
 
 Write-Host "LEXFLOW public production gate"

@@ -16,13 +16,50 @@ function Normalize-Url {
   return $Url.Trim().TrimEnd("/")
 }
 
+function Invoke-WebRequestWithRetry {
+  param(
+    [string]$Uri,
+    [string]$Method = "GET",
+    [hashtable]$Headers = @{},
+    [string]$ContentType = "",
+    [string]$Body = "",
+    [int]$Attempts = 3
+  )
+  for ($attempt = 1; $attempt -le $Attempts; $attempt += 1) {
+    try {
+      $parameters = @{
+        Uri = $Uri
+        Method = $Method
+        UseBasicParsing = $true
+        TimeoutSec = 30
+      }
+      if ($Headers.Count -gt 0) {
+        $parameters.Headers = $Headers
+      }
+      if ($ContentType) {
+        $parameters.ContentType = $ContentType
+      }
+      if ($Body) {
+        $parameters.Body = $Body
+      }
+      return Invoke-WebRequest @parameters
+    } catch {
+      if ($attempt -eq $Attempts) {
+        throw
+      }
+      Write-Host "Transient request failure for $Uri. Retrying attempt $($attempt + 1)/$Attempts..."
+      Start-Sleep -Seconds (5 * $attempt)
+    }
+  }
+}
+
 function Assert-HttpOk {
   param(
     [string]$Name,
     [string]$Url
   )
   Write-Host "==> $Name $Url"
-  $response = Invoke-WebRequest -Uri $Url -Method GET -UseBasicParsing -TimeoutSec 30
+  $response = Invoke-WebRequestWithRetry -Uri $Url
   if ($response.StatusCode -lt 200 -or $response.StatusCode -ge 300) {
     throw "$Name failed with HTTP $($response.StatusCode)"
   }
@@ -73,7 +110,7 @@ if ($hasLoginInputs) {
     email = $AdminEmail
     password = $AdminPassword
   } | ConvertTo-Json
-  $response = Invoke-WebRequest -Uri "$ApiUrl/api/v1/auth/login" -Method POST -UseBasicParsing -TimeoutSec 30 -ContentType "application/json" -Body $payload
+  $response = Invoke-WebRequestWithRetry -Uri "$ApiUrl/api/v1/auth/login" -Method POST -ContentType "application/json" -Body $payload
   if ($response.StatusCode -lt 200 -or $response.StatusCode -ge 300) {
     throw "Tenant admin login failed with HTTP $($response.StatusCode)"
   }
@@ -85,7 +122,7 @@ if ($hasLoginInputs) {
 
   Write-Host "==> Authenticated storage status"
   $headers = @{ Authorization = "Bearer $($body.access_token)" }
-  $storageResponse = Invoke-WebRequest -Uri "$ApiUrl/api/v1/storage/status" -Method GET -UseBasicParsing -TimeoutSec 30 -Headers $headers
+  $storageResponse = Invoke-WebRequestWithRetry -Uri "$ApiUrl/api/v1/storage/status" -Headers $headers
   if ($storageResponse.StatusCode -lt 200 -or $storageResponse.StatusCode -ge 300) {
     throw "Storage status failed with HTTP $($storageResponse.StatusCode)"
   }
