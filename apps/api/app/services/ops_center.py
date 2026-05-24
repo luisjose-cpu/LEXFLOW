@@ -77,9 +77,23 @@ class OpsCenterService:
         readiness = production_readiness_report(get_settings())
         blockers = len(readiness["blockers"])
         warnings = len(readiness["warnings"])
+        static_requirements = [
+            "APP_ENV=production",
+            "REQUIRE_PRODUCTION_READY=true",
+            "SEED_DEMO_ON_STARTUP=false",
+            "PostgreSQL production database",
+            "Strong JWT/S3 secrets",
+            "No localhost CORS origins",
+            "External pentest and monitoring",
+        ]
+        readiness_requirements = [
+            f"{item['key']}: {item['message']}"
+            for item in [*readiness["blockers"], *readiness["warnings"]]
+        ]
         return {
             "gate": "P23 Production Gate",
             "status": "pass" if readiness["production_ready"] else "blocked",
+            "public_production_status": "pass" if readiness["public_production_ready"] else "blocked",
             "readiness": readiness,
             "summary": {"blockers": blockers, "warnings": warnings},
             "commands": [
@@ -89,15 +103,7 @@ class OpsCenterService:
                 "npm run test:api",
                 "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/production-gate.ps1",
             ],
-            "required_before_public_production": [
-                "APP_ENV=production",
-                "REQUIRE_PRODUCTION_READY=true",
-                "SEED_DEMO_ON_STARTUP=false",
-                "PostgreSQL production database",
-                "Strong JWT/S3 secrets",
-                "No localhost CORS origins",
-                "External pentest and monitoring",
-            ],
+            "required_before_public_production": [*static_requirements, *readiness_requirements],
         }
 
 

@@ -76,6 +76,7 @@
 - Manual Cloud CI now runs release evidence generation and uploads the JSON as a GitHub Actions artifact.
 - Readiness now exposes `public_production_ready`, which requires zero blockers and zero warnings.
 - Production Gate UI now shows public production readiness separately from general deployment status.
+- Production Gate API now includes dynamic readiness blockers/warnings in the public production requirements list.
 
 ### Security
 

@@ -186,6 +186,7 @@ export async function processSecurityAlertDeliveries() {
 
 export type ProductionGateReport = {
   status: string;
+  public_production_status?: string;
   summary?: {
     blockers?: number;
     warnings?: number;

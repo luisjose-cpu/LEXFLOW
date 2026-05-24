@@ -99,4 +99,6 @@ def test_production_gate_and_permissions(api: TestClient, db_session: Session) -
     assert gate.json()["gate"] == "P23 Production Gate"
     assert "npm run test:api" in gate.json()["commands"]
     assert gate.json()["status"] == "blocked"
+    assert gate.json()["public_production_status"] == "blocked"
+    assert any("database_postgresql" in item for item in gate.json()["required_before_public_production"])
     assert blocked.status_code == 403

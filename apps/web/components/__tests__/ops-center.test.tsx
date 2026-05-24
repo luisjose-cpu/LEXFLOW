@@ -43,6 +43,7 @@ describe("Ops center UI", () => {
       ok: true,
       json: async () => ({
         status: "blocked",
+        public_production_status: "blocked",
         summary: { blockers: 1, warnings: 2 },
         readiness: {
           public_production_ready: false,
@@ -60,7 +61,7 @@ describe("Ops center UI", () => {
 
     expect(await screen.findByText("database_postgresql")).toBeTruthy();
     expect(screen.getByText("cors_no_localhost")).toBeTruthy();
-    expect(screen.getByText("not ready")).toBeTruthy();
+    expect(screen.getAllByText("blocked").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("npm run cloud:smoke")).toBeTruthy();
     expect(screen.getByText("External pentest and monitoring")).toBeTruthy();
   });

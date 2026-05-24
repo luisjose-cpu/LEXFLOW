@@ -151,7 +151,7 @@ function ProductionGate() {
         {report ? (
           <div className="mt-4 grid gap-3 rounded-lg border border-slate-200 bg-mist p-4 sm:grid-cols-2 xl:grid-cols-4">
             <Metric label="Estado" value={report.status} />
-            <Metric label="Public prod" value={report.readiness?.public_production_ready ? "ready" : "not ready"} />
+            <Metric label="Public prod" value={report.public_production_status ?? (report.readiness?.public_production_ready ? "pass" : "blocked")} />
             <Metric label="Blockers" value={String(blockers)} />
             <Metric label="Warnings" value={String(warnings)} />
           </div>
