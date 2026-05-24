@@ -17,7 +17,7 @@ foreach ($file in $requiredFiles) {
 }
 
 $render = Get-Content "render.yaml" -Raw
-foreach ($needle in @("lexflow-api", "lexflow-postgres", "lexflow-redis", "REQUIRE_PRODUCTION_READY", "SEED_DEMO_ON_STARTUP")) {
+foreach ($needle in @("lexflow-api", "lexflow-postgres", "lexflow-redis", "REQUIRE_PRODUCTION_READY", "SEED_DEMO_ON_STARTUP", "LEXFLOW_WEB_URL", "CREDENTIAL_ENCRYPTION_KEY", "REQUIRE_OWNER_MFA")) {
   if ($render -notlike "*$needle*") {
     throw "render.yaml missing: $needle"
   }

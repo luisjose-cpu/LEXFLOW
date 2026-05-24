@@ -21,6 +21,8 @@ services:
         value: "true"
       - key: SEED_DEMO_ON_STARTUP
         value: "false"
+      - key: LEXFLOW_WEB_URL
+        sync: false
       - key: DATABASE_URL
         fromDatabase:
           name: lexflow-postgres
@@ -56,6 +58,8 @@ services:
         sync: false
       - key: RATE_LIMIT_PER_MINUTE
         value: "120"
+      - key: REQUIRE_OWNER_MFA
+        value: "false"
 
   - type: keyvalue
     name: lexflow-redis

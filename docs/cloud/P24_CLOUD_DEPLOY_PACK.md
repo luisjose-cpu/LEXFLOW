@@ -43,7 +43,7 @@ Ruta recomendada para staging:
    - `ALLOWED_ORIGINS`
    - `STORAGE_PUBLIC_BASE_URL`
    - dominios
-6. Confirmar que `REQUIRE_PRODUCTION_READY=true`.
+6. Confirmar que `REQUIRE_PRODUCTION_READY=true`, `LEXFLOW_WEB_URL` apunta a la web publica y `REQUIRE_OWNER_MFA` queda listo para activarse despues de enrolar MFA owner.
 7. Confirmar que `SEED_DEMO_ON_STARTUP=false`.
 
 ## Vercel

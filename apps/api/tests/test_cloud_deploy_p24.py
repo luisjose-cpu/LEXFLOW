@@ -66,6 +66,9 @@ def test_render_blueprint_declares_required_runtime_contracts() -> None:
     assert "autoDeployTrigger: checksPass" in render_yaml
     assert "REQUIRE_PRODUCTION_READY" in render_yaml
     assert "SEED_DEMO_ON_STARTUP" in render_yaml
+    assert "LEXFLOW_WEB_URL" in render_yaml
+    assert "CREDENTIAL_ENCRYPTION_KEY" in render_yaml
+    assert "REQUIRE_OWNER_MFA" in render_yaml
     assert "ALLOWED_ORIGINS" in render_yaml
     assert "STORAGE_LOCAL_ROOT" in render_yaml
     assert "lexflow-security-alert-deliveries" in render_yaml
@@ -97,6 +100,16 @@ def test_cloud_ci_runs_release_gates() -> None:
     assert "wait_for_revision" in workflow
     assert "actions/upload-artifact@v4" in workflow
     assert "lexflow-cloud-release-evidence" in workflow
+
+
+def test_fast_production_gate_requires_public_security_env_contract() -> None:
+    gate = read_repo_file("scripts/production-gate.ps1")
+    preflight = read_repo_file("scripts/cloud-preflight.ps1")
+
+    for key in ["LEXFLOW_WEB_URL=", "CREDENTIAL_ENCRYPTION_KEY=", "REQUIRE_OWNER_MFA="]:
+        assert key in gate
+    for key in ["LEXFLOW_WEB_URL", "CREDENTIAL_ENCRYPTION_KEY", "REQUIRE_OWNER_MFA"]:
+        assert key in preflight
 
 
 def test_backup_restore_scripts_are_safe_by_default() -> None:
