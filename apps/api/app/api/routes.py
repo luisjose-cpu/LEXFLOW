@@ -49,6 +49,7 @@ from app.services.matters import matter_service
 from app.services.mobile import mobile_client_service, mobile_lawyer_service
 from app.services.ops_center import ops_center_service
 from app.services.ops_import import ops_import_service
+from app.services.operational_core import operational_core_service
 from app.services.roles import role_service
 from app.services.seed import DEMO_SEED
 from app.services.sinoe_integration import sinoe_automation_service
@@ -1524,6 +1525,17 @@ def dashboard_overview(
     return dashboard_service.overview(db, tenant_id=tenant_id)
 
 
+@router.get("/dashboard/search")
+def dashboard_search(
+    _: Annotated[User, Depends(require_permission("dashboard:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    q: str = Query(default=""),
+    limit: int = Query(default=12, ge=1, le=50),
+) -> dict[str, object]:
+    return operational_core_service.global_search(db, tenant_id=tenant_id, query=q, limit=limit)
+
+
 @router.get("/dashboard/kpis")
 def dashboard_kpis(
     _: Annotated[User, Depends(require_permission("dashboard:read"))],
@@ -1795,6 +1807,17 @@ def list_clients(
     return client_service.list_for_tenant(tenant_id, search=search, tag=tag)
 
 
+@router.get("/clients/search")
+def search_clients(
+    _: Annotated[User, Depends(require_permission("clients:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    q: str = Query(default=""),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> list[dict[str, object]]:
+    return operational_core_service.client_search(db, tenant_id=tenant_id, query=q, limit=limit)
+
+
 @router.post("/clients", response_model=Client, status_code=status.HTTP_201_CREATED)
 def create_client(
     payload: ClientCreate,
@@ -1813,6 +1836,16 @@ def create_client(
     )
 
 
+@router.get("/clients/{client_id}/profile")
+def get_client_profile(
+    client_id: UUID,
+    _: Annotated[User, Depends(require_permission("clients:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return operational_core_service.client_profile(db, tenant_id=tenant_id, client_id=client_id)
+
+
 @router.get("/clients/{client_id}", response_model=Client)
 def get_client(
     client_id: UUID,
@@ -1823,6 +1856,56 @@ def get_client(
     if not client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
     return client
+
+
+@router.get("/clients/{client_id}/timeline")
+def get_client_timeline(
+    client_id: UUID,
+    _: Annotated[User, Depends(require_permission("clients:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    return operational_core_service.client_timeline(db, tenant_id=tenant_id, client_id=client_id)
+
+
+@router.get("/clients/{client_id}/documents")
+def get_client_documents(
+    client_id: UUID,
+    _: Annotated[User, Depends(require_permission("clients:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    return operational_core_service.client_profile(db, tenant_id=tenant_id, client_id=client_id)["documents"]
+
+
+@router.get("/clients/{client_id}/communications")
+def get_client_communications(
+    client_id: UUID,
+    _: Annotated[User, Depends(require_permission("communications:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    return operational_core_service.client_profile(db, tenant_id=tenant_id, client_id=client_id)["communications"]
+
+
+@router.get("/clients/{client_id}/metrics")
+def get_client_metrics(
+    client_id: UUID,
+    _: Annotated[User, Depends(require_permission("clients:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return operational_core_service.client_metrics(db, tenant_id=tenant_id, client_id=client_id)
+
+
+@router.get("/clients/{client_id}/risk")
+def get_client_risk(
+    client_id: UUID,
+    _: Annotated[User, Depends(require_permission("clients:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return operational_core_service.client_risk(db, tenant_id=tenant_id, client_id=client_id)
 
 
 @router.patch("/clients/{client_id}", response_model=Client)
@@ -1874,6 +1957,17 @@ def list_cases(
     return case_service.list_for_tenant(tenant_id, status=status_filter)
 
 
+@router.get("/cases/search")
+def search_cases(
+    _: Annotated[User, Depends(require_permission("cases:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    q: str = Query(default=""),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> list[dict[str, object]]:
+    return operational_core_service.case_search(db, tenant_id=tenant_id, query=q, limit=limit)
+
+
 @router.post("/cases", response_model=LegalCase, status_code=status.HTTP_201_CREATED)
 def create_case(
     payload: CaseCreate,
@@ -1903,6 +1997,56 @@ def case_overview(
     db: Annotated[Session, Depends(get_db)],
 ) -> dict[str, object]:
     return build_case_overview(db, tenant_id=tenant_id, case_id=case_id)
+
+
+@router.get("/cases/{case_id}/documents")
+def list_case_documents(
+    case_id: UUID,
+    _: Annotated[User, Depends(require_permission("cases:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    return operational_core_service.case_documents(db, tenant_id=tenant_id, case_id=case_id)
+
+
+@router.get("/cases/{case_id}/hearings")
+def list_case_hearings(
+    case_id: UUID,
+    _: Annotated[User, Depends(require_permission("cases:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    return operational_core_service.case_hearings(db, tenant_id=tenant_id, case_id=case_id)
+
+
+@router.get("/cases/{case_id}/judicial")
+def list_case_judicial(
+    case_id: UUID,
+    _: Annotated[User, Depends(require_permission("cases:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return operational_core_service.case_judicial(db, tenant_id=tenant_id, case_id=case_id)
+
+
+@router.get("/cases/{case_id}/automation")
+def list_case_automation(
+    case_id: UUID,
+    _: Annotated[User, Depends(require_permission("automation:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return operational_core_service.case_automation(db, tenant_id=tenant_id, case_id=case_id)
+
+
+@router.get("/cases/{case_id}/intelligence")
+def list_case_intelligence(
+    case_id: UUID,
+    _: Annotated[User, Depends(require_permission("intelligence:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return operational_core_service.case_intelligence(db, tenant_id=tenant_id, case_id=case_id)
 
 
 @router.post("/cases/{case_id}/events", status_code=status.HTTP_201_CREATED)

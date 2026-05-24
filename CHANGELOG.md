@@ -1,5 +1,21 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Operational Core: Clients, Cases And Advanced Expediente 360
+
+### Added
+
+- Global operational search across dashboard, clients, cases and Expediente 360 surfaces.
+- Client module routes for list, create wizard, profile and edit views.
+- Case module routes for list, create, edit, documents, hearings, communications, SINOE judicial updates, automation and intelligence.
+- Advanced client and case UI components for metrics, risk, timelines, tags, documents, communications and resource panels.
+- Backend operational endpoints for global search, client profile/timeline/documents/communications/metrics/risk and case documents/hearings/judicial/automation/intelligence.
+- Tests for operational search, client/case module surfaces, tenant isolation and SINOE consumption.
+
+### Changed
+
+- App shell now exposes `SearchGlobalBar` as a persistent Legal OS search layer.
+- Judicial update views consume the existing SINOE module instead of duplicating judicial automation logic.
+
 ## 2026-05-24 - SINOE Integration Foundation
 
 ### Added

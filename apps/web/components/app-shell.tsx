@@ -2,6 +2,7 @@ import { webNavigation } from "@lexflow/shared";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { SearchGlobalBar } from "@/components/operational-core";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -29,7 +30,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
         </aside>
-        <section className="min-w-0">{children}</section>
+        <section className="min-w-0">
+          <div className="mb-5">
+            <SearchGlobalBar compact />
+          </div>
+          {children}
+        </section>
       </div>
     </main>
   );

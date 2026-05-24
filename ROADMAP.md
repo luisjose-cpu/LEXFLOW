@@ -60,6 +60,17 @@ SINOE extension:
 - Mock adapter first; real adapter only through permitted official/authorized integration.
 - CAPTCHA checkpoints remain human-in-the-loop and explicitly forbid bypass.
 
+## Operational Core - Clients, Cases And Expediente 360 Advanced
+
+Goal: connect the daily legal workflow from client intake to case operation, documents, hearings, SINOE updates, communications, AI, automation and intelligence.
+
+Delivered scope:
+
+- Global search over clients, cases, documents, hearings, judicial updates, communications and linked intelligence.
+- Client 360 views with onboarding wizard, profile, documents, case grid, timeline, tags, risk, notes, communications and metrics.
+- Case center with create/edit and dedicated resource views for documents, hearings, communications, judicial/SINOE, automation and intelligence.
+- Backend operational endpoints with tenant isolation and SINOE module consumption.
+
 ## P6 - Portal Cliente
 
 Goal: provide secure, mobile-first client access to authorized cases, documents, notifications, and messages.

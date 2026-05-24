@@ -41,3 +41,13 @@ Decision: SINOE integration begins with `SinoeAdapterMock`, encrypted tenant cre
 Reason: SINOE access must be authorized and compliant. LEXFLOW must not evade CAPTCHA, break anti-bot measures, automate CAPTCHA resolution or ship a real connector without confirming an allowed integration path.
 
 Status: Accepted
+
+### D-0005 - Operational Core Consumes Existing Judicial Automation
+
+Date: 2026-05-24
+
+Decision: Client, case and Expediente 360 advanced views expose judicial status through the existing SINOE case source and judicial update contracts.
+
+Reason: Judicial automation already has a governed module with CAPTCHA human-in-the-loop, audit and evidence rules. Recreating that logic inside client or case screens would fragment compliance and increase operational risk.
+
+Status: Accepted
