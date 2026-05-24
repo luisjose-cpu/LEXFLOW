@@ -24,6 +24,8 @@ DEFAULT_FEATURES = [
     "mobile_pwa",
 ]
 
+OWNER_PLAN_CATALOG_SLUG = "lexflow-owner-catalog"
+
 
 class OwnerConsoleService:
     def dashboard(self, db: Session) -> dict[str, object]:
@@ -142,15 +144,58 @@ class OwnerConsoleService:
         return score
 
     def plans(self, db: Session) -> list[dict[str, object]]:
-        existing = db.scalars(select(dbm.BillingPlan).where(dbm.BillingPlan.deleted_at.is_(None))).all()
+        catalog = self._plan_catalog_tenant(db)
+        existing = db.scalars(select(dbm.BillingPlan).where(dbm.BillingPlan.tenant_id == catalog.id, dbm.BillingPlan.deleted_at.is_(None)).order_by(dbm.BillingPlan.monthly_price_cents)).all()
         if existing:
-            return [{"id": plan.id, "code": plan.code, "name": plan.name, "monthly_price_cents": plan.monthly_price_cents, "status": plan.status, "limits": plan.limits_json} for plan in existing]
+            return [self._plan(plan) for plan in existing]
         return [
-            {"code": "START", "name": "Start", "monthly_price_cents": 9900, "status": "active", "limits": {"users": 5, "ai_tokens": 0}},
-            {"code": "PRO", "name": "Pro", "monthly_price_cents": 24900, "status": "active", "limits": {"users": 20, "ai_tokens": 100000}},
-            {"code": "AI", "name": "AI", "monthly_price_cents": 39900, "status": "active", "limits": {"users": 50, "ai_tokens": 500000}},
-            {"code": "ENTERPRISE", "name": "Enterprise", "monthly_price_cents": 0, "status": "active", "limits": {"users": 999, "ai_tokens": 999999}},
+            {"code": "START", "name": "Start", "monthly_price_cents": 9900, "status": "active", "limits": {"users": 5, "ai_tokens": 0}, "features": ["expediente360", "dashboard"]},
+            {"code": "PRO", "name": "Pro", "monthly_price_cents": 24900, "status": "active", "limits": {"users": 20, "ai_tokens": 100000}, "features": ["client_portal", "sinoe", "whatsapp"]},
+            {"code": "AI", "name": "AI", "monthly_price_cents": 39900, "status": "active", "limits": {"users": 50, "ai_tokens": 500000}, "features": ["ai", "ocr", "automation_studio"]},
+            {"code": "ENTERPRISE", "name": "Enterprise", "monthly_price_cents": 0, "status": "active", "limits": {"users": 999, "ai_tokens": 999999}, "features": DEFAULT_FEATURES},
         ]
+
+    def create_plan(self, db: Session, *, owner: OwnerPrincipal, payload: dict[str, object], request_id: str | None = None) -> dict[str, object]:
+        catalog = self._plan_catalog_tenant(db)
+        code = str(payload["code"]).strip().upper()
+        if db.scalar(select(dbm.BillingPlan).where(dbm.BillingPlan.tenant_id == catalog.id, dbm.BillingPlan.code == code, dbm.BillingPlan.deleted_at.is_(None))):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Owner plan code already exists")
+        plan = dbm.BillingPlan(
+            tenant_id=catalog.id,
+            code=code,
+            name=str(payload["name"]),
+            monthly_price_cents=int(payload.get("monthly_price_cents", 0)),
+            status=str(payload.get("status", "active")),
+            trial_days=int(payload.get("trial_days", 14)),
+            limits_json=dict(payload.get("limits") or {}),
+        )
+        db.add(plan)
+        db.flush()
+        self._replace_plan_features(db, plan, list(payload.get("features") or []))
+        self.audit(db, owner=owner, action="owner_plan_created", entity_type="billing_plan", entity_id=plan.id, reason="owner plan management", metadata={"code": plan.code}, request_id=request_id)
+        db.commit()
+        return self._plan(plan)
+
+    def update_plan(self, db: Session, *, owner: OwnerPrincipal, plan_code: str, payload: dict[str, object], request_id: str | None = None) -> dict[str, object]:
+        catalog = self._plan_catalog_tenant(db)
+        plan = db.scalar(select(dbm.BillingPlan).where(dbm.BillingPlan.tenant_id == catalog.id, dbm.BillingPlan.code == plan_code.upper(), dbm.BillingPlan.deleted_at.is_(None)))
+        if not plan:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Owner plan not found")
+        if "name" in payload:
+            plan.name = str(payload["name"])
+        if "monthly_price_cents" in payload:
+            plan.monthly_price_cents = int(payload["monthly_price_cents"])
+        if "status" in payload:
+            plan.status = str(payload["status"])
+        if "trial_days" in payload:
+            plan.trial_days = int(payload["trial_days"])
+        if "limits" in payload:
+            plan.limits_json = dict(payload["limits"] or {})
+        if "features" in payload:
+            self._replace_plan_features(db, plan, list(payload["features"] or []))
+        self.audit(db, owner=owner, action="owner_plan_updated", entity_type="billing_plan", entity_id=plan.id, reason=str(payload.get("reason", "owner plan update")), metadata={"code": plan.code, "status": plan.status}, request_id=request_id)
+        db.commit()
+        return self._plan(plan)
 
     def billing(self, db: Session) -> dict[str, object]:
         invoices = db.scalars(select(dbm.Invoice)).all()
@@ -322,6 +367,37 @@ class OwnerConsoleService:
     @staticmethod
     def _ticket(ticket: dbm.SupportTicket) -> dict[str, object]:
         return {"id": ticket.id, "tenant_id": ticket.tenant_id, "title": ticket.title, "category": ticket.category, "priority": ticket.priority, "status": ticket.status, "assigned_owner_email": ticket.assigned_owner_email, "resolution": ticket.resolution}
+
+    @staticmethod
+    def _plan(plan: dbm.BillingPlan) -> dict[str, object]:
+        return {
+            "id": plan.id,
+            "code": plan.code,
+            "name": plan.name,
+            "monthly_price_cents": plan.monthly_price_cents,
+            "status": plan.status,
+            "trial_days": plan.trial_days,
+            "limits": plan.limits_json,
+            "features": [feature.feature_key for feature in plan.features if feature.enabled],
+        }
+
+    def _plan_catalog_tenant(self, db: Session) -> dbm.Tenant:
+        tenant = db.scalar(select(dbm.Tenant).where(dbm.Tenant.slug == OWNER_PLAN_CATALOG_SLUG, dbm.Tenant.deleted_at.is_(None)))
+        if tenant:
+            return tenant
+        tenant = dbm.Tenant(name="LEXFLOW Owner Plan Catalog", slug=OWNER_PLAN_CATALOG_SLUG, plan="ENTERPRISE", status="active")
+        db.add(tenant)
+        db.flush()
+        return tenant
+
+    @staticmethod
+    def _replace_plan_features(db: Session, plan: dbm.BillingPlan, features: list[str]) -> None:
+        desired = {feature.strip() for feature in features if feature.strip()}
+        existing = {feature.feature_key: feature for feature in plan.features}
+        for feature_key, row in existing.items():
+            row.enabled = feature_key in desired
+        for feature_key in desired - set(existing):
+            db.add(dbm.PlanFeature(tenant_id=plan.tenant_id, plan_id=plan.id, feature_key=feature_key, enabled=True))
 
     @staticmethod
     def _intervention(row: dbm.TenantIntervention) -> dict[str, object]:

@@ -12,7 +12,7 @@ python -m pytest tests/test_owner_console.py -q
 
 Result:
 
-- 4 passed.
+- 6 passed.
 
 Coverage:
 
@@ -25,6 +25,7 @@ Coverage:
 - suspender tenant.
 - reactivar tenant.
 - cambiar plan.
+- crear y actualizar planes owner.
 - activar feature.
 - crear y resolver ticket.
 - crear y expirar intervencion.
@@ -39,7 +40,7 @@ python -m pytest -q
 
 Result:
 
-- 101 passed.
+- 102 passed.
 
 ## Frontend
 
@@ -51,7 +52,7 @@ npm --workspace apps/web run test -- components/__tests__/owner-console.test.tsx
 
 Result:
 
-- 12 passed.
+- 13 passed.
 
 Global web command:
 
@@ -61,7 +62,7 @@ npm --workspace apps/web run test
 
 Result:
 
-- 57 passed.
+- 58 passed.
 
 Build and cloud checks:
 
@@ -90,6 +91,7 @@ Coverage:
 - OwnerAuditLogs.
 - Owner dashboard conectado al Owner API cuando existe JWT owner.
 - Owner logout remoto y limpieza de tokens locales owner.
+- Owner plan creation and status update via Owner API.
 - Owner tenant creation via Owner API.
 - Owner tenant lifecycle actions via Owner API.
 - Owner feature flag save via Owner API.

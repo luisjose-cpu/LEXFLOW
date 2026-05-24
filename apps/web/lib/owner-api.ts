@@ -88,6 +88,7 @@ type ApiOwnerPlan = {
   monthly_price_cents?: number;
   status?: string;
   limits?: Record<string, unknown>;
+  features?: string[];
 };
 
 type ApiOwnerTicket = {
@@ -198,14 +199,23 @@ export async function updateOwnerFeatures(tenantId: string, features: Record<str
 
 export async function loadOwnerPlans(): Promise<OwnerPlan[]> {
   const body = await ownerApiRequest<ApiOwnerPlan[]>("/owner/plans");
-  return body.map((plan) => ({
-    name: plan.code ?? plan.name ?? "PLAN",
-    monthly: Math.round((plan.monthly_price_cents ?? 0) / 100),
-    yearly: Math.round(((plan.monthly_price_cents ?? 0) * 12) / 100),
-    status: plan.status === "active" ? "active" : "draft",
-    limits: Object.entries(plan.limits ?? {}).map(([key, value]) => `${key}: ${value}`),
-    features: ["Feature gates API"]
-  }));
+  return body.map(normalizeOwnerPlan);
+}
+
+export async function createOwnerPlan(payload: { code: string; name: string; monthly_price_cents: number; status?: string; trial_days?: number; limits?: Record<string, unknown>; features?: string[] }): Promise<OwnerPlan> {
+  const body = await ownerApiRequest<ApiOwnerPlan>("/owner/plans", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  return normalizeOwnerPlan(body);
+}
+
+export async function updateOwnerPlan(planCode: string, payload: { name?: string; monthly_price_cents?: number; status?: string; trial_days?: number; limits?: Record<string, unknown>; features?: string[]; reason?: string }): Promise<OwnerPlan> {
+  const body = await ownerApiRequest<ApiOwnerPlan>(`/owner/plans/${planCode}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+  return normalizeOwnerPlan(body);
 }
 
 export async function loadOwnerTickets() {
@@ -311,6 +321,17 @@ function normalizeOwnerTicket(ticket: ApiOwnerTicket) {
     ...ticket,
     tenant: ticket.tenant_id ?? "Sin tenant",
     sla: ticket.priority === "high" ? "2h" : "8h"
+  };
+}
+
+function normalizeOwnerPlan(plan: ApiOwnerPlan): OwnerPlan {
+  return {
+    name: plan.code ?? plan.name ?? "PLAN",
+    monthly: Math.round((plan.monthly_price_cents ?? 0) / 100),
+    yearly: Math.round(((plan.monthly_price_cents ?? 0) * 12) / 100),
+    status: plan.status === "active" ? "active" : "draft",
+    limits: Object.entries(plan.limits ?? {}).map(([key, value]) => `${key}: ${value}`),
+    features: plan.features?.length ? plan.features : ["Feature gates API"]
   };
 }
 

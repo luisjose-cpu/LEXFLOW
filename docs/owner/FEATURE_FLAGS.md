@@ -23,3 +23,12 @@
 ## Uso comercial
 
 Las flags permiten pilotos graduales, demos por vertical, bloqueo por deuda, upgrades controlados y pruebas enterprise.
+
+## Planes owner
+
+Owner Console administra el catalogo SaaS con:
+
+- `POST /api/v1/owner/plans`
+- `PATCH /api/v1/owner/plans/{code}`
+
+Cada alta o cambio de plan genera `owner_audit_logs`. El catalogo propietario queda aislado en un tenant tecnico `lexflow-owner-catalog` y no expone datos sensibles de estudios.

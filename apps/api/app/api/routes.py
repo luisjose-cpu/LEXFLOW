@@ -285,6 +285,26 @@ class OwnerPlanChangeRequest(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
+class OwnerPlanCreate(BaseModel):
+    code: str = Field(min_length=2, max_length=40)
+    name: str = Field(min_length=2, max_length=120)
+    monthly_price_cents: int = Field(default=0, ge=0)
+    status: str = Field(default="active", max_length=40)
+    trial_days: int = Field(default=14, ge=0, le=365)
+    limits: dict[str, object] = Field(default_factory=dict)
+    features: list[str] = Field(default_factory=list)
+
+
+class OwnerPlanUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    monthly_price_cents: int | None = Field(default=None, ge=0)
+    status: str | None = Field(default=None, max_length=40)
+    trial_days: int | None = Field(default=None, ge=0, le=365)
+    limits: dict[str, object] | None = None
+    features: list[str] | None = None
+    reason: str = Field(default="Actualizacion de plan desde Owner Console", min_length=3, max_length=500)
+
+
 class OwnerFeatureUpdateRequest(BaseModel):
     features: dict[str, bool]
     reason: str = Field(min_length=3, max_length=500)
@@ -562,6 +582,16 @@ def owner_tenant_health_score(tenant_id: UUID, _: Annotated[OwnerPrincipal, Depe
 @router.get("/owner/plans")
 def owner_plans(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
     return owner_console_service.plans(db)
+
+
+@router.post("/owner/plans", status_code=status.HTTP_201_CREATED)
+def owner_create_plan(payload: OwnerPlanCreate, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("plans:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.create_plan(db, owner=owner, payload=payload.model_dump(), request_id=getattr(request.state, "request_id", None))
+
+
+@router.patch("/owner/plans/{plan_code}")
+def owner_update_plan(plan_code: str, payload: OwnerPlanUpdate, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("plans:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.update_plan(db, owner=owner, plan_code=plan_code, payload=payload.model_dump(exclude_none=True), request_id=getattr(request.state, "request_id", None))
 
 
 @router.get("/owner/billing")

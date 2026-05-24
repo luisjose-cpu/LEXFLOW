@@ -38,6 +38,7 @@ import {
 import {
   API_URL,
   changeOwnerTenantPlan,
+  createOwnerPlan,
   createOwnerDemo,
   createOwnerIntervention,
   createOwnerTenant,
@@ -58,6 +59,7 @@ import {
   reactivateOwnerTenant,
   resolveOwnerTicket,
   suspendOwnerTenant,
+  updateOwnerPlan,
   updateOwnerFeatures
 } from "@/lib/owner-api";
 
@@ -624,6 +626,9 @@ export function TenantFeatures({ tenantId }: { tenantId: string }) {
 export function PlansManager() {
   const [plans, setPlans] = useState(ownerPlans);
   const [source, setSource] = useState<OwnerDataSource>("demo");
+  const [planForm, setPlanForm] = useState({ code: "", name: "", monthly: "0", features: "expediente360,dashboard" });
+  const [planState, setPlanState] = useState<"idle" | "saving" | "error" | "success">("idle");
+  const [planMessage, setPlanMessage] = useState("");
 
   useEffect(() => {
     if (!hasOwnerSession()) {
@@ -647,10 +652,97 @@ export function PlansManager() {
     };
   }, []);
 
+  async function submitPlan(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!hasOwnerSession()) {
+      setPlanState("error");
+      setPlanMessage("Inicia sesion owner para crear planes auditados.");
+      return;
+    }
+    setPlanState("saving");
+    setPlanMessage("");
+    try {
+      const plan = await createOwnerPlan({
+        code: planForm.code,
+        name: planForm.name,
+        monthly_price_cents: Math.round(Number(planForm.monthly) * 100),
+        status: "active",
+        trial_days: 14,
+        limits: { users: 10, cases: 100 },
+        features: splitCsv(planForm.features)
+      });
+      setPlans((current) => [plan, ...current.filter((item) => item.name !== plan.name)]);
+      setPlanForm({ code: "", name: "", monthly: "0", features: "expediente360,dashboard" });
+      setSource("live");
+      setPlanState("success");
+      setPlanMessage(`Plan creado: ${plan.name}.`);
+    } catch (caught) {
+      setPlanState("error");
+      setPlanMessage(caught instanceof Error ? caught.message : "No se pudo crear el plan.");
+    }
+  }
+
+  async function togglePlan(plan: typeof plans[number]) {
+    if (!hasOwnerSession()) {
+      setPlanState("error");
+      setPlanMessage("Inicia sesion owner para actualizar planes auditados.");
+      return;
+    }
+    setPlanState("saving");
+    setPlanMessage("");
+    try {
+      const next = await updateOwnerPlan(plan.name, {
+        status: plan.status === "active" ? "draft" : "active",
+        reason: "Cambio de estado desde Owner Console"
+      });
+      setPlans((current) => current.map((item) => item.name === next.name ? next : item));
+      setSource("live");
+      setPlanState("success");
+      setPlanMessage(`Plan ${next.name} actualizado a ${next.status}.`);
+    } catch (caught) {
+      setPlanState("error");
+      setPlanMessage(caught instanceof Error ? caught.message : "No se pudo actualizar el plan.");
+    }
+  }
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Planes" title="Planes y licencias" description="Precios mensual/anual, limites y modulos incluidos para START, PRO, AI y ENTERPRISE." />
       <OwnerDataSourceNotice source={source} />
+      <form className="grid gap-3 rounded-lg border border-white/80 bg-white p-4 shadow-soft lg:grid-cols-[140px_1fr_140px_1fr_auto]" onSubmit={submitPlan}>
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm uppercase outline-none focus:border-legal-500"
+          onChange={(event) => setPlanForm((current) => ({ ...current, code: event.target.value }))}
+          placeholder="PLAN"
+          required
+          value={planForm.code}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setPlanForm((current) => ({ ...current, name: event.target.value }))}
+          placeholder="Nombre comercial"
+          required
+          value={planForm.name}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          min="0"
+          onChange={(event) => setPlanForm((current) => ({ ...current, monthly: event.target.value }))}
+          placeholder="USD/mes"
+          type="number"
+          value={planForm.monthly}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setPlanForm((current) => ({ ...current, features: event.target.value }))}
+          placeholder="features separadas por coma"
+          value={planForm.features}
+        />
+        <button className="inline-flex h-11 items-center justify-center rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={planState === "saving"} type="submit">
+          {planState === "saving" ? "Guardando..." : "Crear plan"}
+        </button>
+      </form>
+      {planMessage ? <p className={`rounded-md px-3 py-2 text-sm ${planState === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{planMessage}</p> : null}
       <div className="grid gap-4 lg:grid-cols-2">
         {plans.map((plan) => (
           <Card key={plan.name}>
@@ -665,6 +757,9 @@ export function PlansManager() {
             <div className="mt-4 grid gap-2 text-sm text-slate-600">
               {[...plan.limits, ...plan.features].map((item) => <p key={item}>- {item}</p>)}
             </div>
+            <button className="mt-5 rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-legal-50 disabled:opacity-60" disabled={planState === "saving"} onClick={() => void togglePlan(plan)} type="button">
+              {plan.status === "active" ? "Pasar a draft" : "Activar plan"}
+            </button>
           </Card>
         ))}
       </div>
@@ -1222,4 +1317,8 @@ function UsageBar({ label, value, max }: { label: string; value: number; max: nu
       </div>
     </div>
   );
+}
+
+function splitCsv(value: string) {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
 }

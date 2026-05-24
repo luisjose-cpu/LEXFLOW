@@ -236,6 +236,40 @@ describe("Owner Console UI", () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/tenants/tenant-nova/features"), expect.objectContaining({ method: "POST" }));
   });
 
+  it("creates and updates owner plans through the owner API", async () => {
+    localStorage.setItem("lexflow.owner_access_token", "owner-token");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/owner/plans/PILOT")) {
+        return {
+          ok: true,
+          json: async () => ({ code: "PILOT", name: "Pilot", monthly_price_cents: 19900, status: "draft", limits: { users: 10 }, features: ["expediente360"] })
+        } as Response;
+      }
+      if (url.includes("/owner/plans") && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({ code: "PILOT", name: "Pilot", monthly_price_cents: 19900, status: "active", limits: { users: 10 }, features: ["expediente360", "dashboard"] })
+        } as Response;
+      }
+      if (url.includes("/owner/plans")) return { ok: true, json: async () => [] } as Response;
+      return { ok: false, json: async () => ({}) } as Response;
+    });
+
+    render(<PlansManager />);
+    await waitFor(() => expect(screen.getByText("Owner Console conectado al API cloud.")).toBeTruthy());
+    fireEvent.change(screen.getByPlaceholderText("PLAN"), { target: { value: "PILOT" } });
+    fireEvent.change(screen.getByPlaceholderText("Nombre comercial"), { target: { value: "Pilot" } });
+    fireEvent.change(screen.getByPlaceholderText("USD/mes"), { target: { value: "199" } });
+    fireEvent.click(screen.getByText("Crear plan"));
+
+    await waitFor(() => expect(screen.getByText("Plan creado: PILOT.")).toBeTruthy());
+    fireEvent.click(screen.getAllByText("Pasar a draft")[0]);
+    await waitFor(() => expect(screen.getByText("Plan PILOT actualizado a draft.")).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/plans"), expect.objectContaining({ method: "POST" }));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/plans/PILOT"), expect.objectContaining({ method: "PATCH" }));
+  });
+
   it("renders plans, support, system, demos, interventions and audit", () => {
     render(
       <>

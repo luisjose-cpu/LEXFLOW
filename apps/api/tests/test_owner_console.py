@@ -140,3 +140,33 @@ def test_support_ticket_resolution_intervention_expiry_and_owner_surfaces(api: T
     assert api.get("/api/v1/owner/system/health", headers=owner_headers()).status_code == 200
     assert api.get("/api/v1/owner/demos", headers=owner_headers()).status_code == 200
     assert api.get("/api/v1/owner/audit-logs", headers=owner_headers()).json()
+
+
+def test_owner_plan_create_update_and_audit(api: TestClient, db_session: Session) -> None:
+    created = api.post(
+        "/api/v1/owner/plans",
+        headers=owner_headers("owner_finance"),
+        json={
+            "code": "PILOT",
+            "name": "Pilot",
+            "monthly_price_cents": 19900,
+            "status": "active",
+            "limits": {"users": 10, "cases": 100},
+            "features": ["expediente360", "client_portal"],
+        },
+    )
+    updated = api.patch(
+        "/api/v1/owner/plans/PILOT",
+        headers=owner_headers("owner_finance"),
+        json={"status": "draft", "features": ["expediente360"], "reason": "ajuste comercial"},
+    )
+    forbidden = api.post("/api/v1/owner/plans", headers=owner_headers("owner_support"), json={"code": "NOPE", "name": "Nope"})
+
+    audits = db_session.scalars(select(OwnerAuditLog).where(OwnerAuditLog.entity_type == "billing_plan")).all()
+    assert created.status_code == 201
+    assert created.json()["code"] == "PILOT"
+    assert updated.status_code == 200
+    assert updated.json()["status"] == "draft"
+    assert updated.json()["features"] == ["expediente360"]
+    assert forbidden.status_code == 403
+    assert {audit.action for audit in audits} >= {"owner_plan_created", "owner_plan_updated"}
