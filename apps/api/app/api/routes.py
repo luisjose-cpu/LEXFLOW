@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, get_request_tenant, require_permission
 from app.api.owner_dependencies import OwnerPrincipal, require_owner_permission
-from app.core.config import get_settings
+from app.core.config import deployment_revision, get_settings
 from app.core.readiness import production_readiness_report
 from app.db import models as dbm
 from app.db.database import get_db
@@ -537,6 +537,7 @@ def api_status() -> dict[str, object]:
         "phase": settings.release_phase,
         "service": settings.app_name,
         "version": settings.api_version,
+        "revision": deployment_revision(settings),
         "external_providers": external_providers,
         "capabilities": [
             "multitenant",

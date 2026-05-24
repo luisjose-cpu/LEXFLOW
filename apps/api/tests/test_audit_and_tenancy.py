@@ -23,6 +23,8 @@ def test_p1_status_endpoints() -> None:
     assert health.status_code == 200
     assert version.status_code == 200
     assert status.status_code == 200
+    assert "revision" in version.json()
+    assert "revision" in status.json()
     assert status.json()["phase"] == "P24"
     assert status.json()["release"] == "CLOUD-DEPLOY-PACK"
     assert status.json()["external_providers"]["ai"] == "mock"

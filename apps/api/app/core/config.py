@@ -1,4 +1,5 @@
 from functools import lru_cache
+import os
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -9,6 +10,7 @@ class Settings(BaseSettings):
     app_env: str = "local"
     release_phase: str = "P24"
     release_name: str = "CLOUD-DEPLOY-PACK"
+    release_revision: str | None = None
     require_production_ready: bool = False
     seed_demo_on_startup: bool = True
     lexflow_web_url: str = "http://localhost:3000"
@@ -49,3 +51,14 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def deployment_revision(settings: Settings | None = None) -> str:
+    current = settings or get_settings()
+    return (
+        current.release_revision
+        or os.getenv("RENDER_GIT_COMMIT")
+        or os.getenv("VERCEL_GIT_COMMIT_SHA")
+        or os.getenv("GITHUB_SHA")
+        or "unknown"
+    )

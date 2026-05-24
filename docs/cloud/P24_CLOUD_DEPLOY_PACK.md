@@ -77,6 +77,8 @@ npm run cloud:smoke
 
 El smoke valida `/health`, `/version`, `/metrics`, `/api/v1/status`, modos de proveedores externos, `/readiness`, home web, login web y login tenant opcional sin imprimir secretos. Si hay login tenant, tambien valida `/api/v1/storage/status` autenticado. Si `APP_ENV=production`, falla cuando readiness reporta blockers.
 
+`/version`, `/metrics` y `/api/v1/status` incluyen `revision` desde `RELEASE_REVISION`, `RENDER_GIT_COMMIT`, `VERCEL_GIT_COMMIT_SHA` o `GITHUB_SHA` para confirmar que cloud esta corriendo el commit esperado.
+
 ## Evidencia release piloto
 
 ```powershell

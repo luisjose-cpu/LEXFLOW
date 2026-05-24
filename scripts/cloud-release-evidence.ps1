@@ -78,6 +78,7 @@ $report = @{
   api_url = $ApiUrl
   web_url = $WebUrl
   version = $version
+  revision = $version.revision
   external_providers = $apiStatus.external_providers
   readiness = @{
     status = $readiness.status

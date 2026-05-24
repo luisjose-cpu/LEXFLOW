@@ -37,7 +37,13 @@ if (-not $ApiUrl) {
 }
 
 Assert-HttpOk "API health" "$ApiUrl/health" | Out-Null
-Assert-HttpOk "API version" "$ApiUrl/version" | Out-Null
+$versionResponse = Assert-HttpOk "API version" "$ApiUrl/version"
+$versionBody = $versionResponse.Content | ConvertFrom-Json
+if ($versionBody.revision) {
+  Write-Host "API revision: $($versionBody.revision)"
+} else {
+  Write-Host "API revision unavailable on deployed API; redeploy latest master to enable this check."
+}
 $statusResponse = Assert-HttpOk "API status" "$ApiUrl/api/v1/status"
 $statusBody = $statusResponse.Content | ConvertFrom-Json
 if (-not $statusBody.external_providers) {
