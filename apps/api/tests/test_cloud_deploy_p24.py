@@ -162,6 +162,7 @@ def test_cloud_smoke_checks_external_provider_modes() -> None:
     assert "Strict-Transport-Security" in smoke
     assert "X-Content-Type-Options" in smoke
     assert "Content-Security-Policy" in smoke
+    assert "default-src 'self'" in smoke
 
 
 def test_cloud_revision_script_compares_expected_commit_safely() -> None:

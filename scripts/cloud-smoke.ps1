@@ -133,6 +133,7 @@ if ($WebUrl) {
   Assert-HeaderValue $webHome "Web home" "X-Content-Type-Options" "nosniff"
   Assert-HeaderValue $webHome "Web home" "X-Frame-Options" "DENY"
   Assert-HeaderValue $webHome "Web home" "Referrer-Policy" "no-referrer"
+  Assert-HeaderContains $webHome "Web home" "Content-Security-Policy" "default-src 'self'"
   Assert-HeaderContains $webHome "Web home" "Strict-Transport-Security" "includeSubDomains"
   Assert-HttpOk "Web login" "$WebUrl/login" | Out-Null
 }

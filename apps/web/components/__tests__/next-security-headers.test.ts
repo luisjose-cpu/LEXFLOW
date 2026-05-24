@@ -13,6 +13,8 @@ describe("Next security headers", () => {
     expect(headers["X-Content-Type-Options"]).toBe("nosniff");
     expect(headers["Referrer-Policy"]).toBe("no-referrer");
     expect(headers["Permissions-Policy"]).toContain("camera=()");
+    expect(headers["Content-Security-Policy"]).toContain("default-src 'self'");
+    expect(headers["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
     expect(headers["Strict-Transport-Security"]).toContain("includeSubDomains");
   });
 });

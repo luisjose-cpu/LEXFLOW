@@ -92,6 +92,7 @@
 - API responses now include a restrictive `Content-Security-Policy`, and cloud smoke/evidence records it.
 - Tenant and owner login now apply configurable temporary blocking after repeated failed attempts.
 - Failed-login throttling now uses a shared `LoginThrottle` service across tenant and owner auth.
+- Web responses now declare a Next-compatible `Content-Security-Policy`, and cloud smoke checks it.
 - Restore drill script now writes non-secret JSON evidence under `reports/restore/`.
 - Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.
