@@ -33,6 +33,19 @@
 
 - Smoke test does not print passwords, bearer tokens or response payloads with secrets.
 
+## 2026-05-24 - S3 Compatible Document Storage
+
+### Added
+
+- S3/R2-compatible document storage backend with lazy `boto3` client.
+- `STORAGE_BACKEND=s3` support for upload, metadata verification and download through the existing signed API proxy contract.
+- Storage tests with fake S3 client to validate bytes, checksum metadata and download without real credentials.
+
+### Security
+
+- S3 credentials stay server-side and are never returned to the frontend.
+- Existing signed token, tenant storage key, content-type, size limit and audit controls remain enforced for S3 mode.
+
 ## 2026-05-24 - Security Alerts
 
 ### Added

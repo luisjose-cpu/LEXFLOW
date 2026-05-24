@@ -13,6 +13,7 @@ Hacer funcional el contrato de storage de P17: las URLs firmadas ahora permiten 
 - Validacion de `Content-Type`.
 - Validacion de tamano maximo.
 - Persistencia local en `STORAGE_LOCAL_ROOT`.
+- Persistencia S3-compatible cuando `STORAGE_BACKEND=s3`.
 - SHA256 por objeto.
 - Auditoria:
   - `storage_object_uploaded`
@@ -22,6 +23,11 @@ Hacer funcional el contrato de storage de P17: las URLs firmadas ahora permiten 
 
 - `STORAGE_BACKEND=local`
 - `STORAGE_LOCAL_ROOT=.lexflow-storage`
+- `STORAGE_BACKEND=s3`
+- `S3_ENDPOINT`
+- `S3_ACCESS_KEY`
+- `S3_SECRET_KEY`
+- `S3_BUCKET`
 - `MAX_UPLOAD_BYTES=26214400`
 - `STORAGE_SIGNED_URL_MINUTES=15`
 
@@ -32,11 +38,11 @@ Hacer funcional el contrato de storage de P17: las URLs firmadas ahora permiten 
 - El download falla si el objeto no existe.
 - El content type debe coincidir con el documento registrado.
 - El path local se resuelve dentro de `STORAGE_LOCAL_ROOT`.
+- En S3/R2, el frontend usa el mismo contrato firmado y la API hace proxy controlado al bucket.
 
-## Pendiente para S3 real
+## Pendiente productivo
 
-- Reemplazar backend `local` por presigned URLs nativas del proveedor.
-- Confirmar checksum post-upload.
 - Integrar antivirus/antimalware.
 - Agregar versionado y retencion.
 - Agregar lifecycle policies por tenant.
+- Evaluar presigned URLs nativas para archivos grandes.

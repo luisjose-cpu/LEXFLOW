@@ -6,13 +6,14 @@ import hmac
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from pathlib import Path
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.db import models as dbm
 
 
@@ -79,15 +80,36 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _s3_client(settings: Settings):
+    try:
+        import boto3
+    except ImportError as exc:
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="S3 backend requires boto3") from exc
+    return boto3.client(
+        "s3",
+        endpoint_url=settings.s3_endpoint,
+        aws_access_key_id=settings.s3_access_key,
+        aws_secret_access_key=settings.s3_secret_key,
+    )
+
+
+def _s3_not_found(exc: Exception) -> bool:
+    response = getattr(exc, "response", {}) or {}
+    code = str(response.get("Error", {}).get("Code", "")).lower()
+    status_code = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return code in {"404", "nosuchkey", "notfound"} or status_code == 404
+
+
 class StorageService:
     def provider_status(self) -> dict[str, object]:
         settings = get_settings()
         return {
             "provider": "s3-compatible",
             "backend": settings.storage_backend,
-            "mode": "local-bytes" if settings.storage_backend == "local" else "signed-url-contract",
+            "mode": "local-bytes" if settings.storage_backend == "local" else "api-proxy-s3-compatible",
             "bucket": settings.s3_bucket,
             "endpoint_configured": bool(settings.s3_endpoint),
+            "access_key_configured": bool(settings.s3_access_key),
             "public_base_url": settings.storage_public_base_url,
             "signed_url_minutes": settings.storage_signed_url_minutes,
             "max_upload_bytes": settings.max_upload_bytes,
@@ -180,12 +202,18 @@ class StorageService:
             raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Content type mismatch")
 
         checksum = hashlib.sha256(body).hexdigest()
-        if settings.storage_backend != "local":
-            raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Configured storage backend is not implemented")
-
-        path = _safe_local_path(document.storage_key)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(body)
+        if settings.storage_backend == "local":
+            path = _safe_local_path(document.storage_key)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(body)
+        else:
+            _s3_client(settings).put_object(
+                Bucket=settings.s3_bucket,
+                Key=document.storage_key,
+                Body=body,
+                ContentType=document.content_type,
+                Metadata={"sha256": checksum, "tenant_id": document.tenant_id, "document_id": document.id},
+            )
         document.status = "pending_review" if document.uploaded_by_client else "uploaded"
         document.file_size_bytes = len(body)
         document.checksum_sha256 = checksum
@@ -212,12 +240,20 @@ class StorageService:
 
     def object_metadata(self, *, storage_key: str) -> dict[str, object]:
         settings = get_settings()
-        if settings.storage_backend != "local":
-            raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Configured storage backend is not implemented")
-        path = _safe_local_path(storage_key)
-        if not path.exists():
-            return {"exists": False, "bytes": 0, "sha256": None}
-        return {"exists": True, "bytes": path.stat().st_size, "sha256": _sha256_file(path)}
+        if settings.storage_backend == "local":
+            path = _safe_local_path(storage_key)
+            if not path.exists():
+                return {"exists": False, "bytes": 0, "sha256": None}
+            return {"exists": True, "bytes": path.stat().st_size, "sha256": _sha256_file(path)}
+        try:
+            response = _s3_client(settings).head_object(Bucket=settings.s3_bucket, Key=storage_key)
+        except Exception as exc:
+            if _s3_not_found(exc):
+                return {"exists": False, "bytes": 0, "sha256": None}
+            raise
+        metadata = response.get("Metadata", {}) or {}
+        etag = str(response.get("ETag", "")).strip('"') or None
+        return {"exists": True, "bytes": response.get("ContentLength", 0), "sha256": metadata.get("sha256") or etag}
 
     def read_signed_download(self, db: Session, *, document_id: UUID | str, token: str, request_id: str | None = None) -> tuple[bytes, dict[str, object]]:
         settings = get_settings()
@@ -227,13 +263,20 @@ class StorageService:
         document = self._document_or_404(db, document_id=document_id, tenant_id=signed.tenant_id)
         if document.storage_key != signed.storage_key or document.deleted_at is not None or document.status == "private":
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Storage key mismatch")
-        if settings.storage_backend != "local":
-            raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Configured storage backend is not implemented")
-
-        path = _safe_local_path(document.storage_key)
-        if not path.exists():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored object not found")
-        body = path.read_bytes()
+        if settings.storage_backend == "local":
+            path = _safe_local_path(document.storage_key)
+            if not path.exists():
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored object not found")
+            body = path.read_bytes()
+        else:
+            try:
+                response = _s3_client(settings).get_object(Bucket=settings.s3_bucket, Key=document.storage_key)
+            except Exception as exc:
+                if _s3_not_found(exc):
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored object not found") from exc
+                raise
+            stream = response.get("Body", BytesIO())
+            body = stream.read()
         checksum = hashlib.sha256(body).hexdigest()
         self._audit(
             db,

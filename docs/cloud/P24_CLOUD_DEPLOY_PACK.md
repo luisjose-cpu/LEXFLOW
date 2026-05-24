@@ -9,7 +9,7 @@ Ruta recomendada para staging:
 - Redis: Render Redis.
 - Web Next.js: Vercel.
 - Storage piloto: Render persistent disk usando `STORAGE_BACKEND=local`.
-- Storage produccion publica futura: S3/R2 con backend dedicado.
+- Storage produccion publica: S3/R2 compatible usando `STORAGE_BACKEND=s3`.
 
 ## Entregado
 
@@ -23,6 +23,7 @@ Ruta recomendada para staging:
 - `npm run cloud:preflight`.
 - `npm run cloud:smoke`.
 - Normalizacion de `postgres://` y `postgresql://` a `postgresql+psycopg://`.
+- Backend S3/R2 real para documentos via API proxy firmado.
 
 ## Render
 
@@ -98,7 +99,6 @@ El workflow corre en `main` y `master`. Para habilitar login tenant en el smoke 
 
 ## Pendiente antes de produccion publica
 
-- Backend S3/R2 real.
 - Dominios reales y CORS final.
 - Secrets reales en Render/Vercel.
 - Primer tenant/admin productivo.

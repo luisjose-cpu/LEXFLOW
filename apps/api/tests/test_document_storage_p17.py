@@ -1,4 +1,6 @@
 from collections.abc import Generator
+from io import BytesIO
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,7 +13,10 @@ from app.db.models import AuditLog, Base, Case, Document
 from app.db.seed import seed_demo_database
 from app.main import app
 from app.services.seed import DEMO_SEED, seed_demo_data
+from app.core.config import Settings
+from app.services import storage as storage_module
 from app.services.storage import sanitize_storage_filename, tenant_storage_key
+from app.services.storage import storage_service
 
 
 @pytest.fixture()
@@ -147,3 +152,77 @@ def test_storage_status_requires_internal_permission(api: TestClient, db_session
     assert allowed.status_code == 200
     assert allowed.json()["provider"] == "s3-compatible"
     assert blocked.status_code == 403
+
+
+class FakeS3Client:
+    def __init__(self) -> None:
+        self.objects: dict[tuple[str, str], dict[str, object]] = {}
+
+    def put_object(self, *, Bucket: str, Key: str, Body: bytes, ContentType: str, Metadata: dict[str, str]) -> None:
+        self.objects[(Bucket, Key)] = {"body": Body, "content_type": ContentType, "metadata": Metadata}
+
+    def head_object(self, *, Bucket: str, Key: str) -> dict[str, object]:
+        stored = self.objects[(Bucket, Key)]
+        body = stored["body"]
+        assert isinstance(body, bytes)
+        return {"ContentLength": len(body), "Metadata": stored["metadata"], "ETag": '"fake-etag"'}
+
+    def get_object(self, *, Bucket: str, Key: str) -> dict[str, object]:
+        stored = self.objects[(Bucket, Key)]
+        body = stored["body"]
+        assert isinstance(body, bytes)
+        return {"Body": BytesIO(body), "ContentType": stored["content_type"], "Metadata": stored["metadata"]}
+
+
+def test_s3_backend_stores_metadata_and_downloads_via_api_proxy(monkeypatch: pytest.MonkeyPatch, db_session: Session) -> None:
+    fake_s3 = FakeS3Client()
+    settings = Settings(
+        storage_backend="s3",
+        s3_endpoint="https://r2.example.test",
+        s3_access_key="access",
+        s3_secret_key="a-strong-s3-secret-value-for-tests",
+        s3_bucket="lexflow-test",
+        storage_public_base_url="https://api.example.test/api/v1/storage/mock",
+        jwt_secret="a-strong-jwt-secret-for-storage-tests-123",
+    )
+    monkeypatch.setattr(storage_module, "get_settings", lambda: settings)
+    monkeypatch.setattr(storage_module, "_s3_client", lambda _: fake_s3)
+
+    document = Document(
+        id="doc-s3",
+        tenant_id="tenant-s3",
+        case_id="case-s3",
+        client_id="client-s3",
+        filename="prueba.pdf",
+        storage_key=tenant_storage_key(tenant_id="tenant-s3", case_id="case-s3", document_id="doc-s3", filename="prueba.pdf"),
+        content_type="application/pdf",
+    )
+    db_session.add(document)
+    db_session.commit()
+    contract = storage_service.upload_contract(
+        tenant_id="tenant-s3",
+        case_id="case-s3",
+        document_id=document.id,
+        filename=document.filename,
+        content_type=document.content_type,
+    )
+    upload_token = parse_qs(urlparse(contract["upload"]["url"]).query)["token"][0]
+
+    uploaded = storage_service.store_signed_upload(
+        db_session,
+        document_id=document.id,
+        token=upload_token,
+        body=b"document bytes",
+        content_type="application/pdf",
+    )
+    metadata = storage_service.object_metadata(storage_key=document.storage_key)
+    download = storage_service.signed_download_url(document=document, actor_user_id="user-s3")
+    download_token = parse_qs(urlparse(download["url"]).query)["token"][0]
+    body, download_metadata = storage_service.read_signed_download(db_session, document_id=document.id, token=download_token)
+
+    assert uploaded["status"] == "uploaded"
+    assert uploaded["sha256"] == metadata["sha256"]
+    assert metadata["exists"] is True
+    assert metadata["bytes"] == len(b"document bytes")
+    assert body == b"document bytes"
+    assert download_metadata["content_type"] == "application/pdf"
