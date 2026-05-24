@@ -123,6 +123,12 @@ def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
             message="Production rate limit should be enabled and conservative.",
         ),
         ReadinessCheck(
+            key="failed_login_backend_redis",
+            ok=settings.failed_login_backend.lower() == "redis" and settings.redis_url.startswith("redis"),
+            severity="warning",
+            message="Public production should use FAILED_LOGIN_BACKEND=redis so failed-login blocking works across replicas.",
+        ),
+        ReadinessCheck(
             key="openai_configured",
             ok=_secret_is_strong(settings.openai_api_key, min_length=20),
             severity="warning",

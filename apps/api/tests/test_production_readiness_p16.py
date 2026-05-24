@@ -15,6 +15,7 @@ def production_settings(**overrides: object) -> Settings:
         "jwt_secret": "a-strong-production-jwt-secret-value-123456",
         "allowed_origins": "https://app.lexflow.example,https://admin.lexflow.example",
         "s3_secret_key": "a-strong-production-s3-secret-value-123456",
+        "failed_login_backend": "redis",
         "rate_limit_per_minute": 120,
     }
     base.update(overrides)
@@ -76,6 +77,13 @@ def test_production_readiness_warns_when_owner_mfa_is_not_required() -> None:
     warning_keys = {item["key"] for item in report["warnings"]}
 
     assert "owner_mfa_required" in warning_keys
+
+
+def test_production_readiness_warns_when_failed_login_backend_is_not_redis() -> None:
+    report = production_readiness_report(production_settings(failed_login_backend="memory"))
+    warning_keys = {item["key"] for item in report["warnings"]}
+
+    assert "failed_login_backend_redis" in warning_keys
 
 
 def test_production_readiness_warns_without_dedicated_credential_encryption_key() -> None:

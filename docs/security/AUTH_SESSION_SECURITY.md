@@ -29,6 +29,7 @@
 - `REQUIRE_OWNER_MFA=true` exige MFA owner antes de permitir login propietario sin segundo factor.
 - `CREDENTIAL_ENCRYPTION_KEY` dedicado queda validado por readiness para proteger secretos MFA y credenciales de integraciones sin depender del `JWT_SECRET`.
 - `FAILED_LOGIN_LIMIT` y `FAILED_LOGIN_WINDOW_MINUTES` aplican bloqueo temporal mediante `LoginThrottle` compartido por cuenta/tenant y por owner ante intentos fallidos repetidos.
+- `FAILED_LOGIN_BACKEND=redis` centraliza esos contadores para replicas cloud; las claves usan hash SHA-256 y no guardan correos en claro.
 
 ## Auditoria
 
@@ -83,7 +84,7 @@ No se registra secreto MFA, codigo temporal ni password.
 - Cola/retry de email y eventos de entrega.
 - Grace-period real por usuario para MFA obligatorio.
 - Flujo de bootstrap seguro para activar `REQUIRE_OWNER_MFA=true` despues de enrolar al primer owner admin.
-- Persistir/centralizar counters de intentos fallidos en Redis para multiples replicas.
+- Ejecutar prueba de carga externa del throttle Redis con multiples replicas.
 - Alertas por cambio de password.
 - Politica configurable de complejidad y expiracion.
 - Pantalla de sesiones activas por usuario.
