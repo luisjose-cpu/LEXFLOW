@@ -30,6 +30,7 @@ export interface Case360Data {
     checksum_sha256: string | null;
     storage_verified_at: string | null;
     malware_scan_status: string;
+    is_client_visible?: boolean;
     created_at: string;
   }>;
   hearings: Array<{ id: string; title: string; starts_at: string; location: string; status: string }>;

@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge, Card } from "@lexflow/ui";
-import { Brain, CalendarClock, FilePlus2, MessageCircle, Plus, RefreshCcw, ShieldCheck } from "lucide-react";
+import { Brain, CalendarClock, CheckCircle2, FilePlus2, MessageCircle, Plus, RefreshCcw, ShieldCheck } from "lucide-react";
 import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertsPanel,
@@ -28,7 +28,10 @@ import {
   createCaseTask,
   hasCloudSession,
   loadCaseOverview,
-  runCaseAiSummary
+  runCaseAiSummary,
+  updateCaseDocument,
+  updateCaseHearing,
+  updateCaseTask
 } from "@/lib/lexflow-api";
 
 type LoadState = "demo" | "loading" | "live" | "fallback";
@@ -103,6 +106,7 @@ export function Case360Workspace({ initialData }: { initialData: Case360Data }) 
           <ClientSummaryCard data={data} />
           <NextActionsPanel items={data.next_actions} />
           <TasksPanel items={data.tasks} />
+          <LifecyclePanel data={data} runAction={runAction} />
           <SinoeActions onCheckAll={() => void checkAllSinoe()} sourceCount={sinoeSources.length} />
           <SinoeUpdatePanel sources={data.case_sources} />
           <SinoeUpdateHistory updates={data.judicial_updates} />
@@ -113,6 +117,44 @@ export function Case360Workspace({ initialData }: { initialData: Case360Data }) 
         </aside>
       </section>
     </div>
+  );
+}
+
+function LifecyclePanel({ data, runAction }: { data: Case360Data; runAction: (label: string, action: () => Promise<unknown>) => Promise<void> }) {
+  const openTask = data.tasks.find((task) => task.status !== "done");
+  const pendingHearing = data.hearings.find((hearing) => !["completed", "cancelled"].includes(hearing.status));
+  const pendingDocument = data.documents.find((document) => !["approved", "archived"].includes(document.status));
+  const hasActions = Boolean(openTask || pendingHearing || pendingDocument);
+
+  return (
+    <Card>
+      <div className="flex items-center gap-2 text-sm font-semibold text-legal-700">
+        <CheckCircle2 size={18} aria-hidden="true" />
+        <span>Cierre operativo</span>
+      </div>
+      <p className="mt-3 text-sm leading-6 text-slate-600">Avanza tareas, audiencias y documentos con registro en timeline y audit_log.</p>
+      <div className="mt-4 grid gap-2">
+        {openTask ? (
+          <LifecycleButton label={`Cerrar tarea: ${openTask.title}`} onClick={() => void runAction("Cierre de tarea", () => updateCaseTask(data.case.id, openTask.id, { status: "done" }))} />
+        ) : null}
+        {pendingHearing ? (
+          <LifecycleButton label={`Completar audiencia: ${pendingHearing.title}`} onClick={() => void runAction("Cierre de audiencia", () => updateCaseHearing(data.case.id, pendingHearing.id, { status: "completed" }))} />
+        ) : null}
+        {pendingDocument ? (
+          <LifecycleButton label={`Aprobar documento: ${pendingDocument.filename}`} onClick={() => void runAction("Aprobacion documental", () => updateCaseDocument(data.case.id, pendingDocument.id, { status: "approved", is_client_visible: true }))} />
+        ) : null}
+        {!hasActions ? <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">Sin pendientes operativos inmediatos.</p> : null}
+      </div>
+    </Card>
+  );
+}
+
+function LifecycleButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm font-semibold text-ink hover:bg-legal-50" onClick={onClick} type="button">
+      <CheckCircle2 size={16} aria-hidden="true" />
+      <span className="min-w-0 break-words">{label}</span>
+    </button>
   );
 }
 

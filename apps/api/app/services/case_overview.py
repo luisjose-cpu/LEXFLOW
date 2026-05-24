@@ -103,6 +103,7 @@ def build_case_overview(db: Session, *, tenant_id: UUID | str, case_id: UUID | s
                 "checksum_sha256": item.checksum_sha256,
                 "storage_verified_at": item.storage_verified_at.isoformat() if item.storage_verified_at else None,
                 "malware_scan_status": item.malware_scan_status,
+                "is_client_visible": item.is_client_visible,
                 "created_at": item.created_at.isoformat(),
             }
             for item in documents

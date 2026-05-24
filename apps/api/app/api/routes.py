@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, get_request_tenant, require_permission
@@ -236,6 +237,12 @@ class CaseTaskCreate(BaseModel):
     due_at: str | None = None
 
 
+class CaseTaskUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=240)
+    status: str | None = Field(default=None, pattern="^(open|done|blocked)$")
+    due_at: str | None = None
+
+
 class CaseHearingCreate(BaseModel):
     title: str = Field(min_length=1, max_length=240)
     starts_at: str
@@ -243,11 +250,24 @@ class CaseHearingCreate(BaseModel):
     status: str = Field(default="scheduled", pattern="^(scheduled|completed|cancelled|postponed)$")
 
 
+class CaseHearingUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=240)
+    starts_at: str | None = None
+    location: str | None = Field(default=None, max_length=240)
+    status: str | None = Field(default=None, pattern="^(scheduled|completed|cancelled|postponed)$")
+
+
 class CaseDocumentCreate(BaseModel):
     filename: str
     storage_key: str
     content_type: str = "application/pdf"
     classification: str | None = None
+
+
+class CaseDocumentUpdate(BaseModel):
+    classification: str | None = Field(default=None, max_length=120)
+    status: str | None = Field(default=None, pattern="^(uploaded|verified|pending_review|approved|observed|archived|rejected)$")
+    is_client_visible: bool | None = None
 
 
 class CaseSourceCreate(BaseModel):
@@ -2815,6 +2835,57 @@ def create_case_task(
     return {"id": task.id, "case_id": task.case_id, "title": task.title, "status": task.status, "due_at": task.due_at.isoformat() if task.due_at else None}
 
 
+@router.patch("/cases/{case_id}/tasks/{task_id}")
+def update_case_task(
+    case_id: UUID,
+    task_id: UUID,
+    payload: CaseTaskUpdate,
+    actor: Annotated[User, Depends(require_permission("cases:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    get_case_or_404(db, tenant_id=tenant_id, case_id=case_id)
+    task = db.scalar(
+        select(dbm.Task).where(
+            dbm.Task.id == str(task_id),
+            dbm.Task.tenant_id == str(tenant_id),
+            dbm.Task.case_id == str(case_id),
+            dbm.Task.deleted_at.is_(None),
+        )
+    )
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    if payload.title is not None:
+        task.title = payload.title
+    if payload.status is not None:
+        task.status = payload.status
+    if payload.due_at is not None:
+        task.due_at = parse_api_datetime(payload.due_at, field_name="due_at")
+    task.updated_at = now()
+    db.add(
+        dbm.CaseEvent(
+            tenant_id=str(tenant_id),
+            case_id=str(case_id),
+            event_type="task_updated",
+            title=f"Tarea actualizada: {task.title}",
+            description=f"Estado: {task.status}",
+        )
+    )
+    audit_case_action(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor.id,
+        action="update",
+        entity_type="task",
+        entity_id=task.id,
+        request_id=getattr(request.state, "request_id", None),
+        metadata={"case_id": str(case_id), "task_id": task.id, "status": task.status},
+    )
+    db.commit()
+    return {"id": task.id, "case_id": task.case_id, "title": task.title, "status": task.status, "due_at": task.due_at.isoformat() if task.due_at else None}
+
+
 @router.post("/cases/{case_id}/hearings", status_code=status.HTTP_201_CREATED)
 def create_case_hearing(
     case_id: UUID,
@@ -2838,7 +2909,7 @@ def create_case_hearing(
         case_id=str(case_id),
         event_type="hearing_created",
         title=f"Audiencia creada: {payload.title}",
-        description=f"{payload.location or 'Sin ubicacion'} · {hearing.starts_at.isoformat()}",
+        description=f"{payload.location or 'Sin ubicacion'} - {hearing.starts_at.isoformat()}",
     )
     notification = dbm.Notification(
         tenant_id=str(tenant_id),
@@ -2870,6 +2941,59 @@ def create_case_hearing(
         "location": hearing.location,
         "status": hearing.status,
     }
+
+
+@router.patch("/cases/{case_id}/hearings/{hearing_id}")
+def update_case_hearing(
+    case_id: UUID,
+    hearing_id: UUID,
+    payload: CaseHearingUpdate,
+    actor: Annotated[User, Depends(require_permission("cases:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    get_case_or_404(db, tenant_id=tenant_id, case_id=case_id)
+    hearing = db.scalar(
+        select(dbm.Hearing).where(
+            dbm.Hearing.id == str(hearing_id),
+            dbm.Hearing.tenant_id == str(tenant_id),
+            dbm.Hearing.case_id == str(case_id),
+            dbm.Hearing.deleted_at.is_(None),
+        )
+    )
+    if not hearing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hearing not found")
+    if payload.title is not None:
+        hearing.title = payload.title
+    if payload.starts_at is not None:
+        hearing.starts_at = parse_api_datetime(payload.starts_at, field_name="starts_at") or hearing.starts_at
+    if payload.location is not None:
+        hearing.location = payload.location
+    if payload.status is not None:
+        hearing.status = payload.status
+    hearing.updated_at = now()
+    db.add(
+        dbm.CaseEvent(
+            tenant_id=str(tenant_id),
+            case_id=str(case_id),
+            event_type="hearing_updated",
+            title=f"Audiencia actualizada: {hearing.title}",
+            description=f"Estado: {hearing.status}",
+        )
+    )
+    audit_case_action(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor.id,
+        action="update",
+        entity_type="hearing",
+        entity_id=hearing.id,
+        request_id=getattr(request.state, "request_id", None),
+        metadata={"case_id": str(case_id), "hearing_id": hearing.id, "status": hearing.status},
+    )
+    db.commit()
+    return {"id": hearing.id, "case_id": hearing.case_id, "title": hearing.title, "starts_at": hearing.starts_at.isoformat(), "location": hearing.location, "status": hearing.status}
 
 
 @router.post("/cases/{case_id}/documents", status_code=status.HTTP_201_CREATED)
@@ -2905,6 +3029,66 @@ def create_case_document(
     )
     db.commit()
     return {"id": document.id, "case_id": document.case_id, "filename": document.filename, "status": document.status}
+
+
+@router.patch("/cases/{case_id}/documents/{document_id}")
+def update_case_document(
+    case_id: UUID,
+    document_id: UUID,
+    payload: CaseDocumentUpdate,
+    actor: Annotated[User, Depends(require_permission("cases:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    legal_case = get_case_or_404(db, tenant_id=tenant_id, case_id=case_id)
+    document = db.scalar(
+        select(dbm.Document).where(
+            dbm.Document.id == str(document_id),
+            dbm.Document.tenant_id == str(tenant_id),
+            dbm.Document.case_id == str(case_id),
+            dbm.Document.client_id == legal_case.client_id,
+            dbm.Document.deleted_at.is_(None),
+        )
+    )
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if payload.classification is not None:
+        document.classification = payload.classification
+    if payload.status is not None:
+        document.status = payload.status
+    if payload.is_client_visible is not None:
+        document.is_client_visible = payload.is_client_visible
+    document.updated_at = now()
+    db.add(
+        dbm.CaseEvent(
+            tenant_id=str(tenant_id),
+            case_id=str(case_id),
+            event_type="document_updated",
+            title=f"Documento actualizado: {document.filename}",
+            description=f"Estado: {document.status}. Visible cliente: {document.is_client_visible}",
+            is_client_visible=document.is_client_visible,
+        )
+    )
+    audit_case_action(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor.id,
+        action="update",
+        entity_type="document",
+        entity_id=document.id,
+        request_id=getattr(request.state, "request_id", None),
+        metadata={"case_id": str(case_id), "document_id": document.id, "status": document.status, "is_client_visible": document.is_client_visible},
+    )
+    db.commit()
+    return {
+        "id": document.id,
+        "case_id": document.case_id,
+        "filename": document.filename,
+        "classification": document.classification,
+        "status": document.status,
+        "is_client_visible": document.is_client_visible,
+    }
 
 
 @router.post("/cases/{case_id}/status")

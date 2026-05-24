@@ -397,6 +397,13 @@ export async function createCaseTask(caseId: string, payload: { title: string; d
   });
 }
 
+export async function updateCaseTask(caseId: string, taskId: string, payload: { title?: string; status?: string; due_at?: string }) {
+  return apiRequest<{ id: string; status: string }>(`/cases/${caseId}/tasks/${taskId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function createCaseDocument(caseId: string, payload: { filename: string; storage_key: string; classification?: string; content_type?: string }) {
   return apiRequest<{ id: string }>(`/cases/${caseId}/documents`, {
     method: "POST",
@@ -404,9 +411,23 @@ export async function createCaseDocument(caseId: string, payload: { filename: st
   });
 }
 
+export async function updateCaseDocument(caseId: string, documentId: string, payload: { classification?: string; status?: string; is_client_visible?: boolean }) {
+  return apiRequest<{ id: string; status: string; is_client_visible: boolean }>(`/cases/${caseId}/documents/${documentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function createCaseHearing(caseId: string, payload: { title: string; starts_at: string; location?: string; status?: string }) {
   return apiRequest<{ id: string }>(`/cases/${caseId}/hearings`, {
     method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateCaseHearing(caseId: string, hearingId: string, payload: { title?: string; starts_at?: string; location?: string; status?: string }) {
+  return apiRequest<{ id: string; status: string }>(`/cases/${caseId}/hearings/${hearingId}`, {
+    method: "PATCH",
     body: JSON.stringify(payload)
   });
 }
@@ -514,7 +535,7 @@ function itemLabel(item: Record<string, unknown>, keys: string[]) {
     .map((key) => item[key])
     .filter((value) => value !== undefined && value !== null && String(value).trim())
     .map(String)
-    .join(" · ");
+    .join(" - ");
 }
 
 function normalizeJudicialResource(body: unknown) {

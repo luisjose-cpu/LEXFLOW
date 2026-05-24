@@ -130,13 +130,43 @@ def test_case_event_task_document_and_status_create_audit(api: TestClient, db_se
     assert document.status_code == 201
     assert status_change.status_code == 200
 
+    task_update = api.patch(f"/api/v1/cases/{case_id}/tasks/{task.json()['id']}", headers=headers, json={"status": "done"})
+    hearing_update = api.patch(f"/api/v1/cases/{case_id}/hearings/{hearing.json()['id']}", headers=headers, json={"status": "completed"})
+    document_update = api.patch(
+        f"/api/v1/cases/{case_id}/documents/{document.json()['id']}",
+        headers=headers,
+        json={"status": "approved", "is_client_visible": True},
+    )
+
+    assert task_update.status_code == 200
+    assert task_update.json()["status"] == "done"
+    assert hearing_update.status_code == 200
+    assert hearing_update.json()["status"] == "completed"
+    assert document_update.status_code == 200
+    assert document_update.json()["status"] == "approved"
+    assert document_update.json()["is_client_visible"] is True
+
     assert db_session.scalars(select(CaseEvent).where(CaseEvent.title == "Nota de seguimiento")).first() is not None
-    assert db_session.scalars(select(Task).where(Task.title == "Preparar memorial")).first() is not None
-    assert db_session.scalars(select(Hearing).where(Hearing.title == "Audiencia de pruebas")).first() is not None
-    assert db_session.scalars(select(Document).where(Document.filename == "anexo.pdf")).first() is not None
+    assert db_session.scalars(select(Task).where(Task.title == "Preparar memorial")).first().status == "done"
+    assert db_session.scalars(select(Hearing).where(Hearing.title == "Audiencia de pruebas")).first().status == "completed"
+    assert db_session.scalars(select(Document).where(Document.filename == "anexo.pdf")).first().is_client_visible is True
 
     audits = db_session.scalars(select(AuditLog).where(AuditLog.tenant_id == tenant_id, AuditLog.metadata_json["case_id"].as_string() == case_id)).all()
-    assert len(audits) >= 5
+    assert len(audits) >= 8
+
+
+def test_case_resource_updates_return_404_for_missing_resource(api: TestClient, db_session: Session) -> None:
+    headers = auth_headers(api)
+    tenant_id = seed_db_for_auth_tenant(api, db_session, headers)
+    case_id = first_case_id(db_session, tenant_id)
+
+    response = api.patch(
+        f"/api/v1/cases/{case_id}/tasks/00000000-0000-0000-0000-000000000000",
+        headers=headers,
+        json={"status": "done"},
+    )
+
+    assert response.status_code == 404
 
 
 def test_case_hearing_rejects_invalid_datetime(api: TestClient, db_session: Session) -> None:
