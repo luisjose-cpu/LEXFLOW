@@ -25,6 +25,7 @@
 - `scripts/cloud-smoke.ps1` to verify public API health, version, API status, web home and web login after deploy.
 - Smoke validation reads `/readiness` and fails on production blockers.
 - Optional tenant admin login smoke using `LEXFLOW_SMOKE_TENANT_SLUG`, `LEXFLOW_SMOKE_ADMIN_EMAIL` and `LEXFLOW_SMOKE_ADMIN_PASSWORD`.
+- Tenant login smoke now also validates authenticated `/api/v1/storage/status`.
 - `npm run cloud:smoke` for repeatable post-deploy validation.
 - GitHub Actions now runs on `main` and `master` and exposes a manual post-deploy smoke job.
 - Settings Production Gate now loads live `/ops/production-gate` readiness checks when a tenant session exists.

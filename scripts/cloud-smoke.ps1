@@ -69,6 +69,18 @@ if ($hasLoginInputs) {
     throw "Tenant admin login did not return access_token"
   }
   Write-Host "Tenant admin login OK: $AdminEmail"
+
+  Write-Host "==> Authenticated storage status"
+  $headers = @{ Authorization = "Bearer $($body.access_token)" }
+  $storageResponse = Invoke-WebRequest -Uri "$ApiUrl/api/v1/storage/status" -Method GET -UseBasicParsing -TimeoutSec 30 -Headers $headers
+  if ($storageResponse.StatusCode -lt 200 -or $storageResponse.StatusCode -ge 300) {
+    throw "Storage status failed with HTTP $($storageResponse.StatusCode)"
+  }
+  $storageBody = $storageResponse.Content | ConvertFrom-Json
+  if ($storageBody.provider -ne "s3-compatible") {
+    throw "Unexpected storage provider: $($storageBody.provider)"
+  }
+  Write-Host "Storage status OK: backend=$($storageBody.backend)"
 } else {
   Write-Host "Tenant admin login skipped. Set LEXFLOW_SMOKE_TENANT_SLUG, LEXFLOW_SMOKE_ADMIN_EMAIL and LEXFLOW_SMOKE_ADMIN_PASSWORD to enable it."
 }
