@@ -20,6 +20,7 @@ Mientras no se configuren proveedores reales, readiness mantiene warnings:
 - `openai_configured`: configurar `OPENAI_API_KEY` antes de usar IA real.
 - `whatsapp_configured`: configurar `WHATSAPP_BUSINESS_TOKEN` antes de despacho WhatsApp real.
 - `billing_configured`: configurar `BILLING_PROVIDER_SECRET` antes de suscripciones/pagos reales.
+- `billing_webhook_signature_required`: activar `REQUIRE_BILLING_WEBHOOK_SIGNATURE=true` antes de webhooks reales.
 - `credential_encryption_key_configured`: configurar `CREDENTIAL_ENCRYPTION_KEY` dedicado y fuerte para credenciales cifradas y MFA.
 - `failed_login_backend_redis`: configurar `FAILED_LOGIN_BACKEND=redis` para bloqueo de intentos fallidos entre replicas.
 - `malware_scanner_configured`: configurar `MALWARE_SCANNER_PROVIDER` real antes de cargas publicas.
@@ -32,6 +33,7 @@ Si el cloud todavia no muestra `malware_scanner_configured`, significa que Rende
 OPENAI_API_KEY=replace-with-real-openai-key
 WHATSAPP_BUSINESS_TOKEN=replace-with-real-whatsapp-business-token
 BILLING_PROVIDER_SECRET=replace-with-real-billing-provider-secret
+REQUIRE_BILLING_WEBHOOK_SIGNATURE=true
 CREDENTIAL_ENCRYPTION_KEY=replace-with-real-dedicated-credential-encryption-key
 FAILED_LOGIN_BACKEND=redis
 ```

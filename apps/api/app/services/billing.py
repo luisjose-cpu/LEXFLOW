@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 from datetime import timedelta
 from uuid import UUID
 
@@ -7,6 +10,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db import models as dbm
 from app.domain.models import User
 
@@ -203,8 +207,10 @@ class BillingService:
         event_type: str,
         payload: dict[str, object],
         idempotency_key: str | None = None,
+        signature: str | None = None,
         request_id: str | None = None,
     ) -> dict[str, object]:
+        self.verify_webhook_signature(event_type=event_type, payload=payload, idempotency_key=idempotency_key, signature=signature)
         subscription = self.ensure_subscription(db, tenant_id=tenant_id)
         if idempotency_key:
             existing_events = db.scalars(select(dbm.BillingEvent).where(dbm.BillingEvent.tenant_id == str(tenant_id), dbm.BillingEvent.event_type == event_type)).all()
@@ -231,6 +237,27 @@ class BillingService:
         self.record_audit(db, tenant_id=tenant_id, actor=actor, action="billing.webhook_mock", entity_type="billing_event", entity_id=event.id, request_id=request_id, metadata={"event_type": event_type, "idempotency_key": idempotency_key or ""})
         db.commit()
         return {"id": event.id, "status": event.status, "event_type": event.event_type}
+
+    def verify_webhook_signature(self, *, event_type: str, payload: dict[str, object], idempotency_key: str | None, signature: str | None) -> None:
+        settings = get_settings()
+        if not settings.require_billing_webhook_signature:
+            return
+        secret = settings.billing_provider_secret
+        if not secret:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Billing webhook signature secret is not configured")
+        expected = self.webhook_signature(event_type=event_type, payload=payload, idempotency_key=idempotency_key, secret=secret)
+        if not signature or not hmac.compare_digest(signature, expected):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid billing webhook signature")
+
+    @staticmethod
+    def webhook_signature(*, event_type: str, payload: dict[str, object], idempotency_key: str | None, secret: str) -> str:
+        canonical = json.dumps(
+            {"event_type": event_type, "idempotency_key": idempotency_key or "", "payload": payload},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        digest = hmac.new(secret.encode("utf-8"), canonical.encode("utf-8"), hashlib.sha256).hexdigest()
+        return f"sha256={digest}"
 
     def ensure_subscription(self, db: Session, *, tenant_id: UUID | str) -> dbm.TenantSubscription:
         self.ensure_catalog(db, tenant_id=tenant_id)

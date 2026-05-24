@@ -60,6 +60,7 @@ def test_public_production_readiness_requires_no_warnings() -> None:
         openai_api_key="sk-production-openai-key-value-123456",
         whatsapp_business_token="production-whatsapp-token-value-123456",
         billing_provider_secret="production-billing-secret-value-123456",
+        require_billing_webhook_signature=True,
         credential_encryption_key="production-credential-encryption-key-123456",
         malware_scanner_provider="clamav",
         lexflow_web_url="https://app.lexflow.example",
@@ -77,6 +78,13 @@ def test_production_readiness_warns_when_owner_mfa_is_not_required() -> None:
     warning_keys = {item["key"] for item in report["warnings"]}
 
     assert "owner_mfa_required" in warning_keys
+
+
+def test_production_readiness_warns_when_billing_webhook_signatures_are_not_required() -> None:
+    report = production_readiness_report(production_settings(require_billing_webhook_signature=False))
+    warning_keys = {item["key"] for item in report["warnings"]}
+
+    assert "billing_webhook_signature_required" in warning_keys
 
 
 def test_production_readiness_warns_when_failed_login_backend_is_not_redis() -> None:

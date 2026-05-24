@@ -36,4 +36,4 @@ P12 uses a mock billing provider. Real payment integration must be added behind 
 
 ## Future Production Path
 
-P13 can add deeper automation studio or revenue operations. Real billing provider work should add idempotency keys, signed webhook verification, tax rules, payment method vaulting, and dunning policies.
+P13 can add deeper automation studio or revenue operations. Real billing provider work should keep idempotency keys, enable `REQUIRE_BILLING_WEBHOOK_SIGNATURE=true`, then add tax rules, payment method vaulting, and dunning policies.

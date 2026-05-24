@@ -147,6 +147,12 @@ def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
             message="Billing provider secret is required before paid SaaS subscriptions.",
         ),
         ReadinessCheck(
+            key="billing_webhook_signature_required",
+            ok=settings.require_billing_webhook_signature,
+            severity="warning",
+            message="Public production should set REQUIRE_BILLING_WEBHOOK_SIGNATURE=true before processing billing webhooks.",
+        ),
+        ReadinessCheck(
             key="credential_encryption_key_configured",
             ok=_secret_is_strong(settings.credential_encryption_key),
             severity="warning",

@@ -1486,6 +1486,7 @@ def billing_webhook_mock(
     tenant_id: Annotated[UUID, Depends(get_request_tenant)],
     db: Annotated[Session, Depends(get_db)],
     request: Request,
+    x_lexflow_billing_signature: Annotated[str | None, Header(alias="X-Lexflow-Billing-Signature")] = None,
 ) -> dict[str, object]:
     return billing_service.webhook_mock(
         db,
@@ -1494,6 +1495,7 @@ def billing_webhook_mock(
         event_type=payload.event_type,
         payload=payload.payload,
         idempotency_key=payload.idempotency_key,
+        signature=x_lexflow_billing_signature,
         request_id=getattr(request.state, "request_id", None),
     )
 

@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     whatsapp_business_token: str | None = None
     billing_provider_secret: str | None = None
+    require_billing_webhook_signature: bool = False
     email_provider: str = "prepared"
     email_api_url: str | None = None
     email_api_key: str | None = None

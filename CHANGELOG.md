@@ -95,6 +95,7 @@
 - Web responses now declare a Next-compatible `Content-Security-Policy`, and cloud smoke checks it.
 - Failed-login throttling now supports `FAILED_LOGIN_BACKEND=redis` with hashed keys for multi-replica cloud deployments.
 - Added provider-based document malware scanning with mock and ClamAV INSTREAM adapters.
+- Billing mock webhook can now require HMAC signatures through `REQUIRE_BILLING_WEBHOOK_SIGNATURE`.
 - Restore drill script now writes non-secret JSON evidence under `reports/restore/`.
 - Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.

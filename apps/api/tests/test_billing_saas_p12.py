@@ -6,10 +6,12 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import Settings
 from app.db.database import get_db
 from app.db.models import AuditLog, Base, BillingEvent, BillingPlan, TenantUsage
 from app.db.seed import seed_demo_database
 from app.main import app
+from app.services import billing as billing_module
 from app.services.seed import DEMO_SEED, seed_demo_data
 
 
@@ -133,3 +135,28 @@ def test_billing_webhook_mock_is_idempotent_and_audited(api: TestClient, db_sess
     assert len(events) == 1
     assert events[0].payload_json["idempotency_key"] == "evt_mock_123456"
     assert {audit.action for audit in audits} >= {"billing.webhook_mock", "billing.webhook_mock_duplicate"}
+
+
+def test_billing_webhook_signature_is_required_when_enabled(api: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    seed_for_billing(api, db_session)
+    headers = login(api, DEMO_SEED.admin_email)
+    secret = "billing-webhook-secret-value-123456"
+    monkeypatch.setattr(billing_module, "get_settings", lambda: Settings(require_billing_webhook_signature=True, billing_provider_secret=secret))
+    payload = {
+        "event_type": "invoice.payment_succeeded",
+        "idempotency_key": "evt_signed_123456",
+        "payload": {"invoice": "mock-signed"},
+    }
+    signature = billing_module.billing_service.webhook_signature(
+        event_type=payload["event_type"],
+        payload=payload["payload"],
+        idempotency_key=payload["idempotency_key"],
+        secret=secret,
+    )
+
+    unsigned = api.post("/api/v1/billing/webhook/mock", headers=headers, json=payload)
+    signed = api.post("/api/v1/billing/webhook/mock", headers={**headers, "X-Lexflow-Billing-Signature": signature}, json=payload)
+
+    assert unsigned.status_code == 401
+    assert unsigned.json()["detail"] == "Invalid billing webhook signature"
+    assert signed.status_code == 200
