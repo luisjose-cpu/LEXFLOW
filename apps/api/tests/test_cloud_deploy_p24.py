@@ -38,6 +38,7 @@ def test_cloud_deploy_pack_files_are_present() -> None:
         "scripts/cloud-wait-revision.ps1",
         "scripts/cloud-public-ready.ps1",
         "scripts/db-backup.ps1",
+        "scripts/db-backup-retention.ps1",
         "scripts/db-restore-drill.ps1",
         "scripts/production-gate.ps1",
         "docs/cloud/P24_CLOUD_DEPLOY_PACK.md",
@@ -100,7 +101,9 @@ def test_cloud_ci_runs_release_gates() -> None:
 
 def test_backup_restore_scripts_are_safe_by_default() -> None:
     backup = read_repo_file("scripts/db-backup.ps1")
+    retention = read_repo_file("scripts/db-backup-retention.ps1")
     restore = read_repo_file("scripts/db-restore-drill.ps1")
+    package = json.loads(read_repo_file("package.json"))
     gitignore = read_repo_file(".gitignore")
 
     assert "pg_dump" in backup
@@ -111,6 +114,14 @@ def test_backup_restore_scripts_are_safe_by_default() -> None:
     assert "database_urls_included = $false" in backup
     assert "credentials_included = $false" in backup
     assert "lexflow-backup-" in backup
+    assert "db:backup-retention" in package["scripts"]
+    assert "lexflow-backup-retention-" in retention
+    assert "DailyKeep" in retention
+    assert "MonthlyKeep" in retention
+    assert "-Apply" in retention
+    assert "Remove-Item -LiteralPath" in retention
+    assert "Refusing to delete file outside backup directory" in retention
+    assert "Dry run only" in retention
     assert "pg_restore" in restore
     assert "--list" in restore
     assert "-Execute" in restore

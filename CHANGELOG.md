@@ -84,6 +84,7 @@
 - API rate limiter now prunes stale in-memory buckets to reduce long-running service memory growth.
 - Early API 403/429 middleware responses now include security headers and request IDs.
 - Production Gate now lists the current cloud validation commands and HTTPS-only origin requirement.
+- Added dry-run-by-default `db:backup-retention` for local PostgreSQL backup retention evidence and opt-in cleanup.
 - Restore drill script now writes non-secret JSON evidence under `reports/restore/`.
 - Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.

@@ -41,6 +41,20 @@ The scripts do not print database URLs or credentials. Backup artifacts are igno
 
 `db:backup` writes a non-secret manifest under `reports/backup/lexflow-backup-*.json` with backup filename, bytes, duration and security flags.
 
+Apply local backup retention policy in dry-run mode:
+
+```powershell
+npm run db:backup-retention
+```
+
+Delete candidates only after review:
+
+```powershell
+npm run db:backup-retention -- -Apply
+```
+
+`db:backup-retention` keeps the newest 30 daily backups and newest 12 monthly backups by default. It writes non-secret evidence under `reports/backup/lexflow-backup-retention-*.json`; deletion is opt-in and refuses paths outside the configured backup directory.
+
 `db:restore-drill` writes structured evidence under `reports/restore/lexflow-restore-drill-*.json`. The report includes backup filename, backup bytes, catalog sample, status, duration and security flags. It does not include database URLs, passwords, tokens or tenant data.
 
 ## Restore
