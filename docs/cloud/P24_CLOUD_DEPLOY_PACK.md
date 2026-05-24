@@ -20,8 +20,10 @@ Ruta recomendada para staging:
 - Web Dockerfile productivo para alternativa container.
 - `scripts/cloud-preflight.ps1`.
 - `scripts/cloud-smoke.ps1`.
+- `scripts/cloud-release-evidence.ps1`.
 - `npm run cloud:preflight`.
 - `npm run cloud:smoke`.
+- `npm run cloud:evidence`.
 - Normalizacion de `postgres://` y `postgresql://` a `postgresql+psycopg://`.
 - Backend S3/R2 real para documentos via API proxy firmado.
 - Readiness warning `storage_backend_public_ready` cuando produccion sigue usando `STORAGE_BACKEND=local`.
@@ -74,6 +76,16 @@ npm run cloud:smoke
 ```
 
 El smoke valida `/health`, `/version`, `/metrics`, `/api/v1/status`, `/readiness`, home web, login web y login tenant opcional sin imprimir secretos. Si hay login tenant, tambien valida `/api/v1/storage/status` autenticado. Si `APP_ENV=production`, falla cuando readiness reporta blockers.
+
+## Evidencia release piloto
+
+```powershell
+$env:LEXFLOW_API_URL="https://lexflow-api.onrender.com"
+$env:LEXFLOW_WEB_URL="https://lexflow-web-nine.vercel.app"
+npm run cloud:evidence
+```
+
+El comando ejecuta `cloud:preflight`, luego `cloud:smoke`, consulta `/readiness` y `/version`, y genera un JSON local en `reports/cloud/lexflow-cloud-release-*.json`. El reporte no incluye passwords, tokens, secretos ni datos de tenants; `reports/` queda fuera de git.
 
 ## Validacion ejecutada
 

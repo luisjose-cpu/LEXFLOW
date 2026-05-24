@@ -33,6 +33,7 @@ def test_cloud_deploy_pack_files_are_present() -> None:
         "infra/docker/web.Dockerfile",
         "scripts/cloud-preflight.ps1",
         "scripts/cloud-smoke.ps1",
+        "scripts/cloud-release-evidence.ps1",
         "scripts/db-backup.ps1",
         "scripts/db-restore-drill.ps1",
         "scripts/production-gate.ps1",
@@ -93,3 +94,18 @@ def test_backup_restore_scripts_are_safe_by_default() -> None:
     assert "-Execute" in restore
     assert "RESTORE_DATABASE_URL" in restore
     assert "backups/" in gitignore
+
+
+def test_cloud_release_evidence_script_writes_safe_report() -> None:
+    script = read_repo_file("scripts/cloud-release-evidence.ps1")
+    package = json.loads(read_repo_file("package.json"))
+    gitignore = read_repo_file(".gitignore")
+
+    assert "cloud:evidence" in package["scripts"]
+    assert "scripts/cloud-preflight.ps1" in script
+    assert "scripts/cloud-smoke.ps1" in script
+    assert "secrets_included = $false" in script
+    assert "credentials_included = $false" in script
+    assert "tenant_data_included = $false" in script
+    assert "lexflow-cloud-release-" in script
+    assert "reports/" in gitignore

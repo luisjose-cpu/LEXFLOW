@@ -19,3 +19,4 @@ minio-data/
 postgres-data/
 redis-data/
 backups/
+reports/

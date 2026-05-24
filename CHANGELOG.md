@@ -70,10 +70,12 @@
 
 - Owner system health now includes live API request metrics, production readiness summary and storage backend metadata.
 - Owner Console frontend now renders live health details from the API instead of generic placeholder health text.
+- Added `cloud:evidence` to generate a local JSON release evidence report from cloud preflight, smoke, readiness and version checks.
 
 ### Security
 
 - Health checks expose operational metadata only, never tenant legal content, document bytes, tokens or provider secrets.
+- Release evidence reports explicitly exclude passwords, tokens, secrets and tenant data, and `reports/` is ignored by git.
 
 ## 2026-05-24 - Security Alerts
 
