@@ -64,6 +64,16 @@
 - Backup and restore scripts do not print database URLs, tokens or credentials.
 - Restore execution requires explicit `-Execute` and `RESTORE_DATABASE_URL`.
 
+## 2026-05-24 - Owner Live System Health
+
+### Added
+
+- Owner system health now includes live API request metrics, production readiness summary and storage backend metadata.
+
+### Security
+
+- Health checks expose operational metadata only, never tenant legal content, document bytes, tokens or provider secrets.
+
 ## 2026-05-24 - Security Alerts
 
 ### Added

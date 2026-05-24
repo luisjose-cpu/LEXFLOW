@@ -8,10 +8,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.owner_dependencies import OwnerPrincipal
+from app.core.config import get_settings
+from app.core.middleware import REQUEST_METRICS
+from app.core.readiness import production_readiness_report
 from app.db import models as dbm
 from app.db.models import now_utc
 from app.services.billing import billing_service
 from app.services.security import hash_password
+from app.services.storage import storage_service
 
 
 DEFAULT_FEATURES = [
@@ -300,7 +304,33 @@ class OwnerConsoleService:
             checks = [dbm.SystemHealthCheck(component=component, status="ok", latency_ms=20 + index * 5) for index, component in enumerate(["api", "db", "redis", "storage", "ai", "whatsapp", "sinoe", "jobs", "backups"])]
             db.add_all(checks)
             db.commit()
-        return {"checks": [{"component": item.component, "status": item.status, "latency_ms": item.latency_ms, "checked_at": item.checked_at.isoformat()} for item in checks]}
+        readiness = production_readiness_report(get_settings())
+        storage_status = storage_service.provider_status()
+        live_checks = [
+            {
+                "component": "api_requests",
+                "status": "ok",
+                "latency_ms": int(REQUEST_METRICS["last_response_time_ms"]),
+                "checked_at": now_utc().isoformat(),
+                "detail": f"requests={REQUEST_METRICS['requests_total']} errors={REQUEST_METRICS['errors_total']}",
+            },
+            {
+                "component": "readiness",
+                "status": str(readiness["status"]),
+                "latency_ms": 0,
+                "checked_at": now_utc().isoformat(),
+                "detail": f"blockers={len(readiness['blockers'])} warnings={len(readiness['warnings'])}",
+            },
+            {
+                "component": "storage_backend",
+                "status": "ok" if storage_status["backend"] in {"local", "s3"} else "warning",
+                "latency_ms": 0,
+                "checked_at": now_utc().isoformat(),
+                "detail": f"backend={storage_status['backend']} bucket={storage_status['bucket']}",
+            },
+        ]
+        stored_checks = [{"component": item.component, "status": item.status, "latency_ms": item.latency_ms, "checked_at": item.checked_at.isoformat(), "detail": "stored health check"} for item in checks]
+        return {"checks": [*live_checks, *stored_checks]}
 
     def incidents(self, db: Session) -> list[dict[str, object]]:
         rows = db.scalars(select(dbm.SystemIncident).order_by(dbm.SystemIncident.created_at.desc())).all()

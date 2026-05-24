@@ -244,7 +244,10 @@ def test_support_ticket_resolution_intervention_expiry_and_owner_surfaces(api: T
     assert any(audit.action == "tenant_intervention_closed" for audit in db_session.scalars(select(OwnerAuditLog)).all())
     assert api.get("/api/v1/owner/plans", headers=owner_headers()).status_code == 200
     assert api.get("/api/v1/owner/billing", headers=owner_headers()).status_code == 200
-    assert api.get("/api/v1/owner/system/health", headers=owner_headers()).status_code == 200
+    health = api.get("/api/v1/owner/system/health", headers=owner_headers())
+    health_components = {item["component"] for item in health.json()["checks"]}
+    assert health.status_code == 200
+    assert {"api_requests", "readiness", "storage_backend"}.issubset(health_components)
     assert api.get("/api/v1/owner/demos", headers=owner_headers()).status_code == 200
     assert api.get("/api/v1/owner/audit-logs", headers=owner_headers()).json()
 

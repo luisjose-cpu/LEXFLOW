@@ -61,6 +61,16 @@ Endpoints implementados bajo `/api/v1/owner/*`:
 
 READY para piloto controlado con autenticacion owner JWT. El frontend owner consume `/api/v1/owner/*` cuando existe `lexflow.owner_access_token`, permite crear tenants con admin inicial, seats, modulos, suscripcion mock, planes, tickets, demos, intervenciones e incidentes tecnicos, ejecuta acciones auditadas para suspender/reactivar tenants, cambiar plan, actualizar estado de planes, configurar limites, guardar feature flags, resetear demos y resolver incidentes, y cae a demo seguro si la API no esta disponible. El fallback por headers queda limitado a `APP_ENV=local|test`.
 
+## System Health
+
+`/owner/system/health` combina checks almacenados con senales operativas vivas:
+
+- `api_requests`: contadores in-process de requests, errores y ultima latencia.
+- `readiness`: estado production readiness, blockers y warnings.
+- `storage_backend`: backend activo y bucket sin secretos.
+
+Estos checks son metadata operativa. No exponen contenido legal de tenants, bytes documentales, tokens ni credenciales de proveedores.
+
 ## Bootstrap owner
 
 Crear el primer propietario con:
