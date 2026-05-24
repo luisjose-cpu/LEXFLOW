@@ -13,6 +13,7 @@ Crear una compuerta repetible antes de produccion publica.
 - `/settings/production-gate`
 - Muestra `Public prod` para distinguir deploy piloto sin blockers de produccion publica sin warnings.
 - `required_before_public_production` combina requisitos base con blockers/warnings vivos de readiness.
+- El API y UI muestran `revision` y provider modes no secretos para confirmar commit y dependencias reales/mock.
 
 ## Script
 

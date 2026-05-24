@@ -82,6 +82,7 @@
 - Owner system health now includes external provider modes without exposing tokens or secrets.
 - Cloud release evidence now stores non-secret external provider modes from `/api/v1/status`.
 - Version, metrics and API status now expose deployment revision from cloud/git environment variables.
+- Production Gate API/UI now surface deployment revision and non-secret external provider modes.
 
 ### Security
 

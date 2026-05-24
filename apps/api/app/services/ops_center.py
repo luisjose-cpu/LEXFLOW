@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
+from app.core.config import deployment_revision, get_settings
 from app.core.readiness import production_readiness_report
 from app.db import models as dbm
 from app.services.storage import storage_service
@@ -74,9 +74,17 @@ class OpsCenterService:
         }
 
     def production_gate(self) -> dict[str, object]:
-        readiness = production_readiness_report(get_settings())
+        settings = get_settings()
+        readiness = production_readiness_report(settings)
         blockers = len(readiness["blockers"])
         warnings = len(readiness["warnings"])
+        external_providers = {
+            "ai": "live" if settings.openai_api_key else "mock",
+            "whatsapp": "live" if settings.whatsapp_business_token else "mock",
+            "billing": "live" if settings.billing_provider_secret else "mock",
+            "email": "live" if settings.email_provider == "http_json" and settings.email_api_key else settings.email_provider,
+            "storage": storage_service.provider_status()["provider"],
+        }
         static_requirements = [
             "APP_ENV=production",
             "REQUIRE_PRODUCTION_READY=true",
@@ -94,6 +102,8 @@ class OpsCenterService:
             "gate": "P23 Production Gate",
             "status": "pass" if readiness["production_ready"] else "blocked",
             "public_production_status": "pass" if readiness["public_production_ready"] else "blocked",
+            "revision": deployment_revision(settings),
+            "external_providers": external_providers,
             "readiness": readiness,
             "summary": {"blockers": blockers, "warnings": warnings},
             "commands": [

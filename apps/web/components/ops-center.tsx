@@ -156,6 +156,14 @@ function ProductionGate() {
             <Metric label="Warnings" value={String(warnings)} />
           </div>
         ) : null}
+        {report?.revision || report?.external_providers ? (
+          <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
+            {report.revision ? <p><span className="font-semibold text-ink">Revision:</span> {report.revision}</p> : null}
+            {report.external_providers ? (
+              <p className="mt-1"><span className="font-semibold text-ink">Providers:</span> {Object.entries(report.external_providers).map(([key, value]) => `${key}=${value}`).join(" ")}</p>
+            ) : null}
+          </div>
+        ) : null}
         <div className="mt-4 grid gap-3">
           {liveChecks.map((item) => (
             <div className="rounded-lg border border-slate-200 bg-mist p-4" key={item.key}>
