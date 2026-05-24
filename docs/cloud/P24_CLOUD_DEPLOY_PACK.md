@@ -60,6 +60,8 @@ npm run cloud:preflight
 
 ## Smoke post-deploy
 
+Runbook completo: [POST_DEPLOY_RUNBOOK.md](POST_DEPLOY_RUNBOOK.md).
+
 ```powershell
 $env:LEXFLOW_API_URL="https://lexflow-api.onrender.com"
 $env:LEXFLOW_WEB_URL="https://lexflow-web-nine.vercel.app"

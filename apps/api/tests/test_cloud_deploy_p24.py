@@ -40,6 +40,7 @@ def test_cloud_deploy_pack_files_are_present() -> None:
         "scripts/production-gate.ps1",
         "docs/cloud/P24_CLOUD_DEPLOY_PACK.md",
         "docs/cloud/P25_PUBLIC_PRODUCTION_GAPS.md",
+        "docs/cloud/POST_DEPLOY_RUNBOOK.md",
         "infra/cloud/s3-lifecycle-policy.json",
         "infra/cloud/s3-cors-policy.json",
         "docs/cloud/S3_STORAGE_POLICY.md",
