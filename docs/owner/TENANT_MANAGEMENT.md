@@ -3,6 +3,9 @@
 ## Operaciones soportadas
 
 - Crear tenant desde Owner Console usando `/api/v1/owner/tenants`.
+- Crear admin inicial del estudio durante el alta owner.
+- Crear suscripcion mock, seats, limites SaaS y feature flags por plan durante el alta.
+- Consultar handoff de onboarding usando `/api/v1/owner/tenants/{id}/onboarding`.
 - Editar metadata comercial.
 - Suspender tenant.
 - Reactivar tenant.
@@ -20,6 +23,7 @@
 Generar `owner_audit_logs` para:
 
 - creacion de tenant
+- alta de tenant con plan, suscripcion y admin inicial
 - suspension
 - reactivacion
 - cambio de plan
@@ -31,3 +35,13 @@ Generar `owner_audit_logs` para:
 ## Separacion de datos
 
 Tenant Management muestra metadata operativa y comercial. Contenido legal sensible queda redacted salvo intervencion temporal autorizada.
+
+## Handoff productivo
+
+El Owner Console puede preparar el tenant, pero la password temporal nunca debe enviarse por la app ni quedar en logs. El handoff recomendado es:
+
+- URL de login
+- slug del tenant
+- correo admin
+- password temporal por canal seguro externo
+- solicitud de cambio de password y activacion MFA en primer acceso

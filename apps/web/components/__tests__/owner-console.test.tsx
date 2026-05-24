@@ -145,9 +145,12 @@ describe("Owner Console UI", () => {
     fireEvent.change(screen.getByPlaceholderText("Nombre del estudio"), { target: { value: "Estudio Delta" } });
     fireEvent.change(screen.getByPlaceholderText("slug-del-tenant"), { target: { value: "estudio-delta" } });
     fireEvent.change(screen.getByDisplayValue("START"), { target: { value: "PRO" } });
+    fireEvent.change(screen.getByPlaceholderText("admin@estudio.com"), { target: { value: "admin@delta.lexflow.com" } });
+    fireEvent.change(screen.getByPlaceholderText("Nombre admin"), { target: { value: "Admin Delta" } });
+    fireEvent.change(screen.getByPlaceholderText("Password temporal"), { target: { value: "DeltaPassword123!" } });
     fireEvent.click(screen.getByText("Crear tenant"));
 
-    await waitFor(() => expect(screen.getByText("Tenant creado: Estudio Delta.")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Tenant creado: Estudio Delta. Admin: pendiente.")).toBeTruthy());
     expect(screen.getByText("Estudio Delta")).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/tenants"), expect.objectContaining({ method: "POST" }));
   });

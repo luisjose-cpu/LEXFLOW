@@ -1,5 +1,20 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Owner Tenant Onboarding
+
+### Added
+
+- Owner tenant creation can provision initial tenant admin, seats, modules, feature flags, plan limits and mock subscription.
+- `/api/v1/owner/tenants/{tenant_id}/onboarding` endpoint with readiness steps and secure handoff guidance.
+- Owner Console tenant creation form now includes admin email/name/password, seats and modules.
+- Tenant onboarding creates tenant audit logs without recording temporary passwords.
+- Backend and frontend tests for owner tenant onboarding.
+
+### Security
+
+- Initial admin passwords are hashed and never returned in API responses or audit metadata.
+- Owner handoff explicitly requires external secure password delivery and first-login MFA/password rotation.
+
 ## 2026-05-24 - Tenant MFA TOTP
 
 ### Added

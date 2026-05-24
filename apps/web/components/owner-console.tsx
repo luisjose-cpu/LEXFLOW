@@ -275,7 +275,7 @@ export function TenantsList() {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState<OwnerDataSource>("demo");
   const [loadedTenants, setLoadedTenants] = useState(ownerTenants);
-  const [tenantForm, setTenantForm] = useState({ name: "", slug: "", plan: "START" });
+  const [tenantForm, setTenantForm] = useState({ name: "", slug: "", plan: "START", adminEmail: "", adminName: "", adminPassword: "", seats: "5", modules: "expediente360,dashboard,mobile_pwa" });
   const [createState, setCreateState] = useState<"idle" | "saving" | "error" | "success">("idle");
   const [createMessage, setCreateMessage] = useState("");
   const tenants = useMemo(() => loadedTenants.filter((tenant) => `${tenant.name} ${tenant.slug} ${tenant.plan}`.toLowerCase().includes(query.toLowerCase())), [loadedTenants, query]);
@@ -316,13 +316,19 @@ export function TenantsList() {
         name: tenantForm.name,
         slug: tenantForm.slug,
         plan: tenantForm.plan,
-        trial: true
+        trial: true,
+        admin_email: tenantForm.adminEmail || undefined,
+        admin_name: tenantForm.adminName || undefined,
+        admin_password: tenantForm.adminPassword || undefined,
+        seats: Number(tenantForm.seats),
+        modules: splitCsv(tenantForm.modules),
+        send_access_email: true
       });
       setLoadedTenants((current) => [tenant, ...current.filter((item) => item.id !== tenant.id)]);
-      setTenantForm({ name: "", slug: "", plan: "START" });
+      setTenantForm({ name: "", slug: "", plan: "START", adminEmail: "", adminName: "", adminPassword: "", seats: "5", modules: "expediente360,dashboard,mobile_pwa" });
       setSource("live");
       setCreateState("success");
-      setCreateMessage(`Tenant creado: ${tenant.name}.`);
+      setCreateMessage(`Tenant creado: ${tenant.name}. Admin: ${tenant.onboarding?.adminEmail ?? "pendiente"}.`);
     } catch (caught) {
       setCreateState("error");
       setCreateMessage(caught instanceof Error ? caught.message : "No se pudo crear el tenant.");
@@ -333,7 +339,7 @@ export function TenantsList() {
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Tenants" title="Gestion de estudios" description="Crea, suspende, reactiva, cambia planes y controla limites por tenant desde una consola separada." />
       <OwnerDataSourceNotice source={source} />
-      <form className="grid gap-3 rounded-lg border border-white/80 bg-white p-4 shadow-soft lg:grid-cols-[1.2fr_0.8fr_160px_auto]" onSubmit={submitTenant}>
+      <form className="grid gap-3 rounded-lg border border-white/80 bg-white p-4 shadow-soft lg:grid-cols-4" onSubmit={submitTenant}>
         <input
           className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
           onChange={(event) => setTenantForm((current) => ({ ...current, name: event.target.value }))}
@@ -355,6 +361,39 @@ export function TenantsList() {
         >
           {["START", "PRO", "AI", "ENTERPRISE"].map((plan) => <option key={plan} value={plan}>{plan}</option>)}
         </select>
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setTenantForm((current) => ({ ...current, seats: event.target.value }))}
+          placeholder="seats"
+          type="number"
+          value={tenantForm.seats}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setTenantForm((current) => ({ ...current, adminEmail: event.target.value }))}
+          placeholder="admin@estudio.com"
+          type="email"
+          value={tenantForm.adminEmail}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setTenantForm((current) => ({ ...current, adminName: event.target.value }))}
+          placeholder="Nombre admin"
+          value={tenantForm.adminName}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setTenantForm((current) => ({ ...current, adminPassword: event.target.value }))}
+          placeholder="Password temporal"
+          type="password"
+          value={tenantForm.adminPassword}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500 lg:col-span-3"
+          onChange={(event) => setTenantForm((current) => ({ ...current, modules: event.target.value }))}
+          placeholder="modulos separados por coma"
+          value={tenantForm.modules}
+        />
         <button className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={createState === "saving"} type="submit">
           <Users size={16} aria-hidden="true" />
           {createState === "saving" ? "Creando..." : "Crear tenant"}
@@ -1455,6 +1494,11 @@ function TenantRow({ tenant, expanded = false }: { tenant: OwnerTenant; expanded
             {tenant.name}
           </Link>
           <p className="mt-1 text-sm text-slate-500">{tenant.slug} - {tenant.users} usuarios - {tenant.cases} expedientes - ultimo uso {tenant.lastSeen}</p>
+          {tenant.onboarding ? (
+            <p className="mt-2 text-xs font-semibold text-legal-700">
+              Onboarding {tenant.onboarding.ready ? "listo" : "pendiente"} - admin {tenant.onboarding.adminEmail ?? "sin crear"}
+            </p>
+          ) : null}
         </div>
         <div className="grid grid-cols-3 gap-2 lg:min-w-[360px]">
           <MiniMetric label="MRR" value={`$${tenant.mrr}`} />

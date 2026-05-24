@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db.database import get_db
-from app.db.models import Base, OwnerAuditLog, OwnerUser, TenantIntervention
+from app.db.models import Base, OwnerAuditLog, OwnerUser, TenantFeatureFlag, TenantIntervention, TenantSubscription, User
 from app.main import app
 from app.services.seed import DEMO_SEED, seed_demo_data
 from app.services.security import hash_password
@@ -120,6 +120,41 @@ def test_tenant_lifecycle_plan_features_health_and_audit(api: TestClient, db_ses
     assert any(item["limit_key"] == "users" and item["limit_value"] == 25 for item in limits.json())
     assert health.json()["score"] > 0
     assert {audit.action for audit in audits} >= {"tenant_created", "tenant_suspended", "tenant_reactivated", "tenant_plan_changed", "tenant_features_updated", "tenant_limits_updated"}
+
+
+def test_owner_tenant_onboarding_creates_admin_subscription_features_and_handoff(api: TestClient, db_session: Session) -> None:
+    created = api.post(
+        "/api/v1/owner/tenants",
+        headers=owner_headers(),
+        json={
+            "name": "Estudio Onboarding",
+            "slug": "estudio-onboarding",
+            "plan": "AI",
+            "trial": True,
+            "admin_email": "admin@onboarding.lexflow.com",
+            "admin_name": "Admin Onboarding",
+            "admin_password": "OnboardingPassword123!",
+            "seats": 9,
+            "modules": ["custom_branding"],
+            "send_access_email": True,
+        },
+    )
+    body = created.json()
+    tenant_id = body["id"]
+    onboarding = api.get(f"/api/v1/owner/tenants/{tenant_id}/onboarding", headers=owner_headers())
+    admin = db_session.scalars(select(User).where(User.tenant_id == tenant_id, User.email == "admin@onboarding.lexflow.com")).first()
+    subscription = db_session.scalars(select(TenantSubscription).where(TenantSubscription.tenant_id == tenant_id)).first()
+    enabled_flags = db_session.scalars(select(TenantFeatureFlag).where(TenantFeatureFlag.tenant_id == tenant_id, TenantFeatureFlag.enabled.is_(True))).all()
+
+    assert created.status_code == 201
+    assert body["onboarding"]["ready"] is True
+    assert body["onboarding"]["admin_email"] == "admin@onboarding.lexflow.com"
+    assert admin is not None
+    assert subscription is not None
+    assert subscription.seats == 9
+    assert subscription.status == "trialing"
+    assert {flag.feature_key for flag in enabled_flags} >= {"ai", "ocr", "automation_studio", "custom_branding"}
+    assert onboarding.json()["handoff"].startswith("Enviar URL")
 
 
 def test_support_ticket_resolution_intervention_expiry_and_owner_surfaces(api: TestClient, db_session: Session) -> None:

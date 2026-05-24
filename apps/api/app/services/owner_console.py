@@ -10,18 +10,25 @@ from sqlalchemy.orm import Session
 from app.api.owner_dependencies import OwnerPrincipal
 from app.db import models as dbm
 from app.db.models import now_utc
+from app.services.billing import billing_service
+from app.services.security import hash_password
 
 
 DEFAULT_FEATURES = [
+    "expediente360",
     "client_portal",
     "whatsapp",
     "ai",
     "ocr",
     "sinoe",
+    "judicial_automation",
     "legal_intelligence",
     "automation_studio",
     "dashboard",
     "mobile_pwa",
+    "custom_branding",
+    "custom_domain",
+    "api_access",
 ]
 
 OWNER_PLAN_CATALOG_SLUG = "lexflow-owner-catalog"
@@ -62,19 +69,49 @@ class OwnerConsoleService:
         slug = str(payload["slug"]).strip().lower()
         if db.scalar(select(dbm.Tenant).where(dbm.Tenant.slug == slug)):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Tenant slug already exists")
-        tenant = dbm.Tenant(name=str(payload["name"]), slug=slug, plan=str(payload.get("plan", "START")).upper(), status="trial" if payload.get("trial", True) else "active")
+        plan = str(payload.get("plan", "START")).upper()
+        tenant = dbm.Tenant(name=str(payload["name"]), slug=slug, plan=plan, status="trial" if payload.get("trial", True) else "active")
         db.add(tenant)
         db.flush()
-        self._ensure_default_features(db, tenant.id)
+        self._ensure_default_features(db, tenant.id, plan=tenant.plan, modules=list(payload.get("modules") or []))
+        self._ensure_default_limits(db, tenant)
+        admin = self._ensure_initial_admin(db, tenant=tenant, payload=payload)
+        subscription = self._ensure_plan_subscription(db, tenant=tenant, seats=int(payload.get("seats") or self._default_limits_for_plan(tenant.plan).get("users", 3)))
         self._ensure_health(db, tenant.id)
         if payload.get("demo_data"):
             db.add(dbm.DemoTenant(tenant_id=tenant.id, demo_type=str(payload.get("demo_type", "general")), status="ready"))
-        self.audit(db, owner=owner, action="tenant_created", entity_type="tenant", entity_id=tenant.id, tenant_id=tenant.id, reason="owner onboarding", request_id=request_id)
+        self.audit(
+            db,
+            owner=owner,
+            action="tenant_created",
+            entity_type="tenant",
+            entity_id=tenant.id,
+            tenant_id=tenant.id,
+            reason="owner onboarding",
+            metadata={"plan": tenant.plan, "admin_created": bool(admin), "subscription_id": subscription.id},
+            request_id=request_id,
+        )
+        if admin:
+            db.add(
+                dbm.AuditLog(
+                    tenant_id=tenant.id,
+                    actor_user_id=admin.id,
+                    action="create",
+                    entity_type="tenant_onboarding",
+                    entity_id=tenant.id,
+                    request_id=request_id,
+                    metadata_json={"admin_email": admin.email, "plan": tenant.plan, "owner": owner.email, "password_present": bool(payload.get("admin_password"))},
+                )
+            )
         db.commit()
         return self._tenant_detail(db, tenant)
 
     def tenant_detail(self, db: Session, *, tenant_id: UUID | str) -> dict[str, object]:
         return self._tenant_detail(db, self._tenant_or_404(db, tenant_id))
+
+    def onboarding_summary(self, db: Session, *, tenant_id: UUID | str) -> dict[str, object]:
+        tenant = self._tenant_or_404(db, tenant_id)
+        return self._onboarding_summary(db, tenant)
 
     def suspend_tenant(self, db: Session, *, owner: OwnerPrincipal, tenant_id: UUID | str, reason: str, request_id: str | None = None) -> dict[str, object]:
         tenant = self._tenant_or_404(db, tenant_id)
@@ -93,6 +130,8 @@ class OwnerConsoleService:
     def change_plan(self, db: Session, *, owner: OwnerPrincipal, tenant_id: UUID | str, plan: str, reason: str, request_id: str | None = None) -> dict[str, object]:
         tenant = self._tenant_or_404(db, tenant_id)
         tenant.plan = plan.upper()
+        self._ensure_default_features(db, tenant.id, plan=tenant.plan)
+        self._ensure_plan_subscription(db, tenant=tenant, seats=self._current_seats(db, tenant.id))
         self.audit(db, owner=owner, action="tenant_plan_changed", entity_type="tenant", entity_id=tenant.id, tenant_id=tenant.id, reason=reason, metadata={"plan": tenant.plan}, request_id=request_id)
         db.commit()
         return self._tenant_detail(db, tenant)
@@ -379,11 +418,113 @@ class OwnerConsoleService:
         db.flush()
         return user
 
-    def _ensure_default_features(self, db: Session, tenant_id: str) -> None:
+    def _ensure_initial_admin(self, db: Session, *, tenant: dbm.Tenant, payload: dict[str, object]) -> dbm.User | None:
+        admin_email = str(payload.get("admin_email") or "").strip().lower()
+        admin_name = str(payload.get("admin_name") or "").strip()
+        admin_password = str(payload.get("admin_password") or "")
+        if not admin_email and not admin_name and not admin_password:
+            return None
+        if not admin_email or not admin_name or len(admin_password) < 12:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Admin email, name and 12+ character password are required")
+
+        role = db.scalar(select(dbm.Role).where(dbm.Role.tenant_id == tenant.id, dbm.Role.name == "tenant_admin", dbm.Role.deleted_at.is_(None)))
+        if not role:
+            role = dbm.Role(tenant_id=tenant.id, name="tenant_admin", description="Tenant administrator", is_system=True)
+            db.add(role)
+            db.flush()
+
+        existing = db.scalar(select(dbm.User).where(dbm.User.tenant_id == tenant.id, dbm.User.email == admin_email, dbm.User.deleted_at.is_(None)))
+        if existing:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Initial admin already exists")
+        user = dbm.User(
+            tenant_id=tenant.id,
+            role_id=role.id,
+            email=admin_email,
+            full_name=admin_name,
+            hashed_password=hash_password(admin_password),
+            status="active",
+        )
+        db.add(user)
+        db.flush()
+        return user
+
+    def _ensure_plan_subscription(self, db: Session, *, tenant: dbm.Tenant, seats: int) -> dbm.TenantSubscription:
+        plan = billing_service.get_plan(db, tenant_id=tenant.id, plan_code=tenant.plan)
+        subscription = db.scalars(
+            select(dbm.TenantSubscription)
+            .where(dbm.TenantSubscription.tenant_id == tenant.id, dbm.TenantSubscription.deleted_at.is_(None))
+            .order_by(dbm.TenantSubscription.created_at.desc())
+        ).first()
+        if not subscription:
+            subscription = dbm.TenantSubscription(tenant_id=tenant.id, plan_id=plan.id, provider_subscription_id=f"owner-sub-{tenant.id[:8]}")
+            db.add(subscription)
+        subscription.plan_id = plan.id
+        subscription.seats = max(1, seats)
+        subscription.status = "trialing" if tenant.status == "trial" else "active"
+        subscription.trial_ends_at = now_utc() + timedelta(days=plan.trial_days) if tenant.status == "trial" else None
+        subscription.current_period_ends_at = now_utc() + timedelta(days=30)
+        subscription.metadata_json = {"source": "owner_onboarding", "tenant_plan": tenant.plan}
+        db.flush()
+        return subscription
+
+    def _current_seats(self, db: Session, tenant_id: str) -> int:
+        subscription = db.scalars(
+            select(dbm.TenantSubscription)
+            .where(dbm.TenantSubscription.tenant_id == tenant_id, dbm.TenantSubscription.deleted_at.is_(None))
+            .order_by(dbm.TenantSubscription.created_at.desc())
+        ).first()
+        return subscription.seats if subscription else self._default_limits_for_plan("START").get("users", 3)
+
+    def _onboarding_summary(self, db: Session, tenant: dbm.Tenant) -> dict[str, object]:
+        admin = db.scalars(
+            select(dbm.User)
+            .join(dbm.Role)
+            .where(dbm.User.tenant_id == tenant.id, dbm.Role.name == "tenant_admin", dbm.User.deleted_at.is_(None))
+            .order_by(dbm.User.created_at.asc())
+        ).first()
+        subscription = db.scalars(
+            select(dbm.TenantSubscription)
+            .where(dbm.TenantSubscription.tenant_id == tenant.id, dbm.TenantSubscription.deleted_at.is_(None))
+            .order_by(dbm.TenantSubscription.created_at.desc())
+        ).first()
+        steps = [
+            {"key": "tenant", "label": "Tenant creado", "complete": True},
+            {"key": "admin", "label": "Admin inicial", "complete": bool(admin)},
+            {"key": "subscription", "label": "Suscripcion mock", "complete": bool(subscription)},
+            {"key": "features", "label": "Feature flags", "complete": bool(db.scalar(select(func.count()).select_from(dbm.TenantFeatureFlag).where(dbm.TenantFeatureFlag.tenant_id == tenant.id)))},
+            {"key": "limits", "label": "Limites SaaS", "complete": bool(db.scalar(select(func.count()).select_from(dbm.TenantLimit).where(dbm.TenantLimit.tenant_id == tenant.id)))},
+        ]
+        return {
+            "tenant_id": tenant.id,
+            "tenant_slug": tenant.slug,
+            "login_url": "/login",
+            "admin_email": admin.email if admin else None,
+            "subscription_status": subscription.status if subscription else "missing",
+            "trial_ends_at": subscription.trial_ends_at.isoformat() if subscription and subscription.trial_ends_at else None,
+            "steps": steps,
+            "ready": all(step["complete"] for step in steps),
+            "handoff": "Enviar URL de login, slug del tenant, correo admin y password temporal por canal seguro externo.",
+        }
+
+    def _ensure_default_features(self, db: Session, tenant_id: str, *, plan: str = "START", modules: list[str] | None = None) -> None:
         existing = {row.feature_key for row in db.scalars(select(dbm.TenantFeatureFlag).where(dbm.TenantFeatureFlag.tenant_id == tenant_id)).all()}
+        enabled_features = self._enabled_features_for_plan(plan) | set(modules or [])
         for feature in DEFAULT_FEATURES:
             if feature not in existing:
-                db.add(dbm.TenantFeatureFlag(tenant_id=tenant_id, feature_key=feature, enabled=feature in {"dashboard", "client_portal"}))
+                db.add(dbm.TenantFeatureFlag(tenant_id=tenant_id, feature_key=feature, enabled=feature in enabled_features, metadata_json={"source_plan": plan}))
+            elif feature in enabled_features:
+                row = db.scalar(select(dbm.TenantFeatureFlag).where(dbm.TenantFeatureFlag.tenant_id == tenant_id, dbm.TenantFeatureFlag.feature_key == feature))
+                if row:
+                    row.enabled = True
+
+    @staticmethod
+    def _enabled_features_for_plan(plan: str) -> set[str]:
+        return {
+            "START": {"expediente360", "dashboard", "mobile_pwa"},
+            "PRO": {"expediente360", "dashboard", "mobile_pwa", "client_portal", "sinoe", "judicial_automation", "whatsapp"},
+            "AI": {"expediente360", "dashboard", "mobile_pwa", "client_portal", "sinoe", "judicial_automation", "whatsapp", "ai", "ocr", "legal_intelligence", "automation_studio"},
+            "ENTERPRISE": set(DEFAULT_FEATURES),
+        }.get(plan.upper(), {"expediente360", "dashboard"})
 
     def _ensure_default_limits(self, db: Session, tenant: dbm.Tenant) -> None:
         defaults = self._default_limits_for_plan(tenant.plan)
@@ -425,6 +566,7 @@ class OwnerConsoleService:
             "features": self.features(db, tenant_id=tenant.id),
             "usage": self.usage(db, tenant_id=tenant.id),
             "health": self.health_score(db, tenant_id=tenant.id),
+            "onboarding": self._onboarding_summary(db, tenant),
             "sensitive_data": "redacted",
         }
 

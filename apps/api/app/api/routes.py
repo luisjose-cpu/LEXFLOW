@@ -299,6 +299,12 @@ class OwnerTenantCreate(BaseModel):
     trial: bool = True
     demo_data: bool = False
     demo_type: str = "general"
+    admin_email: EmailStr | None = None
+    admin_name: str | None = Field(default=None, min_length=2, max_length=180)
+    admin_password: str | None = Field(default=None, min_length=12, max_length=500)
+    seats: int | None = Field(default=None, ge=1, le=999)
+    modules: list[str] = Field(default_factory=list)
+    send_access_email: bool = False
 
 
 class OwnerReasonRequest(BaseModel):
@@ -580,6 +586,11 @@ def owner_create_tenant(payload: OwnerTenantCreate, owner: Annotated[OwnerPrinci
 @router.get("/owner/tenants/{tenant_id}")
 def owner_tenant_detail(tenant_id: UUID, _: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> dict[str, object]:
     return owner_console_service.tenant_detail(db, tenant_id=tenant_id)
+
+
+@router.get("/owner/tenants/{tenant_id}/onboarding")
+def owner_tenant_onboarding(tenant_id: UUID, _: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> dict[str, object]:
+    return owner_console_service.onboarding_summary(db, tenant_id=tenant_id)
 
 
 @router.post("/owner/tenants/{tenant_id}/suspend")

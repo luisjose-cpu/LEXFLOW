@@ -81,6 +81,12 @@ type ApiOwnerTenant = {
   features?: { feature_key: string; enabled: boolean }[];
   usage?: { totals?: { users?: number; cases?: number; documents?: number }; metrics?: { metric_key: string; used: number }[] };
   health?: { score?: number };
+  onboarding?: {
+    admin_email?: string | null;
+    ready?: boolean;
+    handoff?: string;
+    trial_ends_at?: string | null;
+  };
 };
 
 type ApiOwnerPlan = {
@@ -154,7 +160,7 @@ export async function loadOwnerTenants(): Promise<OwnerTenant[]> {
   return body.map(normalizeOwnerTenant);
 }
 
-export async function createOwnerTenant(payload: { name: string; slug: string; plan: string; trial?: boolean; demo_data?: boolean; demo_type?: string }): Promise<OwnerTenant> {
+export async function createOwnerTenant(payload: { name: string; slug: string; plan: string; trial?: boolean; demo_data?: boolean; demo_type?: string; admin_email?: string; admin_name?: string; admin_password?: string; seats?: number; modules?: string[]; send_access_email?: boolean }): Promise<OwnerTenant> {
   const body = await ownerApiRequest<ApiOwnerTenant>("/owner/tenants", {
     method: "POST",
     body: JSON.stringify(payload)
@@ -384,7 +390,13 @@ function normalizeOwnerTenant(tenant: ApiOwnerTenant): OwnerTenant {
     sinoeSyncs: metrics.sinoe_syncs ?? 0,
     openTickets: 0,
     modules: (tenant.features ?? []).filter((feature) => feature.enabled).map((feature) => feature.feature_key),
-    lastSeen: "API cloud"
+    lastSeen: "API cloud",
+    onboarding: {
+      adminEmail: tenant.onboarding?.admin_email ?? null,
+      ready: tenant.onboarding?.ready ?? false,
+      handoff: tenant.onboarding?.handoff,
+      trialEndsAt: tenant.onboarding?.trial_ends_at ?? null
+    }
   };
 }
 

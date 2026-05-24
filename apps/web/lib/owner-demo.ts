@@ -16,6 +16,12 @@ export type OwnerTenant = {
   openTickets: number;
   modules: string[];
   lastSeen: string;
+  onboarding?: {
+    adminEmail?: string | null;
+    ready?: boolean;
+    handoff?: string;
+    trialEndsAt?: string | null;
+  };
 };
 
 export type OwnerPlan = {
