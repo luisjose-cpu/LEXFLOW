@@ -35,12 +35,13 @@ Ruta recomendada para staging:
 1. Crear Blueprint desde `render.yaml`.
 2. Revisar `lexflow-api`.
 3. Confirmar `lexflow-postgres`, `lexflow-redis` y cron `lexflow-security-alert-deliveries`.
-4. Configurar manualmente:
+4. Confirmar `autoDeployTrigger: checksPass` para desplegar solo despues de CI verde.
+5. Configurar manualmente:
    - `ALLOWED_ORIGINS`
    - `STORAGE_PUBLIC_BASE_URL`
    - dominios
-5. Confirmar que `REQUIRE_PRODUCTION_READY=true`.
-6. Confirmar que `SEED_DEMO_ON_STARTUP=false`.
+6. Confirmar que `REQUIRE_PRODUCTION_READY=true`.
+7. Confirmar que `SEED_DEMO_ON_STARTUP=false`.
 
 ## Vercel
 
@@ -124,6 +125,8 @@ GitHub Actions ejecuta:
 - revision check manual con `cloud:revision`
 - post-deploy release evidence manual con `workflow_dispatch` e inputs `api_url` / `web_url`
 - artifact `lexflow-cloud-release-evidence` con el JSON generado por `cloud:evidence`
+
+Render queda configurado con `autoDeployTrigger: checksPass`: cada push a `master` se despliega despues de que GitHub Actions reporte checks exitosos.
 
 El workflow corre en `main` y `master`. Para habilitar login tenant en el smoke manual, configurar secrets:
 

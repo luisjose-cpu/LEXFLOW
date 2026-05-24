@@ -7,6 +7,8 @@ Validar despues de cada deploy que API, web, readiness, revision y evidencia ope
 ## Pasos
 
 1. Confirmar deploy completado en Render y Vercel.
+   - Render debe usar `autoDeployTrigger: checksPass`.
+   - Si el deploy no arranca tras CI verde, ejecutar `Manual Deploy -> Deploy latest commit`.
 2. Exportar URLs:
 
 ```powershell

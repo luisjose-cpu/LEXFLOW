@@ -59,6 +59,7 @@ def test_render_blueprint_declares_required_runtime_contracts() -> None:
     assert "/health" in render_yaml
     assert "lexflow-postgres" in render_yaml
     assert "lexflow-redis" in render_yaml
+    assert "autoDeployTrigger: checksPass" in render_yaml
     assert "REQUIRE_PRODUCTION_READY" in render_yaml
     assert "SEED_DEMO_ON_STARTUP" in render_yaml
     assert "ALLOWED_ORIGINS" in render_yaml
