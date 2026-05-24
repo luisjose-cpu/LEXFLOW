@@ -193,6 +193,7 @@ export type ProductionGateReport = {
   readiness?: {
     app_env?: string;
     production_ready?: boolean;
+    public_production_ready?: boolean;
     status?: string;
     blockers?: { key: string; message: string; severity: string; ok: boolean }[];
     warnings?: { key: string; message: string; severity: string; ok: boolean }[];

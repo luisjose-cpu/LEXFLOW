@@ -11,6 +11,7 @@ Crear una compuerta repetible antes de produccion publica.
 ## Frontend
 
 - `/settings/production-gate`
+- Muestra `Public prod` para distinguir deploy piloto sin blockers de produccion publica sin warnings.
 
 ## Script
 
@@ -34,8 +35,8 @@ Valida que existan:
 - `infra/docker/docker-compose.production.yml`
 - Variables productivas obligatorias.
 
-## Pendiente
+## Estado CI
 
-- Integrar con GitHub Actions.
-- Publicar artefactos de test.
-- Bloquear deploy si readiness falla.
+- GitHub Actions ejecuta lint, tests, build, API tests y production gate fast.
+- Workflow manual post-deploy genera artifact `lexflow-cloud-release-evidence`.
+- Cloud smoke bloquea readiness con blockers; `public_production_ready=false` mantiene visibles los warnings pendientes.

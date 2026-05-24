@@ -45,6 +45,7 @@ describe("Ops center UI", () => {
         status: "blocked",
         summary: { blockers: 1, warnings: 2 },
         readiness: {
+          public_production_ready: false,
           checks: [
             { key: "database_postgresql", ok: true, severity: "blocker", message: "Production must use PostgreSQL." },
             { key: "cors_no_localhost", ok: false, severity: "blocker", message: "Production origins must not point to localhost." }
@@ -59,6 +60,7 @@ describe("Ops center UI", () => {
 
     expect(await screen.findByText("database_postgresql")).toBeTruthy();
     expect(screen.getByText("cors_no_localhost")).toBeTruthy();
+    expect(screen.getByText("not ready")).toBeTruthy();
     expect(screen.getByText("npm run cloud:smoke")).toBeTruthy();
     expect(screen.getByText("External pentest and monitoring")).toBeTruthy();
   });
