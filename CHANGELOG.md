@@ -1,5 +1,20 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Tenant User Invitations
+
+### Added
+
+- `user_invitations` persistence with Alembic migration `20260524_0016`.
+- `/api/v1/users/invitations` create/list endpoints with tenant RBAC.
+- `/api/v1/auth/invitations/accept` for one-time invite acceptance and first password definition.
+- Settings user invitation panel and `/login/invite` acceptance page.
+- Backend and frontend tests for invitation creation, permission blocking, token acceptance and session storage.
+
+### Security
+
+- Invitation tokens are stored only as SHA-256 hashes and are never returned in list responses.
+- Invitation audit logs avoid passwords, hashes and plain token values.
+
 ## 2026-05-24 - Owner Tenant Onboarding
 
 ### Added

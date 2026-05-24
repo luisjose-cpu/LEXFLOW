@@ -138,6 +138,35 @@ export async function confirmPasswordReset(payload: { reset_token: string; new_p
   });
 }
 
+export type UserInvitation = {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  status: string;
+  expires_at: string;
+  accepted_at?: string | null;
+  created_at?: string;
+};
+
+export async function loadUserInvitations() {
+  return apiRequest<UserInvitation[]>("/users/invitations");
+}
+
+export async function createUserInvitation(payload: { email: string; full_name: string; role: string }) {
+  return apiRequest<UserInvitation & { delivery: string; invitation_token?: string }>("/users/invitations", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function acceptUserInvitation(payload: { invitation_token: string; password: string }) {
+  return publicApiRequest<{ status: string; access_token: string; refresh_token: string; token_type: string }>("/auth/invitations/accept", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 async function publicApiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_URL}/api/v1${path}`, {
     ...options,

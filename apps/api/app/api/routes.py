@@ -57,6 +57,7 @@ from app.services.roles import role_service
 from app.services.seed import DEMO_SEED
 from app.services.sinoe_integration import sinoe_automation_service
 from app.services.storage import storage_service
+from app.services.user_invitations import user_invitation_service
 from app.services.users import user_service
 
 router = APIRouter()
@@ -157,6 +158,17 @@ class UserUpdate(BaseModel):
     full_name: str | None = None
     role: RoleName | None = None
     is_active: bool | None = None
+
+
+class UserInvitationCreate(BaseModel):
+    email: EmailStr
+    full_name: str = Field(min_length=1, max_length=180)
+    role: RoleName
+
+
+class UserInvitationAccept(BaseModel):
+    invitation_token: str = Field(min_length=20, max_length=500)
+    password: str = Field(min_length=10, max_length=500)
 
 
 class ClientCreate(BaseModel):
@@ -1295,6 +1307,19 @@ def confirm_password_reset(payload: PasswordResetConfirmRequest, db: Annotated[S
     return auth_service.confirm_password_reset(db, reset_token=payload.reset_token, new_password=payload.new_password, request_id=getattr(request.state, "request_id", None))
 
 
+@router.post("/auth/invitations/accept")
+def accept_user_invitation(payload: UserInvitationAccept, db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    accepted = user_invitation_service.accept(
+        db,
+        invitation_token=payload.invitation_token,
+        password=payload.password,
+        request_id=getattr(request.state, "request_id", None),
+    )
+    user = accepted["user"]
+    tokens = auth_service._issue_session(user)
+    return {"status": accepted["status"], **tokens, "user": user}
+
+
 @router.post("/auth/logout")
 def logout(current_user: Annotated[User, Depends(get_current_user)], request: Request) -> dict[str, str]:
     auth_service.logout(user=current_user, request_id=getattr(request.state, "request_id", None))
@@ -2112,6 +2137,34 @@ def create_user(
         password=payload.password,
         role=payload.role,
         actor_user_id=actor.id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/users/invitations")
+def list_user_invitations(
+    _: Annotated[User, Depends(require_permission("users:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    return user_invitation_service.list_for_tenant(db, tenant_id=tenant_id)
+
+
+@router.post("/users/invitations", status_code=status.HTTP_201_CREATED)
+def create_user_invitation(
+    payload: UserInvitationCreate,
+    actor: Annotated[User, Depends(require_permission("users:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return user_invitation_service.create(
+        db,
+        tenant_id=tenant_id,
+        email=payload.email,
+        full_name=payload.full_name,
+        role=payload.role,
+        actor=actor,
         request_id=getattr(request.state, "request_id", None),
     )
 

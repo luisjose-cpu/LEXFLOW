@@ -251,3 +251,47 @@ def test_auth_mfa_enrollment_requires_totp_and_can_be_disabled() -> None:
     assert good_mfa_login.status_code == 200
     assert disabled.status_code == 200
     assert no_code_after_disable.status_code == 200
+
+
+def test_user_invitation_flow_accepts_once_and_blocks_low_permission() -> None:
+    seed_demo_data()
+    admin_headers = login()
+    lawyer_headers = login(DEMO_SEED.lawyer_email)
+
+    blocked = client.post(
+        "/api/v1/users/invitations",
+        headers=lawyer_headers,
+        json={"email": "invited.blocked@lexflow.com", "full_name": "Blocked Invite", "role": "lawyer"},
+    )
+    invited = client.post(
+        "/api/v1/users/invitations",
+        headers=admin_headers,
+        json={"email": "newlawyer@lexflow.com", "full_name": "New Lawyer", "role": "lawyer"},
+    )
+    token = invited.json()["invitation_token"]
+    listed = client.get("/api/v1/users/invitations", headers=admin_headers)
+    accepted = client.post(
+        "/api/v1/auth/invitations/accept",
+        json={"invitation_token": token, "password": "InvitedLawyer123!"},
+    )
+    reused = client.post(
+        "/api/v1/auth/invitations/accept",
+        json={"invitation_token": token, "password": "InvitedLawyer456!"},
+    )
+    invited_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "newlawyer@lexflow.com", "password": "InvitedLawyer123!", "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+    audit = client.get("/api/v1/audit?entity_type=user_invitation&action=create", headers=admin_headers)
+
+    assert blocked.status_code == 403
+    assert invited.status_code == 201
+    assert invited.json()["delivery"] == "email_prepared"
+    assert "invitation_token" not in listed.json()[0]
+    assert listed.json()[0]["email"] == "newlawyer@lexflow.com"
+    assert accepted.status_code == 200
+    assert accepted.json()["status"] == "accepted"
+    assert accepted.json()["user"]["role"] == "lawyer"
+    assert reused.status_code == 401
+    assert invited_login.status_code == 200
+    assert any(entry["entity_type"] == "user_invitation" for entry in audit.json())

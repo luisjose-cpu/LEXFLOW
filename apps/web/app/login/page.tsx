@@ -163,6 +163,9 @@ export default function LoginPage() {
             Tengo un token
           </Link>
         </div>
+        <Link className="mt-3 inline-flex text-sm font-semibold text-legal-900" href="/login/invite">
+          Aceptar invitacion
+        </Link>
         <div className="mt-6 flex items-start gap-2 rounded-lg bg-legal-50 p-3 text-sm text-legal-900">
           <ShieldCheck size={18} aria-hidden="true" />
           <p>Ingreso conectado al API cloud con JWT, contexto tenant y auditoria de acceso.</p>

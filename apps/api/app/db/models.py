@@ -129,6 +129,28 @@ class PasswordResetToken(Base, TimestampMixin):
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class UserInvitation(Base, TimestampMixin):
+    __tablename__ = "user_invitations"
+    __table_args__ = (
+        Index("ix_user_invitations_tenant_id", "tenant_id"),
+        Index("ix_user_invitations_email", "email"),
+        Index("ix_user_invitations_status", "status"),
+        Index("ix_user_invitations_token_hash", "token_hash"),
+        Index("ix_user_invitations_expires_at", "expires_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    email: Mapped[str] = mapped_column(String(240), nullable=False)
+    full_name: Mapped[str] = mapped_column(String(180), nullable=False)
+    role: Mapped[str] = mapped_column(String(80), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(String(40), default="pending", nullable=False)
+    invited_by_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class Client(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "clients"
     __table_args__ = (

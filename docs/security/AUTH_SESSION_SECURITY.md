@@ -11,9 +11,12 @@
 - El token de recuperacion se guarda solo como hash SHA-256, expira segun `PASSWORD_RESET_TOKEN_MINUTES` y revoca sesiones anteriores al completar el cambio.
 - MFA TOTP en `/api/v1/auth/mfa/status|enroll|verify|disable`.
 - El secreto MFA se guarda cifrado, se confirma con codigo temporal y se exige en login cuando `mfa_enabled=true`.
+- Invitaciones de usuarios en `/api/v1/users/invitations` y `/api/v1/auth/invitations/accept`.
+- Las invitaciones permiten que cada usuario defina su propia password y almacenan solo hash del token.
 - `users.refresh_token_version` queda persistido por migracion `20260524_0013`.
 - `password_reset_tokens` queda persistido por migracion `20260524_0014`.
 - Los campos `users.mfa_secret_encrypted` y `users.mfa_confirmed_at` quedan persistidos por migracion `20260524_0015`.
+- `user_invitations` queda persistido por migracion `20260524_0016`.
 - La UI de Settings permite cambiar password y guarda la sesion rotada.
 - La UI de Settings permite activar y desactivar MFA TOTP con rotacion de sesion.
 - La UI de Login permite solicitar recuperacion y confirmar token sin exponer password ni secretos.
@@ -48,9 +51,18 @@ MFA registra `audit_logs` con:
 
 No se registra el secreto MFA ni codigos temporales.
 
+Invitaciones registra `audit_logs` con:
+
+- `entity_type=user_invitation`
+- `action=create|update`
+- correo, rol y estado operativo
+
+No se registra password, hash ni token plano.
+
 ## Pendiente productivo
 
 - Proveedor real de email transaccional para entregar tokens de recuperacion.
+- Proveedor real de email transaccional para entregar invitaciones.
 - MFA obligatorio por politica para admin y owner.
 - Alertas por cambio de password.
 - Politica configurable de complejidad y expiracion.

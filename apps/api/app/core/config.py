@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     access_token_minutes: int = 30
     refresh_token_minutes: int = 60 * 24 * 7
     password_reset_token_minutes: int = 30
+    user_invitation_token_minutes: int = 60 * 24 * 7
     allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     rate_limit_per_minute: int = 600
     max_upload_filename_length: int = 180

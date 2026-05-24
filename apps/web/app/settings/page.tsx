@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { AccountSecurity } from "@/components/account-security";
 import { PlaceholderPage } from "@/components/placeholder-page";
+import { UserInvitations } from "@/components/user-invitations";
 import { Badge, Card, PageHeader } from "@lexflow/ui";
 import { Link2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -38,6 +39,7 @@ export default function SettingsPage() {
             </Link>
           </Card>
           <AccountSecurity />
+          <UserInvitations />
           <PlaceholderPage
             description="Preparado para ajustes de tenant lifecycle, seguridad, facturacion y permisos."
             emptyDescription="El siguiente bloque separa usuarios, roles, billing y politicas por tenant."
