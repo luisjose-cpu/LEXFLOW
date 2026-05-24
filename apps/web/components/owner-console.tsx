@@ -37,6 +37,10 @@ import {
 import {
   API_URL,
   changeOwnerTenantPlan,
+  createOwnerDemo,
+  createOwnerIntervention,
+  createOwnerTenant,
+  createOwnerTicket,
   hasOwnerSession,
   loadOwnerAuditLogs,
   loadOwnerDashboard,
@@ -228,6 +232,9 @@ export function TenantsList() {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState<OwnerDataSource>("demo");
   const [loadedTenants, setLoadedTenants] = useState(ownerTenants);
+  const [tenantForm, setTenantForm] = useState({ name: "", slug: "", plan: "START" });
+  const [createState, setCreateState] = useState<"idle" | "saving" | "error" | "success">("idle");
+  const [createMessage, setCreateMessage] = useState("");
   const tenants = useMemo(() => loadedTenants.filter((tenant) => `${tenant.name} ${tenant.slug} ${tenant.plan}`.toLowerCase().includes(query.toLowerCase())), [loadedTenants, query]);
 
   useEffect(() => {
@@ -252,21 +259,72 @@ export function TenantsList() {
     };
   }, []);
 
+  async function submitTenant(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!hasOwnerSession()) {
+      setCreateState("error");
+      setCreateMessage("Inicia sesion owner para crear tenants auditados.");
+      return;
+    }
+    setCreateState("saving");
+    setCreateMessage("");
+    try {
+      const tenant = await createOwnerTenant({
+        name: tenantForm.name,
+        slug: tenantForm.slug,
+        plan: tenantForm.plan,
+        trial: true
+      });
+      setLoadedTenants((current) => [tenant, ...current.filter((item) => item.id !== tenant.id)]);
+      setTenantForm({ name: "", slug: "", plan: "START" });
+      setSource("live");
+      setCreateState("success");
+      setCreateMessage(`Tenant creado: ${tenant.name}.`);
+    } catch (caught) {
+      setCreateState("error");
+      setCreateMessage(caught instanceof Error ? caught.message : "No se pudo crear el tenant.");
+    }
+  }
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Tenants" title="Gestion de estudios" description="Crea, suspende, reactiva, cambia planes y controla limites por tenant desde una consola separada." />
       <OwnerDataSourceNotice source={source} />
-      <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+      <form className="grid gap-3 rounded-lg border border-white/80 bg-white p-4 shadow-soft lg:grid-cols-[1.2fr_0.8fr_160px_auto]" onSubmit={submitTenant}>
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setTenantForm((current) => ({ ...current, name: event.target.value }))}
+          placeholder="Nombre del estudio"
+          required
+          value={tenantForm.name}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setTenantForm((current) => ({ ...current, slug: event.target.value }))}
+          placeholder="slug-del-tenant"
+          required
+          value={tenantForm.slug}
+        />
+        <select
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-legal-500"
+          onChange={(event) => setTenantForm((current) => ({ ...current, plan: event.target.value }))}
+          value={tenantForm.plan}
+        >
+          {["START", "PRO", "AI", "ENTERPRISE"].map((plan) => <option key={plan} value={plan}>{plan}</option>)}
+        </select>
+        <button className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={createState === "saving"} type="submit">
+          <Users size={16} aria-hidden="true" />
+          {createState === "saving" ? "Creando..." : "Crear tenant"}
+        </button>
+      </form>
+      {createMessage ? <p className={`rounded-md px-3 py-2 text-sm ${createState === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{createMessage}</p> : null}
+      <div className="grid gap-3">
         <input
           className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-legal-500"
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Buscar tenant, plan, slug..."
           value={query}
         />
-        <button className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-legal-900 px-4 text-sm font-semibold text-white" type="button">
-          <Users size={16} aria-hidden="true" />
-          Crear tenant
-        </button>
       </div>
       <div className="grid gap-4">
         {tenants.map((tenant) => <TenantRow key={tenant.id} tenant={tenant} expanded />)}
@@ -584,6 +642,9 @@ export function PlansManager() {
 export function SupportTickets() {
   const [tickets, setTickets] = useState(ownerTickets);
   const [source, setSource] = useState<OwnerDataSource>("demo");
+  const [ticketForm, setTicketForm] = useState({ title: "", tenantId: "", category: "support", priority: "medium" });
+  const [createState, setCreateState] = useState<"idle" | "saving" | "error" | "success">("idle");
+  const [createMessage, setCreateMessage] = useState("");
 
   useEffect(() => {
     if (!hasOwnerSession()) {
@@ -607,10 +668,64 @@ export function SupportTickets() {
     };
   }, []);
 
+  async function submitTicket(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!hasOwnerSession()) {
+      setCreateState("error");
+      setCreateMessage("Inicia sesion owner para crear tickets auditados.");
+      return;
+    }
+    setCreateState("saving");
+    setCreateMessage("");
+    try {
+      const ticket = await createOwnerTicket({
+        title: ticketForm.title,
+        tenant_id: ticketForm.tenantId || null,
+        category: ticketForm.category,
+        priority: ticketForm.priority,
+        body: "Ticket creado desde Owner Console"
+      });
+      setTickets((current) => [ticket, ...current.filter((item) => item.id !== ticket.id)]);
+      setTicketForm({ title: "", tenantId: "", category: "support", priority: "medium" });
+      setSource("live");
+      setCreateState("success");
+      setCreateMessage(`Ticket creado: ${ticket.title}.`);
+    } catch (caught) {
+      setCreateState("error");
+      setCreateMessage(caught instanceof Error ? caught.message : "No se pudo crear el ticket.");
+    }
+  }
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Soporte" title="Tickets y SLA" description="Mesa de ayuda con prioridades, responsables, categorias, historial y resolucion auditada." />
       <OwnerDataSourceNotice source={source} />
+      <form className="grid gap-3 rounded-lg border border-white/80 bg-white p-4 shadow-soft lg:grid-cols-[1fr_220px_180px_auto]" onSubmit={submitTicket}>
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setTicketForm((current) => ({ ...current, title: event.target.value }))}
+          placeholder="Titulo del ticket"
+          required
+          value={ticketForm.title}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setTicketForm((current) => ({ ...current, tenantId: event.target.value }))}
+          placeholder="tenant_id opcional"
+          value={ticketForm.tenantId}
+        />
+        <select
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-legal-500"
+          onChange={(event) => setTicketForm((current) => ({ ...current, priority: event.target.value }))}
+          value={ticketForm.priority}
+        >
+          {["low", "medium", "high", "critical"].map((priority) => <option key={priority} value={priority}>{priority}</option>)}
+        </select>
+        <button className="inline-flex h-11 items-center justify-center rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={createState === "saving"} type="submit">
+          {createState === "saving" ? "Creando..." : "Crear ticket"}
+        </button>
+      </form>
+      {createMessage ? <p className={`rounded-md px-3 py-2 text-sm ${createState === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{createMessage}</p> : null}
       <Card>
         <div className="grid gap-3">
           {tickets.map((ticket) => (
@@ -674,6 +789,9 @@ export function SystemHealth() {
 export function DemoTenants() {
   const [demos, setDemos] = useState(ownerDemos);
   const [source, setSource] = useState<OwnerDataSource>("demo");
+  const [demoForm, setDemoForm] = useState({ name: "", slug: "", demoType: "litigation" });
+  const [createState, setCreateState] = useState<"idle" | "saving" | "error" | "success">("idle");
+  const [createMessage, setCreateMessage] = useState("");
 
   useEffect(() => {
     if (!hasOwnerSession()) {
@@ -697,10 +815,63 @@ export function DemoTenants() {
     };
   }, []);
 
+  async function submitDemo(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!hasOwnerSession()) {
+      setCreateState("error");
+      setCreateMessage("Inicia sesion owner para crear demos auditadas.");
+      return;
+    }
+    setCreateState("saving");
+    setCreateMessage("");
+    try {
+      const demo = await createOwnerDemo({
+        name: demoForm.name || "LEXFLOW Demo Tenant",
+        slug: demoForm.slug || undefined,
+        plan: "AI",
+        demo_type: demoForm.demoType
+      });
+      setDemos((current) => [demo, ...current.filter((item) => item.tenant !== demo.tenant)]);
+      setDemoForm({ name: "", slug: "", demoType: "litigation" });
+      setSource("live");
+      setCreateState("success");
+      setCreateMessage(`Demo creada: ${demo.name}.`);
+    } catch (caught) {
+      setCreateState("error");
+      setCreateMessage(caught instanceof Error ? caught.message : "No se pudo crear la demo.");
+    }
+  }
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Demos" title="Demos comerciales" description="Crea, resetea y carga datos demo por tipo de estudio sin contaminar tenants productivos." />
       <OwnerDataSourceNotice source={source} />
+      <form className="grid gap-3 rounded-lg border border-white/80 bg-white p-4 shadow-soft lg:grid-cols-[1fr_220px_180px_auto]" onSubmit={submitDemo}>
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setDemoForm((current) => ({ ...current, name: event.target.value }))}
+          placeholder="Nombre demo comercial"
+          required
+          value={demoForm.name}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setDemoForm((current) => ({ ...current, slug: event.target.value }))}
+          placeholder="slug-demo opcional"
+          value={demoForm.slug}
+        />
+        <select
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-legal-500"
+          onChange={(event) => setDemoForm((current) => ({ ...current, demoType: event.target.value }))}
+          value={demoForm.demoType}
+        >
+          {["litigation", "corporate", "labor", "tax"].map((demoType) => <option key={demoType} value={demoType}>{demoType}</option>)}
+        </select>
+        <button className="inline-flex h-11 items-center justify-center rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={createState === "saving"} type="submit">
+          {createState === "saving" ? "Creando..." : "Crear demo"}
+        </button>
+      </form>
+      {createMessage ? <p className={`rounded-md px-3 py-2 text-sm ${createState === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{createMessage}</p> : null}
       <div className="grid gap-4 lg:grid-cols-3">
         {demos.map((demo) => (
           <OwnerQuickCard key={demo.tenant} icon={<Sparkles size={18} />} title={demo.name} value={demo.status} detail={`${demo.tenant} - reset ${demo.reset}`} href="/owner/demos" />
@@ -754,6 +925,9 @@ export function OwnerAuditLogs() {
 export function InterventionRequests() {
   const [interventions, setInterventions] = useState(ownerInterventions);
   const [source, setSource] = useState<OwnerDataSource>("demo");
+  const [interventionForm, setInterventionForm] = useState({ tenantId: "", reason: "", duration: "60", scopes: "metadata:read" });
+  const [createState, setCreateState] = useState<"idle" | "saving" | "error" | "success">("idle");
+  const [createMessage, setCreateMessage] = useState("");
 
   useEffect(() => {
     if (!hasOwnerSession()) {
@@ -777,11 +951,72 @@ export function InterventionRequests() {
     };
   }, []);
 
+  async function submitIntervention(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!hasOwnerSession()) {
+      setCreateState("error");
+      setCreateMessage("Inicia sesion owner para crear intervenciones auditadas.");
+      return;
+    }
+    setCreateState("saving");
+    setCreateMessage("");
+    try {
+      const intervention = await createOwnerIntervention({
+        tenant_id: interventionForm.tenantId,
+        reason: interventionForm.reason,
+        duration_minutes: Number(interventionForm.duration),
+        scopes: interventionForm.scopes.split(",").map((scope) => scope.trim()).filter(Boolean)
+      });
+      setInterventions((current) => [intervention, ...current.filter((item) => `${item.tenant}-${item.expires}` !== `${intervention.tenant}-${intervention.expires}`)]);
+      setInterventionForm({ tenantId: "", reason: "", duration: "60", scopes: "metadata:read" });
+      setSource("live");
+      setCreateState("success");
+      setCreateMessage(`Intervencion creada para ${intervention.tenant}.`);
+    } catch (caught) {
+      setCreateState("error");
+      setCreateMessage(caught instanceof Error ? caught.message : "No se pudo crear la intervencion.");
+    }
+  }
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Seguridad soporte" title="Intervenciones temporales" description="Acceso excepcional, con motivo, duracion, alcance limitado, expiracion y audit_log." />
       <OwnerDataSourceNotice source={source} />
       <SecurityBoundaryNotice />
+      <form className="grid gap-3 rounded-lg border border-white/80 bg-white p-4 shadow-soft lg:grid-cols-[240px_1fr_120px_220px_auto]" onSubmit={submitIntervention}>
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setInterventionForm((current) => ({ ...current, tenantId: event.target.value }))}
+          placeholder="tenant_id"
+          required
+          value={interventionForm.tenantId}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setInterventionForm((current) => ({ ...current, reason: event.target.value }))}
+          placeholder="Motivo autorizado"
+          required
+          value={interventionForm.reason}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          max="480"
+          min="5"
+          onChange={(event) => setInterventionForm((current) => ({ ...current, duration: event.target.value }))}
+          type="number"
+          value={interventionForm.duration}
+        />
+        <input
+          className="h-11 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500"
+          onChange={(event) => setInterventionForm((current) => ({ ...current, scopes: event.target.value }))}
+          placeholder="metadata:read"
+          value={interventionForm.scopes}
+        />
+        <button className="inline-flex h-11 items-center justify-center rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={createState === "saving"} type="submit">
+          {createState === "saving" ? "Creando..." : "Crear intervencion"}
+        </button>
+      </form>
+      {createMessage ? <p className={`rounded-md px-3 py-2 text-sm ${createState === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{createMessage}</p> : null}
       <Card>
         <div className="grid gap-3">
           {interventions.map((item) => (

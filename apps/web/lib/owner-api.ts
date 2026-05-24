@@ -67,6 +67,30 @@ type ApiOwnerPlan = {
   limits?: Record<string, unknown>;
 };
 
+type ApiOwnerTicket = {
+  id: string;
+  tenant_id?: string | null;
+  priority: string;
+  status: string;
+  category: string;
+  title: string;
+};
+
+type ApiOwnerDemo = {
+  tenant_id: string;
+  demo_type: string;
+  status: string;
+  last_reset_at?: string | null;
+};
+
+type ApiOwnerIntervention = {
+  tenant_id: string;
+  status: string;
+  reason: string;
+  expires_at: string;
+  scopes: string[];
+};
+
 export async function loadOwnerDashboard() {
   const body = await ownerApiRequest<ApiOwnerDashboard>("/owner/dashboard");
   const mrr = Math.round((body.revenue?.mrr_cents ?? 0) / 100);
@@ -82,6 +106,14 @@ export async function loadOwnerDashboard() {
 export async function loadOwnerTenants(): Promise<OwnerTenant[]> {
   const body = await ownerApiRequest<ApiOwnerTenant[]>("/owner/tenants");
   return body.map(normalizeOwnerTenant);
+}
+
+export async function createOwnerTenant(payload: { name: string; slug: string; plan: string; trial?: boolean; demo_data?: boolean; demo_type?: string }): Promise<OwnerTenant> {
+  const body = await ownerApiRequest<ApiOwnerTenant>("/owner/tenants", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  return normalizeOwnerTenant(body);
 }
 
 export async function loadOwnerTenantDetail(tenantId: string): Promise<OwnerTenant> {
@@ -153,8 +185,16 @@ export async function loadOwnerPlans(): Promise<OwnerPlan[]> {
 }
 
 export async function loadOwnerTickets() {
-  const body = await ownerApiRequest<{ id: string; tenant_id?: string | null; priority: string; status: string; category: string; title: string }[]>("/owner/support/tickets");
-  return body.map((ticket) => ({ ...ticket, tenant: ticket.tenant_id ?? "Sin tenant", sla: ticket.priority === "high" ? "2h" : "8h" }));
+  const body = await ownerApiRequest<ApiOwnerTicket[]>("/owner/support/tickets");
+  return body.map(normalizeOwnerTicket);
+}
+
+export async function createOwnerTicket(payload: { title: string; tenant_id?: string | null; category?: string; priority?: string; body?: string }) {
+  const body = await ownerApiRequest<ApiOwnerTicket>("/owner/support/tickets", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  return normalizeOwnerTicket(body);
 }
 
 export async function loadOwnerSystemChecks() {
@@ -163,13 +203,34 @@ export async function loadOwnerSystemChecks() {
 }
 
 export async function loadOwnerDemos() {
-  const body = await ownerApiRequest<{ tenant_id: string; demo_type: string; status: string; last_reset_at?: string | null }[]>("/owner/demos");
-  return body.map((demo) => ({ name: `Demo ${demo.demo_type}`, status: demo.status, tenant: demo.tenant_id, reset: demo.last_reset_at ?? "pendiente" }));
+  const body = await ownerApiRequest<ApiOwnerDemo[]>("/owner/demos");
+  return body.map(normalizeOwnerDemo);
+}
+
+export async function createOwnerDemo(payload: { name: string; slug?: string; plan?: string; demo_type?: string }) {
+  const body = await ownerApiRequest<{ demo?: ApiOwnerDemo; tenant?: ApiOwnerTenant }>("/owner/demos", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  return normalizeOwnerDemo(body.demo ?? {
+    tenant_id: body.tenant?.id ?? payload.slug ?? "demo-pendiente",
+    demo_type: payload.demo_type ?? "general",
+    status: "ready",
+    last_reset_at: null
+  });
 }
 
 export async function loadOwnerInterventions() {
-  const body = await ownerApiRequest<{ tenant_id: string; status: string; reason: string; expires_at: string; scopes: string[] }[]>("/owner/interventions");
-  return body.map((item) => ({ tenant: item.tenant_id, status: item.status, reason: item.reason, expires: item.expires_at, scopes: item.scopes }));
+  const body = await ownerApiRequest<ApiOwnerIntervention[]>("/owner/interventions");
+  return body.map(normalizeOwnerIntervention);
+}
+
+export async function createOwnerIntervention(payload: { tenant_id: string; reason: string; duration_minutes?: number; scopes?: string[] }) {
+  const body = await ownerApiRequest<ApiOwnerIntervention>("/owner/interventions", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  return normalizeOwnerIntervention(body);
 }
 
 export async function loadOwnerAuditLogs() {
@@ -210,6 +271,33 @@ function normalizeOwnerTenant(tenant: ApiOwnerTenant): OwnerTenant {
     openTickets: 0,
     modules: (tenant.features ?? []).filter((feature) => feature.enabled).map((feature) => feature.feature_key),
     lastSeen: "API cloud"
+  };
+}
+
+function normalizeOwnerTicket(ticket: ApiOwnerTicket) {
+  return {
+    ...ticket,
+    tenant: ticket.tenant_id ?? "Sin tenant",
+    sla: ticket.priority === "high" ? "2h" : "8h"
+  };
+}
+
+function normalizeOwnerDemo(demo: ApiOwnerDemo) {
+  return {
+    name: `Demo ${demo.demo_type}`,
+    status: demo.status,
+    tenant: demo.tenant_id,
+    reset: demo.last_reset_at ?? "pendiente"
+  };
+}
+
+function normalizeOwnerIntervention(item: ApiOwnerIntervention) {
+  return {
+    tenant: item.tenant_id,
+    status: item.status,
+    reason: item.reason,
+    expires: item.expires_at,
+    scopes: item.scopes
   };
 }
 

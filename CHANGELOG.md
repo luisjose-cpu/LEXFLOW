@@ -8,6 +8,7 @@
 - Initial owner bootstrap script using `INITIAL_OWNER_*` environment variables.
 - `/owner/login` page with owner token storage isolated from tenant sessions.
 - Owner Console web API bridge that loads dashboard, tenants, usage, features, plans, tickets, system health, demos, interventions and audit logs from `/api/v1/owner/*` when an owner JWT exists.
+- Owner Console creation flows for tenants, support tickets, commercial demo tenants and temporary interventions through audited backend endpoints.
 - Owner Console tenant lifecycle actions for suspend, reactivate and change plan through audited backend endpoints.
 - Owner Console feature flag save action through audited backend endpoint.
 - Owner-only backend models for owner users, roles, audit logs, health scores, support tickets, feature flags, limits, usage, interventions, demos, system health and incidents.

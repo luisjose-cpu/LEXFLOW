@@ -2,9 +2,9 @@
 
 ## Flujo
 
-1. Se crea ticket con tenant, categoria, prioridad y SLA.
+1. Se crea ticket desde Owner Console con tenant opcional, categoria, prioridad y SLA.
 2. Owner support revisa metadata no sensible.
-3. Si requiere datos protegidos, solicita intervencion temporal.
+3. Si requiere datos protegidos, solicita intervencion temporal desde Owner Console.
 4. La intervencion define scopes, motivo y expiracion.
 5. Se ejecuta soporte dentro del alcance autorizado.
 6. Se resuelve ticket y se registra audit log.

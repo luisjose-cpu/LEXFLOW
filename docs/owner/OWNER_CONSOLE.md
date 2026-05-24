@@ -51,7 +51,7 @@ Endpoints implementados bajo `/api/v1/owner/*`:
 
 ## Estado
 
-READY para piloto controlado con autenticacion owner JWT. El frontend owner consume `/api/v1/owner/*` cuando existe `lexflow.owner_access_token`, ejecuta acciones auditadas para suspender/reactivar tenants, cambiar plan y guardar feature flags, y cae a demo seguro si la API no esta disponible. El fallback por headers queda limitado a `APP_ENV=local|test`.
+READY para piloto controlado con autenticacion owner JWT. El frontend owner consume `/api/v1/owner/*` cuando existe `lexflow.owner_access_token`, permite crear tenants, tickets, demos e intervenciones, ejecuta acciones auditadas para suspender/reactivar tenants, cambiar plan y guardar feature flags, y cae a demo seguro si la API no esta disponible. El fallback por headers queda limitado a `APP_ENV=local|test`.
 
 ## Bootstrap owner
 

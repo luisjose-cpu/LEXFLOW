@@ -46,28 +46,28 @@ Result:
 Command:
 
 ```bash
-npm run test -- --run components/__tests__/owner-console.test.tsx
+npm --workspace apps/web run test -- components/__tests__/owner-console.test.tsx
 ```
 
 Result:
 
-- 5 passed.
+- 11 passed.
 
 Global web command:
 
 ```bash
-npm run test
+npm --workspace apps/web run test
 ```
 
 Result:
 
-- 54 passed.
+- 56 passed.
 
 Build and cloud checks:
 
 ```bash
-npm run lint
-npm run build
+npm --workspace apps/web run lint
+npm --workspace apps/web run build
 npm run cloud:preflight
 ```
 
@@ -89,5 +89,9 @@ Coverage:
 - InterventionRequests.
 - OwnerAuditLogs.
 - Owner dashboard conectado al Owner API cuando existe JWT owner.
+- Owner tenant creation via Owner API.
 - Owner tenant lifecycle actions via Owner API.
 - Owner feature flag save via Owner API.
+- Owner support ticket creation via Owner API.
+- Owner commercial demo tenant creation via Owner API.
+- Owner temporary intervention creation via Owner API.

@@ -103,6 +103,32 @@ describe("Owner Console UI", () => {
     expect(screen.getByText("Cambiar plan")).toBeTruthy();
   });
 
+  it("creates a tenant through the owner API", async () => {
+    localStorage.setItem("lexflow.owner_access_token", "owner-token");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/owner/tenants") && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({ id: "tenant-created", name: "Estudio Delta", slug: "estudio-delta", status: "trial", plan: "PRO", users: 0, cases: 0, health_score: 82 })
+        } as Response;
+      }
+      if (url.includes("/owner/tenants")) return { ok: true, json: async () => [] } as Response;
+      return { ok: false, json: async () => ({}) } as Response;
+    });
+
+    render(<TenantsList />);
+    await waitFor(() => expect(screen.getByText("Owner Console conectado al API cloud.")).toBeTruthy());
+    fireEvent.change(screen.getByPlaceholderText("Nombre del estudio"), { target: { value: "Estudio Delta" } });
+    fireEvent.change(screen.getByPlaceholderText("slug-del-tenant"), { target: { value: "estudio-delta" } });
+    fireEvent.change(screen.getByDisplayValue("START"), { target: { value: "PRO" } });
+    fireEvent.click(screen.getByText("Crear tenant"));
+
+    await waitFor(() => expect(screen.getByText("Tenant creado: Estudio Delta.")).toBeTruthy());
+    expect(screen.getByText("Estudio Delta")).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/tenants"), expect.objectContaining({ method: "POST" }));
+  });
+
   it("renders tenant detail without sensitive tenant data", () => {
     render(<TenantDetail tenantId="tenant-nova" />);
 
@@ -205,5 +231,64 @@ describe("Owner Console UI", () => {
     expect(screen.getByText("Demos comerciales")).toBeTruthy();
     expect(screen.getByText("Intervenciones temporales")).toBeTruthy();
     expect(screen.getByText("Owner audit logs")).toBeTruthy();
+  });
+
+  it("creates support tickets, demo tenants and interventions through owner API", async () => {
+    localStorage.setItem("lexflow.owner_access_token", "owner-token");
+    const tenantId = "11111111-1111-1111-1111-111111111111";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/owner/support/tickets") && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({ id: "ticket-new", tenant_id: tenantId, priority: "high", status: "open", category: "support", title: "Cliente necesita ayuda" })
+        } as Response;
+      }
+      if (url.includes("/owner/support/tickets")) return { ok: true, json: async () => [] } as Response;
+      if (url.includes("/owner/demos") && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({ demo: { tenant_id: tenantId, demo_type: "labor", status: "ready", last_reset_at: null } })
+        } as Response;
+      }
+      if (url.includes("/owner/demos")) return { ok: true, json: async () => [] } as Response;
+      if (url.includes("/owner/interventions") && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({ tenant_id: tenantId, status: "active", reason: "Soporte autorizado por admin", expires_at: "2026-05-24T23:59:00Z", scopes: ["metadata:read"] })
+        } as Response;
+      }
+      if (url.includes("/owner/interventions")) return { ok: true, json: async () => [] } as Response;
+      return { ok: false, json: async () => ({}) } as Response;
+    });
+
+    render(
+      <>
+        <SupportTickets />
+        <DemoTenants />
+        <InterventionRequests />
+      </>
+    );
+    await waitFor(() => expect(screen.getAllByText("Owner Console conectado al API cloud.").length).toBeGreaterThanOrEqual(3));
+
+    fireEvent.change(screen.getByPlaceholderText("Titulo del ticket"), { target: { value: "Cliente necesita ayuda" } });
+    fireEvent.change(screen.getByPlaceholderText("tenant_id opcional"), { target: { value: tenantId } });
+    fireEvent.change(screen.getByDisplayValue("medium"), { target: { value: "high" } });
+    fireEvent.click(screen.getByText("Crear ticket"));
+    await waitFor(() => expect(screen.getByText("Ticket creado: Cliente necesita ayuda.")).toBeTruthy());
+
+    fireEvent.change(screen.getByPlaceholderText("Nombre demo comercial"), { target: { value: "Demo Laboral" } });
+    fireEvent.change(screen.getByDisplayValue("litigation"), { target: { value: "labor" } });
+    fireEvent.click(screen.getByText("Crear demo"));
+    await waitFor(() => expect(screen.getByText("Demo creada: Demo labor.")).toBeTruthy());
+
+    fireEvent.change(screen.getByPlaceholderText("tenant_id"), { target: { value: tenantId } });
+    fireEvent.change(screen.getByPlaceholderText("Motivo autorizado"), { target: { value: "Soporte autorizado por admin" } });
+    fireEvent.click(screen.getByText("Crear intervencion"));
+    await waitFor(() => expect(screen.getByText(`Intervencion creada para ${tenantId}.`)).toBeTruthy());
+
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/support/tickets"), expect.objectContaining({ method: "POST" }));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/demos"), expect.objectContaining({ method: "POST" }));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/interventions"), expect.objectContaining({ method: "POST" }));
   });
 });

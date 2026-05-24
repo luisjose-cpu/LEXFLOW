@@ -2,7 +2,7 @@
 
 ## Operaciones soportadas
 
-- Crear tenant.
+- Crear tenant desde Owner Console usando `/api/v1/owner/tenants`.
 - Editar metadata comercial.
 - Suspender tenant.
 - Reactivar tenant.
@@ -11,6 +11,7 @@
 - Configurar limites.
 - Activar modulos por feature flag.
 - Revisar uso, health score, tickets y billing.
+- Crear demos comerciales aisladas usando `/api/v1/owner/demos`.
 
 ## Auditoria obligatoria
 
