@@ -20,6 +20,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
         response.headers.setdefault("Cache-Control", "no-store")
         return response
 

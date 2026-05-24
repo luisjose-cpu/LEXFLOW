@@ -73,6 +73,7 @@
 - Production readiness now rejects placeholder secret values such as `replace-with...` even when they are long enough.
 - Added `cloud:public-ready` as a strict commercial launch gate for zero readiness blockers and warnings.
 - Web now declares baseline production security headers in Next.js config.
+- API security headers now include HSTS for production transport hardening.
 - Restore drill script now writes non-secret JSON evidence under `reports/restore/`.
 - Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.

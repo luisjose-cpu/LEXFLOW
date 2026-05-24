@@ -6,7 +6,7 @@ LEXFLOW RC1 is acceptable for controlled pilot, not public production.
 
 ## Controls Added In P14
 
-- Security response headers.
+- Security response headers, including `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and HSTS.
 - Configurable CORS origins.
 - Unsafe-method Origin guard.
 - Configurable rate limit.
