@@ -103,6 +103,7 @@
 - Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.
 - Readiness and provider mode telemetry now track `MALWARE_SCANNER_PROVIDER`.
+- Production readiness now warns unless public portal downloads require verified storage and clean malware scan.
 - Added `cloud:revision` to compare deployed API revision with the expected git commit.
 - Manual Cloud CI now runs deployed revision verification before generating release evidence.
 - Added post-deploy runbook for revision, smoke and release evidence validation.

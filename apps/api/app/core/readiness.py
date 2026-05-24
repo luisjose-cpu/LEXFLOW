@@ -185,6 +185,12 @@ def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
             message="A real malware scanner provider is required before public document uploads.",
         ),
         ReadinessCheck(
+            key="verified_document_downloads_required",
+            ok=settings.require_verified_document_downloads,
+            severity="warning",
+            message="Public production should set REQUIRE_VERIFIED_DOCUMENT_DOWNLOADS=true so portal downloads require verified storage and clean malware scan.",
+        ),
+        ReadinessCheck(
             key="email_configured",
             ok=settings.email_provider == "prepared"
             or (

@@ -24,6 +24,7 @@ Mientras no se configuren proveedores reales, readiness mantiene warnings:
 - `credential_encryption_key_configured`: configurar `CREDENTIAL_ENCRYPTION_KEY` dedicado y fuerte para credenciales cifradas y MFA.
 - `failed_login_backend_redis`: configurar `FAILED_LOGIN_BACKEND=redis` para bloqueo de intentos fallidos entre replicas.
 - `malware_scanner_configured`: configurar `MALWARE_SCANNER_PROVIDER` real antes de cargas publicas.
+- `verified_document_downloads_required`: activar `REQUIRE_VERIFIED_DOCUMENT_DOWNLOADS=true` para descargas del portal.
 - `restore_drill_recent`: ejecutar restore drill aislado, validar `db:restore-evidence` y registrar `RESTORE_DRILL_VERIFIED_AT`.
 
 Si el cloud todavia no muestra `malware_scanner_configured`, significa que Render no esta corriendo el ultimo commit. Ejecutar `npm run cloud:revision` y redeploy latest `master`.

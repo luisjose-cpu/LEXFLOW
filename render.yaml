@@ -48,6 +48,8 @@ services:
         value: local
       - key: STORAGE_LOCAL_ROOT
         value: /var/lib/lexflow/storage
+      - key: REQUIRE_VERIFIED_DOCUMENT_DOWNLOADS
+        value: "true"
       - key: STORAGE_PUBLIC_BASE_URL
         sync: false
       - key: MALWARE_SCANNER_PROVIDER

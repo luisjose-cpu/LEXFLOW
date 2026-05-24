@@ -19,6 +19,7 @@ def production_settings(**overrides: object) -> Settings:
         "failed_login_backend": "redis",
         "rate_limit_per_minute": 120,
         "restore_drill_verified_at": datetime.now(timezone.utc).isoformat(),
+        "require_verified_document_downloads": True,
     }
     base.update(overrides)
     return Settings(**base)
@@ -80,6 +81,13 @@ def test_production_readiness_warns_without_recent_restore_drill() -> None:
     warning_keys = {item["key"] for item in report["warnings"]}
 
     assert "restore_drill_recent" in warning_keys
+
+
+def test_production_readiness_warns_when_verified_downloads_are_not_required() -> None:
+    report = production_readiness_report(production_settings(require_verified_document_downloads=False))
+    warning_keys = {item["key"] for item in report["warnings"]}
+
+    assert "verified_document_downloads_required" in warning_keys
 
 
 def test_production_readiness_rejects_stale_restore_drill_evidence() -> None:

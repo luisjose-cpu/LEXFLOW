@@ -30,6 +30,7 @@ Ruta recomendada para staging:
 - Normalizacion de `postgres://` y `postgresql://` a `postgresql+psycopg://`.
 - Backend S3/R2 real para documentos via API proxy firmado.
 - Readiness warning `storage_backend_public_ready` cuando produccion sigue usando `STORAGE_BACKEND=local`.
+- Readiness warning `verified_document_downloads_required` cuando las descargas del portal no exigen verificacion de storage y malware scan limpio.
 - Render cron `lexflow-security-alert-deliveries` para procesar entregas criticas cada 15 minutos.
 - Scripts `db:backup`, `db:backup-retention`, `db:restore-drill` y `db:restore-evidence` para backup PostgreSQL, retencion segura, restore drill aislado y gate de evidencia reciente.
 - Runbook de rollback cloud: [ROLLBACK_RUNBOOK.md](ROLLBACK_RUNBOOK.md).
