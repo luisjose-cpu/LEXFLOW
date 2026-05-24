@@ -23,6 +23,29 @@ export function hasOwnerSession() {
   return Boolean(getOwnerAccessToken());
 }
 
+export function clearOwnerSession() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("lexflow.owner_access_token");
+  localStorage.removeItem("lexflow.owner_refresh_token");
+  localStorage.removeItem("lexflow.owner_user");
+}
+
+export async function logoutOwner() {
+  const token = getOwnerAccessToken();
+  try {
+    if (token) {
+      await fetch(`${API_URL}/api/v1/owner/auth/logout`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+    }
+  } finally {
+    clearOwnerSession();
+  }
+}
+
 export async function ownerApiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getOwnerAccessToken();
   const response = await fetch(`${API_URL}/api/v1${path}`, {

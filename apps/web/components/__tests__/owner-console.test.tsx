@@ -47,6 +47,29 @@ describe("Owner Console UI", () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/owner/auth/login"), expect.objectContaining({ method: "POST" }));
   });
 
+  it("logs out owner sessions and clears stored owner tokens", async () => {
+    localStorage.setItem("lexflow.owner_access_token", "owner-token");
+    localStorage.setItem("lexflow.owner_refresh_token", "owner-refresh");
+    localStorage.setItem("lexflow.owner_user", JSON.stringify({ email: "owner@lexflow.test", role: "owner_admin" }));
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/owner/auth/logout")) return { ok: true } as Response;
+      if (url.includes("/owner/dashboard")) return { ok: true, json: async () => ({}) } as Response;
+      if (url.includes("/owner/tenants")) return { ok: true, json: async () => [] } as Response;
+      if (url.includes("/owner/system/health")) return { ok: true, json: async () => ({ checks: [] }) } as Response;
+      return { ok: false, json: async () => ({}) } as Response;
+    });
+
+    render(<OwnerDashboard />);
+    fireEvent.click(await screen.findByText("Cerrar sesion"));
+
+    await waitFor(() => expect(localStorage.getItem("lexflow.owner_access_token")).toBeNull());
+    expect(localStorage.getItem("lexflow.owner_refresh_token")).toBeNull();
+    expect(localStorage.getItem("lexflow.owner_user")).toBeNull();
+    expect(screen.getByText("Sesion owner cerrada.")).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/owner/auth/logout"), expect.objectContaining({ method: "POST" }));
+  });
+
   it("renders owner dashboard with SaaS metrics and security boundary", () => {
     render(<OwnerDashboard />);
 

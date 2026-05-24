@@ -51,7 +51,7 @@ npm --workspace apps/web run test -- components/__tests__/owner-console.test.tsx
 
 Result:
 
-- 11 passed.
+- 12 passed.
 
 Global web command:
 
@@ -61,7 +61,7 @@ npm --workspace apps/web run test
 
 Result:
 
-- 56 passed.
+- 57 passed.
 
 Build and cloud checks:
 
@@ -89,6 +89,7 @@ Coverage:
 - InterventionRequests.
 - OwnerAuditLogs.
 - Owner dashboard conectado al Owner API cuando existe JWT owner.
+- Owner logout remoto y limpieza de tokens locales owner.
 - Owner tenant creation via Owner API.
 - Owner tenant lifecycle actions via Owner API.
 - Owner feature flag save via Owner API.

@@ -33,6 +33,8 @@ Toda intervencion debe registrar:
 
 Owner Console usa JWT owner dedicado con refresh token versionado, logout revocando tokens y bootstrap por variables de entorno. El fallback por headers owner queda permitido solo en `APP_ENV=local` o `APP_ENV=test`.
 
+El frontend owner expone logout dedicado, llama `/owner/auth/logout` cuando existe JWT y limpia `lexflow.owner_access_token`, `lexflow.owner_refresh_token` y `lexflow.owner_user`.
+
 Pendientes antes de produccion publica:
 
 - MFA enforcement real.

@@ -7,6 +7,7 @@
 - Owner JWT authentication endpoints for login, refresh, logout and me.
 - Initial owner bootstrap script using `INITIAL_OWNER_*` environment variables.
 - `/owner/login` page with owner token storage isolated from tenant sessions.
+- Owner Console logout action that calls `/owner/auth/logout` and clears owner-only local tokens.
 - Owner Console web API bridge that loads dashboard, tenants, usage, features, plans, tickets, system health, demos, interventions and audit logs from `/api/v1/owner/*` when an owner JWT exists.
 - Owner Console creation flows for tenants, support tickets, commercial demo tenants and temporary interventions through audited backend endpoints.
 - Owner Console support ticket resolution through audited backend endpoint.

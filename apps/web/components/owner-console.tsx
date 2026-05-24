@@ -13,6 +13,7 @@ import {
   Headphones,
   LifeBuoy,
   LockKeyhole,
+  LogOut,
   PackageCheck,
   ShieldCheck,
   Sparkles,
@@ -53,6 +54,7 @@ import {
   loadOwnerTenantUsage,
   loadOwnerTenants,
   loadOwnerTickets,
+  logoutOwner,
   reactivateOwnerTenant,
   resolveOwnerTicket,
   suspendOwnerTenant,
@@ -135,6 +137,25 @@ export function OwnerLogin() {
 }
 
 export function OwnerConsoleShell({ children }: { children: ReactNode }) {
+  const [sessionActive, setSessionActive] = useState(false);
+  const [logoutMessage, setLogoutMessage] = useState("");
+
+  useEffect(() => {
+    setSessionActive(hasOwnerSession());
+  }, []);
+
+  async function logout() {
+    setLogoutMessage("");
+    try {
+      await logoutOwner();
+      setLogoutMessage("Sesion owner cerrada.");
+    } catch {
+      setLogoutMessage("Sesion local owner cerrada. Revisa conectividad para logout remoto.");
+    } finally {
+      setSessionActive(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-mist text-ink">
       <div className="border-b border-slate-200 bg-white">
@@ -154,8 +175,19 @@ export function OwnerConsoleShell({ children }: { children: ReactNode }) {
                 {item.label}
               </Link>
             ))}
+            {sessionActive ? (
+              <button className="inline-flex whitespace-nowrap rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-legal-50 hover:text-legal-800" onClick={() => void logout()} type="button">
+                <LogOut className="mr-2" size={16} aria-hidden="true" />
+                Cerrar sesion
+              </button>
+            ) : (
+              <Link className="whitespace-nowrap rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-legal-50 hover:text-legal-800" href="/owner/login">
+                Owner login
+              </Link>
+            )}
           </nav>
         </div>
+        {logoutMessage ? <div className="mx-auto max-w-7xl px-4 pb-4 text-sm font-medium text-legal-900 sm:px-6">{logoutMessage}</div> : null}
       </div>
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:py-8">{children}</div>
     </main>
