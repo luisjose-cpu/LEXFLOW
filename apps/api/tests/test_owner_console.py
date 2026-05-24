@@ -168,6 +168,24 @@ def test_owner_system_incident_lifecycle_and_audit(api: TestClient, db_session: 
     assert {audit.action for audit in audits} >= {"system_incident_created", "system_incident_resolved"}
 
 
+def test_owner_demo_reset_and_audit(api: TestClient, db_session: Session) -> None:
+    created = api.post(
+        "/api/v1/owner/demos",
+        headers=owner_headers("owner_sales"),
+        json={"name": "Demo Laboral", "slug": "demo-laboral-reset", "demo_type": "labor"},
+    )
+    reset = api.post(f"/api/v1/owner/demos/{created.json()['demo']['id']}/reset", headers=owner_headers("owner_sales"), json={"reason": "preparar demo comercial"})
+    forbidden = api.post(f"/api/v1/owner/demos/{created.json()['demo']['id']}/reset", headers=owner_headers("owner_support"), json={"reason": "sin permiso"})
+
+    audits = db_session.scalars(select(OwnerAuditLog).where(OwnerAuditLog.action == "demo_tenant_reset")).all()
+    assert created.status_code == 201
+    assert reset.status_code == 200
+    assert reset.json()["status"] == "ready"
+    assert reset.json()["last_reset_at"]
+    assert forbidden.status_code == 403
+    assert audits
+
+
 def test_owner_plan_create_update_and_audit(api: TestClient, db_session: Session) -> None:
     created = api.post(
         "/api/v1/owner/plans",

@@ -397,10 +397,16 @@ describe("Owner Console UI", () => {
         } as Response;
       }
       if (url.includes("/owner/support/tickets")) return { ok: true, json: async () => [] } as Response;
+      if (url.includes(`/owner/demos/${tenantId}/reset`)) {
+        return {
+          ok: true,
+          json: async () => ({ id: tenantId, tenant_id: tenantId, demo_type: "labor", status: "ready", last_reset_at: "2026-05-24T21:10:00Z" })
+        } as Response;
+      }
       if (url.includes("/owner/demos") && init?.method === "POST") {
         return {
           ok: true,
-          json: async () => ({ demo: { tenant_id: tenantId, demo_type: "labor", status: "ready", last_reset_at: null } })
+          json: async () => ({ demo: { id: tenantId, tenant_id: tenantId, demo_type: "labor", status: "ready", last_reset_at: null } })
         } as Response;
       }
       if (url.includes("/owner/demos")) return { ok: true, json: async () => [] } as Response;
@@ -441,6 +447,8 @@ describe("Owner Console UI", () => {
     fireEvent.change(screen.getByDisplayValue("litigation"), { target: { value: "labor" } });
     fireEvent.click(screen.getByText("Crear demo"));
     await waitFor(() => expect(screen.getByText("Demo creada: Demo labor.")).toBeTruthy());
+    fireEvent.click(screen.getByText("Reset demo"));
+    await waitFor(() => expect(screen.getByText("Demo reseteada: Demo labor.")).toBeTruthy());
 
     fireEvent.change(screen.getByPlaceholderText("tenant_id"), { target: { value: tenantId } });
     fireEvent.change(screen.getByPlaceholderText("Motivo autorizado"), { target: { value: "Soporte autorizado por admin" } });
@@ -452,6 +460,7 @@ describe("Owner Console UI", () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/support/tickets"), expect.objectContaining({ method: "POST" }));
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/support/tickets/ticket-new/resolve"), expect.objectContaining({ method: "POST" }));
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/demos"), expect.objectContaining({ method: "POST" }));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining(`/owner/demos/${tenantId}/reset`), expect.objectContaining({ method: "POST" }));
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/interventions"), expect.objectContaining({ method: "POST" }));
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/interventions/intervention-new/close"), expect.objectContaining({ method: "POST" }));
   });

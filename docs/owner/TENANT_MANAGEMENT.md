@@ -13,6 +13,7 @@
 - Activar modulos por feature flag.
 - Revisar uso, health score, tickets y billing.
 - Crear demos comerciales aisladas usando `/api/v1/owner/demos`.
+- Resetear demos comerciales usando `/api/v1/owner/demos/{id}/reset` antes de una reunion o piloto.
 
 ## Auditoria obligatoria
 

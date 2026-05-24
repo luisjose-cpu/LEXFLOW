@@ -12,7 +12,7 @@ python -m pytest tests/test_owner_console.py -q
 
 Result:
 
-- 7 passed.
+- 8 passed.
 
 Coverage:
 
@@ -32,6 +32,7 @@ Coverage:
 - crear y expirar intervencion.
 - cerrar intervencion temporal manualmente.
 - crear y resolver incidente tecnico owner.
+- resetear demo comercial.
 - health score calculado.
 - audit log creado.
 
@@ -43,7 +44,7 @@ python -m pytest -q
 
 Result:
 
-- 103 passed.
+- 104 passed.
 
 ## Frontend
 
@@ -102,6 +103,7 @@ Coverage:
 - Owner support ticket creation via Owner API.
 - Owner support ticket resolution via Owner API.
 - Owner commercial demo tenant creation via Owner API.
+- Owner commercial demo tenant reset via Owner API.
 - Owner temporary intervention creation via Owner API.
 - Owner temporary intervention manual close via Owner API.
 - Owner system incident creation and resolution via Owner API.

@@ -293,7 +293,7 @@ class OwnerConsoleService:
 
     def demos(self, db: Session) -> list[dict[str, object]]:
         demos = db.scalars(select(dbm.DemoTenant).order_by(dbm.DemoTenant.created_at.desc())).all()
-        return [{"id": item.id, "tenant_id": item.tenant_id, "demo_type": item.demo_type, "status": item.status, "last_reset_at": item.last_reset_at.isoformat() if item.last_reset_at else None} for item in demos]
+        return [self._demo(item) for item in demos]
 
     def create_demo(self, db: Session, *, owner: OwnerPrincipal, payload: dict[str, object], request_id: str | None = None) -> dict[str, object]:
         tenant_payload = {
@@ -306,6 +306,17 @@ class OwnerConsoleService:
         }
         detail = self.create_tenant(db, owner=owner, payload=tenant_payload, request_id=request_id)
         return {"tenant": detail, "demo": self.demos(db)[0]}
+
+    def reset_demo(self, db: Session, *, owner: OwnerPrincipal, demo_id: UUID | str, reason: str, request_id: str | None = None) -> dict[str, object]:
+        demo = db.get(dbm.DemoTenant, str(demo_id))
+        if not demo:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Demo tenant not found")
+        demo.status = "ready"
+        demo.last_reset_at = now_utc()
+        demo.metadata_json = {**(demo.metadata_json or {}), "last_reset_reason": reason, "reset_by": owner.email}
+        self.audit(db, owner=owner, action="demo_tenant_reset", entity_type="demo_tenant", entity_id=demo.id, tenant_id=demo.tenant_id, reason=reason, metadata={"demo_type": demo.demo_type, "last_reset_at": demo.last_reset_at.isoformat()}, request_id=request_id)
+        db.commit()
+        return self._demo(demo)
 
     def interventions(self, db: Session) -> list[dict[str, object]]:
         self.expire_interventions(db)
@@ -483,6 +494,10 @@ class OwnerConsoleService:
             "created_at": row.created_at.isoformat(),
             "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None,
         }
+
+    @staticmethod
+    def _demo(row: dbm.DemoTenant) -> dict[str, object]:
+        return {"id": row.id, "tenant_id": row.tenant_id, "demo_type": row.demo_type, "status": row.status, "last_reset_at": row.last_reset_at.isoformat() if row.last_reset_at else None}
 
     @staticmethod
     def _plan_price_cents(plan: str) -> int:

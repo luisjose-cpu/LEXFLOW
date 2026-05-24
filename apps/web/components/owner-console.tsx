@@ -64,6 +64,7 @@ import {
   reactivateOwnerTenant,
   resolveOwnerSystemIncident,
   resolveOwnerTicket,
+  resetOwnerDemo,
   suspendOwnerTenant,
   updateOwnerLimits,
   updateOwnerPlan,
@@ -1113,6 +1114,7 @@ export function DemoTenants() {
   const [demoForm, setDemoForm] = useState({ name: "", slug: "", demoType: "litigation" });
   const [createState, setCreateState] = useState<"idle" | "saving" | "error" | "success">("idle");
   const [createMessage, setCreateMessage] = useState("");
+  const [resettingDemoId, setResettingDemoId] = useState("");
 
   useEffect(() => {
     if (!hasOwnerSession()) {
@@ -1124,7 +1126,7 @@ export function DemoTenants() {
     loadOwnerDemos()
       .then((payload) => {
         if (!active) return;
-        setDemos(payload.length ? payload : ownerDemos);
+        setDemos(payload);
         setSource("live");
       })
       .catch(() => {
@@ -1163,6 +1165,28 @@ export function DemoTenants() {
     }
   }
 
+  async function resetDemo(demoId: string) {
+    if (!hasOwnerSession()) {
+      setCreateState("error");
+      setCreateMessage("Inicia sesion owner para resetear demos auditadas.");
+      return;
+    }
+    setResettingDemoId(demoId);
+    setCreateMessage("");
+    try {
+      const demo = await resetOwnerDemo(demoId);
+      setDemos((current) => current.map((item) => item.id === demo.id ? demo : item));
+      setSource("live");
+      setCreateState("success");
+      setCreateMessage(`Demo reseteada: ${demo.name}.`);
+    } catch (caught) {
+      setCreateState("error");
+      setCreateMessage(caught instanceof Error ? caught.message : "No se pudo resetear la demo.");
+    } finally {
+      setResettingDemoId("");
+    }
+  }
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Demos" title="Demos comerciales" description="Crea, resetea y carga datos demo por tipo de estudio sin contaminar tenants productivos." />
@@ -1195,7 +1219,14 @@ export function DemoTenants() {
       {createMessage ? <p className={`rounded-md px-3 py-2 text-sm ${createState === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{createMessage}</p> : null}
       <div className="grid gap-4 lg:grid-cols-3">
         {demos.map((demo) => (
-          <OwnerQuickCard key={demo.tenant} icon={<Sparkles size={18} />} title={demo.name} value={demo.status} detail={`${demo.tenant} - reset ${demo.reset}`} href="/owner/demos" />
+          <div className="rounded-lg border border-white/80 bg-white p-5 shadow-soft" key={demo.id ?? demo.tenant}>
+            <div className="flex items-center gap-2 text-sm font-semibold text-legal-700"><Sparkles size={18} /><span>{demo.name}</span></div>
+            <p className="mt-3 text-2xl font-semibold text-ink">{demo.status}</p>
+            <p className="mt-1 text-sm text-slate-500">{demo.tenant} - reset {demo.reset}</p>
+            <button className="mt-4 rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-legal-50 disabled:opacity-60" disabled={resettingDemoId === demo.id} onClick={() => void resetDemo(demo.id)} type="button">
+              {resettingDemoId === demo.id ? "Reseteando..." : "Reset demo"}
+            </button>
+          </div>
         ))}
       </div>
     </OwnerConsoleShell>

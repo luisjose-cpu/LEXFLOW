@@ -103,6 +103,7 @@ type ApiOwnerTicket = {
 };
 
 type ApiOwnerDemo = {
+  id?: string;
   tenant_id: string;
   demo_type: string;
   status: string;
@@ -316,6 +317,14 @@ export async function createOwnerDemo(payload: { name: string; slug?: string; pl
   });
 }
 
+export async function resetOwnerDemo(demoId: string, reason = "Reset de demo desde Owner Console") {
+  const body = await ownerApiRequest<ApiOwnerDemo>(`/owner/demos/${demoId}/reset`, {
+    method: "POST",
+    body: JSON.stringify({ reason })
+  });
+  return normalizeOwnerDemo(body);
+}
+
 export async function loadOwnerInterventions() {
   const body = await ownerApiRequest<ApiOwnerIntervention[]>("/owner/interventions");
   return body.map(normalizeOwnerIntervention);
@@ -400,6 +409,7 @@ function normalizeOwnerPlan(plan: ApiOwnerPlan): OwnerPlan {
 
 function normalizeOwnerDemo(demo: ApiOwnerDemo) {
   return {
+    id: demo.id ?? demo.tenant_id,
     name: `Demo ${demo.demo_type}`,
     status: demo.status,
     tenant: demo.tenant_id,

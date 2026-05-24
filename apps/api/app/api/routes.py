@@ -667,6 +667,11 @@ def owner_create_demo_tenant(payload: OwnerDemoCreate, owner: Annotated[OwnerPri
     return owner_console_service.create_demo(db, owner=owner, payload=payload.model_dump(exclude_none=True), request_id=getattr(request.state, "request_id", None))
 
 
+@router.post("/owner/demos/{demo_id}/reset")
+def owner_reset_demo_tenant(demo_id: UUID, payload: OwnerReasonRequest, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("demos:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.reset_demo(db, owner=owner, demo_id=demo_id, reason=payload.reason, request_id=getattr(request.state, "request_id", None))
+
+
 @router.get("/owner/interventions")
 def owner_interventions(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
     return owner_console_service.interventions(db)

@@ -139,9 +139,9 @@ export const ownerSystemIncidents = [
 ];
 
 export const ownerDemos = [
-  { name: "Demo litigios", status: "ready", tenant: "demo-litigios", reset: "2026-05-24 06:00" },
-  { name: "Demo corporativo", status: "ready", tenant: "demo-corp", reset: "2026-05-24 06:00" },
-  { name: "Demo cobranza", status: "refreshing", tenant: "demo-cobranza", reset: "2026-05-23 23:30" }
+  { id: "demo-litigios", name: "Demo litigios", status: "ready", tenant: "demo-litigios", reset: "2026-05-24 06:00" },
+  { id: "demo-corp", name: "Demo corporativo", status: "ready", tenant: "demo-corp", reset: "2026-05-24 06:00" },
+  { id: "demo-cobranza", name: "Demo cobranza", status: "refreshing", tenant: "demo-cobranza", reset: "2026-05-23 23:30" }
 ];
 
 export const ownerAuditLogs = [
