@@ -15,6 +15,16 @@ on:
         description: "Public web URL for post-deploy smoke"
         required: false
         type: string
+      wait_for_revision:
+        description: "Wait until API /version reports this workflow commit"
+        required: false
+        default: false
+        type: boolean
+      public_ready_gate:
+        description: "Run strict public production readiness gate"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   validate:
@@ -69,6 +79,13 @@ jobs:
           LEXFLOW_API_URL: ${{ inputs.api_url }}
         run: ./scripts/cloud-revision.ps1
 
+      - name: Wait for deployed revision
+        if: inputs.wait_for_revision
+        shell: pwsh
+        env:
+          LEXFLOW_API_URL: ${{ inputs.api_url }}
+        run: ./scripts/cloud-wait-revision.ps1
+
       - name: Run cloud release evidence
         shell: pwsh
         env:
@@ -78,6 +95,13 @@ jobs:
           LEXFLOW_SMOKE_ADMIN_EMAIL: ${{ secrets.LEXFLOW_SMOKE_ADMIN_EMAIL }}
           LEXFLOW_SMOKE_ADMIN_PASSWORD: ${{ secrets.LEXFLOW_SMOKE_ADMIN_PASSWORD }}
         run: ./scripts/cloud-release-evidence.ps1
+
+      - name: Run public production gate
+        if: inputs.public_ready_gate
+        shell: pwsh
+        env:
+          LEXFLOW_API_URL: ${{ inputs.api_url }}
+        run: ./scripts/cloud-public-ready.ps1
 
       - name: Upload release evidence
         uses: actions/upload-artifact@v4

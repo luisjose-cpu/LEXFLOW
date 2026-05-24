@@ -56,6 +56,8 @@ npm run cloud:public-ready
 8. Confirmar `revision.matches_expected=true` cuando Render/Vercel ya expongan revision.
 9. Si `cloud:wait-revision` expira, usar `Manual Deploy -> Deploy latest commit` en Render y repetir desde el paso 3.
 
+El workflow manual `Cloud CI` acepta `wait_for_revision=true` y `public_ready_gate=true` para ejecutar estos pasos desde GitHub Actions.
+
 ## Criterios de salida
 
 - `/health` responde 200.

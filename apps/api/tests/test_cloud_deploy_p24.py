@@ -89,6 +89,10 @@ def test_cloud_ci_runs_release_gates() -> None:
     assert "production-gate.ps1 -Fast" in workflow
     assert "cloud-release-evidence.ps1" in workflow
     assert "cloud-revision.ps1" in workflow
+    assert "cloud-wait-revision.ps1" in workflow
+    assert "cloud-public-ready.ps1" in workflow
+    assert "public_ready_gate" in workflow
+    assert "wait_for_revision" in workflow
     assert "actions/upload-artifact@v4" in workflow
     assert "lexflow-cloud-release-evidence" in workflow
 

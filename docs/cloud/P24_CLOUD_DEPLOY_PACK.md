@@ -140,6 +140,7 @@ GitHub Actions ejecuta:
 - production gate fast
 - revision check manual con `cloud:revision`
 - espera de redeploy con `cloud:wait-revision`
+- gate publico estricto opcional con `cloud:public-ready`
 - post-deploy release evidence manual con `workflow_dispatch` e inputs `api_url` / `web_url`
 - artifact `lexflow-cloud-release-evidence` con el JSON generado por `cloud:evidence`
 
@@ -150,6 +151,11 @@ El workflow corre en `main` y `master`. Para habilitar login tenant en el smoke 
 - `LEXFLOW_SMOKE_TENANT_SLUG`
 - `LEXFLOW_SMOKE_ADMIN_EMAIL`
 - `LEXFLOW_SMOKE_ADMIN_PASSWORD`
+
+Inputs manuales recomendados:
+
+- `wait_for_revision=true` si Render acaba de iniciar deploy y se quiere esperar el commit del workflow.
+- `public_ready_gate=true` solo para validar salida comercial publica sin warnings.
 
 ## Pendiente antes de produccion publica
 
