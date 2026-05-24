@@ -3,9 +3,11 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CaseCreateWizard,
+  CaseList,
   CaseResourcePage,
   CasesDashboard,
   ClientDetail,
+  ClientList,
   ClientOnboardingWizard,
   SearchGlobalBar
 } from "@/components/operational-core";
@@ -59,6 +61,65 @@ describe("Operational core UI", () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/dashboard/search?q=live"), expect.objectContaining({
       headers: expect.objectContaining({ Authorization: "Bearer token" })
     }));
+  });
+
+  it("loads clients and cases from the cloud API when authenticated", async () => {
+    localStorage.setItem("lexflow.access_token", "token");
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/clients/search")) {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              id: "client-cloud",
+              name: "Cliente Cloud",
+              contact_email: "cloud@cliente.demo",
+              status: "active",
+              risk_profile: "high",
+              tags: ["cloud"],
+              case_count: 2,
+              active_case_count: 1
+            }
+          ]
+        } as Response;
+      }
+      if (url.includes("/cases/search")) {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              id: "case-cloud",
+              client_id: "client-cloud",
+              client_name: "Cliente Cloud",
+              title: "Expediente Cloud",
+              matter: "Litigio cloud",
+              external_case_number: "0001-2026",
+              status: "active",
+              priority: "alta",
+              risk: "high",
+              next_action: "Revisar SINOE",
+              critical_deadline: "2026-06-01T10:00:00",
+              judicial_updates: 1,
+              captcha_pending: 0
+            }
+          ]
+        } as Response;
+      }
+      return { ok: false, json: async () => ({}) } as Response;
+    });
+
+    render(
+      <>
+        <ClientList />
+        <CaseList />
+      </>
+    );
+
+    await waitFor(() => expect(screen.getByText("Cliente Cloud")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Expediente Cloud")).toBeTruthy());
+    expect(screen.getByText("Clientes conectados al API cloud.")).toBeTruthy();
+    expect(screen.getByText("Expedientes conectados al API cloud.")).toBeTruthy();
   });
 
   it("renders client detail with cases, risk, documents, timeline and communications", () => {

@@ -6,6 +6,7 @@
 
 - Global operational search across dashboard, clients, cases and Expediente 360 surfaces.
 - Cloud-ready search bridge that calls `/api/v1/dashboard/search` with JWT when a user session exists.
+- Cloud-ready client and case lists that call `/api/v1/clients/search` and `/api/v1/cases/search` with JWT.
 - Client module routes for list, create wizard, profile and edit views.
 - Case module routes for list, create, edit, documents, hearings, communications, SINOE judicial updates, automation and intelligence.
 - Advanced client and case UI components for metrics, risk, timelines, tags, documents, communications and resource panels.
@@ -15,7 +16,7 @@
 ### Changed
 
 - App shell now exposes `SearchGlobalBar` as a persistent Legal OS search layer.
-- Global search keeps recent searches and favorites in browser storage, with demo fallback when the API is unavailable.
+- Global search and operational lists keep demo fallback when the API is unavailable.
 - Judicial update views consume the existing SINOE module instead of duplicating judicial automation logic.
 
 ## 2026-05-24 - SINOE Integration Foundation

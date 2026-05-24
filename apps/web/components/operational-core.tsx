@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import React, { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
-import { hasCloudSession, searchOperational } from "@/lib/lexflow-api";
+import { hasCloudSession, loadOperationalCases, loadOperationalClients, searchOperational } from "@/lib/lexflow-api";
 import {
   CaseOps,
   ClientOps,
@@ -155,10 +155,40 @@ function mergeUnique(items: string[], limit: number) {
   return Array.from(new Set(items.filter(Boolean))).slice(0, limit);
 }
 
-export function ClientList({ clients = clientsOps }: { clients?: ClientOps[] }) {
+export function ClientList({ clients }: { clients?: ClientOps[] }) {
+  const [liveClients, setLiveClients] = useState<ClientOps[] | null>(null);
+  const [source, setSource] = useState<"demo" | "loading" | "live" | "fallback">(clients ? "demo" : "loading");
+  const visibleClients = clients ?? liveClients ?? clientsOps;
+
+  useEffect(() => {
+    if (clients || !hasCloudSession()) {
+      setSource("demo");
+      return;
+    }
+
+    let active = true;
+    setSource("loading");
+    void loadOperationalClients()
+      .then((payload) => {
+        if (!active) return;
+        setLiveClients(payload.length ? payload : null);
+        setSource(payload.length ? "live" : "fallback");
+      })
+      .catch(() => {
+        if (!active) return;
+        setLiveClients(null);
+        setSource("fallback");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [clients]);
+
   return (
     <div className="grid gap-4">
-      {clients.map((client) => (
+      <DataSourceNotice source={source} entity="clientes" />
+      {visibleClients.map((client) => (
         <ClientCard key={client.id} client={client} />
       ))}
     </div>
@@ -325,8 +355,42 @@ export function ClientInfo({ client }: { client: ClientOps }) {
   );
 }
 
-export function CaseList({ cases = casesOps }: { cases?: CaseOps[] }) {
-  return <div className="grid gap-4">{cases.map((legalCase) => <CaseCard key={legalCase.id} legalCase={legalCase} />)}</div>;
+export function CaseList({ cases }: { cases?: CaseOps[] }) {
+  const [liveCases, setLiveCases] = useState<CaseOps[] | null>(null);
+  const [source, setSource] = useState<"demo" | "loading" | "live" | "fallback">(cases ? "demo" : "loading");
+  const visibleCases = cases ?? liveCases ?? casesOps;
+
+  useEffect(() => {
+    if (cases || !hasCloudSession()) {
+      setSource("demo");
+      return;
+    }
+
+    let active = true;
+    setSource("loading");
+    void loadOperationalCases()
+      .then((payload) => {
+        if (!active) return;
+        setLiveCases(payload.length ? payload : null);
+        setSource(payload.length ? "live" : "fallback");
+      })
+      .catch(() => {
+        if (!active) return;
+        setLiveCases(null);
+        setSource("fallback");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [cases]);
+
+  return (
+    <div className="grid gap-4">
+      <DataSourceNotice source={source} entity="expedientes" />
+      {visibleCases.map((legalCase) => <CaseCard key={legalCase.id} legalCase={legalCase} />)}
+    </div>
+  );
 }
 
 export function CaseCard({ legalCase }: { legalCase: CaseOps }) {
@@ -451,6 +515,21 @@ function ResourcePanel({ icon, title, items }: { icon: ReactNode; title: string;
       </div>
     </Card>
   );
+}
+
+function DataSourceNotice({ source, entity }: { source: "demo" | "loading" | "live" | "fallback"; entity: string }) {
+  const text = {
+    demo: `Mostrando ${entity} demo. Inicia sesion para datos reales.`,
+    loading: `Cargando ${entity} desde API cloud...`,
+    live: `${capitalize(entity)} conectados al API cloud.`,
+    fallback: `API sin datos disponibles. Mantengo ${entity} demo para continuidad.`
+  }[source];
+
+  return <div className="rounded-md border border-slate-200 bg-mist px-3 py-2 text-xs font-semibold text-slate-600">{text}</div>;
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function PanelTitle({ icon, title }: { icon: ReactNode; title: string }) {
