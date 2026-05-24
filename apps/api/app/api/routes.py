@@ -310,6 +310,12 @@ class OwnerFeatureUpdateRequest(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
+class OwnerTenantLimitUpdateRequest(BaseModel):
+    limits: dict[str, int] = Field(default_factory=dict)
+    hard_limit: bool = True
+    reason: str = Field(default="Actualizacion de limites desde Owner Console", min_length=3, max_length=500)
+
+
 class OwnerTicketCreate(BaseModel):
     title: str = Field(min_length=3, max_length=240)
     tenant_id: UUID | None = None
@@ -572,6 +578,16 @@ def owner_update_features(tenant_id: UUID, payload: OwnerFeatureUpdateRequest, o
 @router.get("/owner/tenants/{tenant_id}/usage")
 def owner_tenant_usage(tenant_id: UUID, _: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> dict[str, object]:
     return owner_console_service.usage(db, tenant_id=tenant_id)
+
+
+@router.get("/owner/tenants/{tenant_id}/limits")
+def owner_tenant_limits(tenant_id: UUID, _: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
+    return owner_console_service.limits(db, tenant_id=tenant_id)
+
+
+@router.post("/owner/tenants/{tenant_id}/limits")
+def owner_update_tenant_limits(tenant_id: UUID, payload: OwnerTenantLimitUpdateRequest, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("tenants:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> list[dict[str, object]]:
+    return owner_console_service.update_limits(db, owner=owner, tenant_id=tenant_id, limits=payload.limits, hard_limit=payload.hard_limit, reason=payload.reason, request_id=getattr(request.state, "request_id", None))
 
 
 @router.get("/owner/tenants/{tenant_id}/health-score")

@@ -116,6 +116,28 @@ class OwnerConsoleService:
         db.commit()
         return self.features(db, tenant_id=tenant_id)
 
+    def limits(self, db: Session, *, tenant_id: UUID | str) -> list[dict[str, object]]:
+        tenant = self._tenant_or_404(db, tenant_id)
+        self._ensure_default_limits(db, tenant)
+        db.commit()
+        rows = db.scalars(select(dbm.TenantLimit).where(dbm.TenantLimit.tenant_id == tenant.id).order_by(dbm.TenantLimit.limit_key)).all()
+        return [self._limit(row) for row in rows]
+
+    def update_limits(self, db: Session, *, owner: OwnerPrincipal, tenant_id: UUID | str, limits: dict[str, int], hard_limit: bool, reason: str, request_id: str | None = None) -> list[dict[str, object]]:
+        tenant = self._tenant_or_404(db, tenant_id)
+        self._ensure_default_limits(db, tenant)
+        db.flush()
+        for key, value in limits.items():
+            row = db.scalar(select(dbm.TenantLimit).where(dbm.TenantLimit.tenant_id == tenant.id, dbm.TenantLimit.limit_key == key))
+            if not row:
+                row = dbm.TenantLimit(tenant_id=tenant.id, limit_key=key)
+                db.add(row)
+            row.limit_value = int(value)
+            row.hard_limit = hard_limit
+        self.audit(db, owner=owner, action="tenant_limits_updated", entity_type="tenant_limits", entity_id=tenant.id, tenant_id=tenant.id, reason=reason, metadata={"limits": limits, "hard_limit": hard_limit}, request_id=request_id)
+        db.commit()
+        return self.limits(db, tenant_id=tenant.id)
+
     def usage(self, db: Session, *, tenant_id: UUID | str) -> dict[str, object]:
         self._tenant_or_404(db, tenant_id)
         rows = db.scalars(select(dbm.TenantUsageDaily).where(dbm.TenantUsageDaily.tenant_id == str(tenant_id))).all()
@@ -317,6 +339,13 @@ class OwnerConsoleService:
             if feature not in existing:
                 db.add(dbm.TenantFeatureFlag(tenant_id=tenant_id, feature_key=feature, enabled=feature in {"dashboard", "client_portal"}))
 
+    def _ensure_default_limits(self, db: Session, tenant: dbm.Tenant) -> None:
+        defaults = self._default_limits_for_plan(tenant.plan)
+        existing = {row.limit_key for row in db.scalars(select(dbm.TenantLimit).where(dbm.TenantLimit.tenant_id == tenant.id)).all()}
+        for key, value in defaults.items():
+            if key not in existing:
+                db.add(dbm.TenantLimit(tenant_id=tenant.id, limit_key=key, limit_value=value, hard_limit=True, metadata_json={"source": tenant.plan}))
+
     def _ensure_health(self, db: Session, tenant_id: str) -> dbm.TenantHealthScore:
         row = db.scalar(select(dbm.TenantHealthScore).where(dbm.TenantHealthScore.tenant_id == tenant_id))
         if row:
@@ -369,6 +398,10 @@ class OwnerConsoleService:
         return {"id": ticket.id, "tenant_id": ticket.tenant_id, "title": ticket.title, "category": ticket.category, "priority": ticket.priority, "status": ticket.status, "assigned_owner_email": ticket.assigned_owner_email, "resolution": ticket.resolution}
 
     @staticmethod
+    def _limit(row: dbm.TenantLimit) -> dict[str, object]:
+        return {"id": row.id, "tenant_id": row.tenant_id, "limit_key": row.limit_key, "limit_value": row.limit_value, "hard_limit": row.hard_limit}
+
+    @staticmethod
     def _plan(plan: dbm.BillingPlan) -> dict[str, object]:
         return {
             "id": plan.id,
@@ -406,6 +439,15 @@ class OwnerConsoleService:
     @staticmethod
     def _plan_price_cents(plan: str) -> int:
         return {"START": 9900, "PRO": 24900, "AI": 39900, "ENTERPRISE": 0, "DEMO": 0}.get(plan.upper(), 9900)
+
+    @staticmethod
+    def _default_limits_for_plan(plan: str) -> dict[str, int]:
+        return {
+            "START": {"users": 5, "cases": 100, "documents": 500, "storage_mb": 10240, "ai_tokens": 0, "whatsapp_messages": 0, "sinoe_syncs": 100},
+            "PRO": {"users": 20, "cases": 500, "documents": 3000, "storage_mb": 102400, "ai_tokens": 100000, "whatsapp_messages": 1000, "sinoe_syncs": 1000},
+            "AI": {"users": 50, "cases": 1500, "documents": 10000, "storage_mb": 512000, "ai_tokens": 500000, "whatsapp_messages": 5000, "sinoe_syncs": 5000},
+            "ENTERPRISE": {"users": 999, "cases": 99999, "documents": 999999, "storage_mb": 10485760, "ai_tokens": 9999999, "whatsapp_messages": 999999, "sinoe_syncs": 999999},
+        }.get(plan.upper(), {"users": 5, "cases": 100, "documents": 500, "storage_mb": 10240, "ai_tokens": 0, "whatsapp_messages": 0, "sinoe_syncs": 100})
 
 
 owner_console_service = OwnerConsoleService()

@@ -170,6 +170,15 @@ describe("Owner Console UI", () => {
           json: async () => ({ id: "tenant-nova", name: "Nova Legal Studio", slug: "nova", status: "active", plan: "PRO", users: 1, cases: 2, health_score: 89 })
         } as Response;
       }
+      if (url.includes("/owner/tenants/tenant-nova/limits")) {
+        return {
+          ok: true,
+          json: async () => [
+            { limit_key: "users", limit_value: 20, hard_limit: true },
+            { limit_key: "cases", limit_value: 500, hard_limit: true }
+          ]
+        } as Response;
+      }
       if (url.includes("/owner/tenants/tenant-nova")) {
         return {
           ok: true,
@@ -185,6 +194,46 @@ describe("Owner Console UI", () => {
 
     await waitFor(() => expect(screen.getByText("Plan actualizado a PRO.")).toBeTruthy());
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/tenants/tenant-nova/change-plan"), expect.objectContaining({ method: "POST" }));
+  });
+
+  it("saves tenant commercial limits through the owner API", async () => {
+    localStorage.setItem("lexflow.owner_access_token", "owner-token");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/owner/tenants/tenant-nova/limits") && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => [
+            { limit_key: "users", limit_value: 33, hard_limit: true },
+            { limit_key: "cases", limit_value: 500, hard_limit: true }
+          ]
+        } as Response;
+      }
+      if (url.includes("/owner/tenants/tenant-nova/limits")) {
+        return {
+          ok: true,
+          json: async () => [
+            { limit_key: "users", limit_value: 20, hard_limit: true },
+            { limit_key: "cases", limit_value: 500, hard_limit: true }
+          ]
+        } as Response;
+      }
+      if (url.includes("/owner/tenants/tenant-nova")) {
+        return {
+          ok: true,
+          json: async () => ({ id: "tenant-nova", name: "Nova Legal Studio", slug: "nova", status: "active", plan: "AI", users: 1, cases: 2, health_score: 89 })
+        } as Response;
+      }
+      return { ok: false, json: async () => ({}) } as Response;
+    });
+
+    render(<TenantDetail tenantId="tenant-nova" />);
+    await waitFor(() => expect(screen.getByText("Owner Console conectado al API cloud.")).toBeTruthy());
+    fireEvent.change(screen.getByDisplayValue("20"), { target: { value: "33" } });
+    fireEvent.click(screen.getByText("Guardar limites"));
+
+    await waitFor(() => expect(screen.getByText("Limites guardados y auditados.")).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/tenants/tenant-nova/limits"), expect.objectContaining({ method: "POST" }));
   });
 
   it("renders usage and interactive feature flags", () => {

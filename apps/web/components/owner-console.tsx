@@ -49,6 +49,7 @@ import {
   loadOwnerDemos,
   loadOwnerFeatures,
   loadOwnerInterventions,
+  loadOwnerLimits,
   loadOwnerPlans,
   loadOwnerSystemChecks,
   loadOwnerTenantDetail,
@@ -59,6 +60,7 @@ import {
   reactivateOwnerTenant,
   resolveOwnerTicket,
   suspendOwnerTenant,
+  updateOwnerLimits,
   updateOwnerPlan,
   updateOwnerFeatures
 } from "@/lib/owner-api";
@@ -374,6 +376,9 @@ export function TenantDetail({ tenantId }: { tenantId: string }) {
   const [source, setSource] = useState<OwnerDataSource>("demo");
   const [actionState, setActionState] = useState<"idle" | "saving" | "error" | "success">("idle");
   const [actionMessage, setActionMessage] = useState("");
+  const [limits, setLimits] = useState<Record<string, number>>({ users: tenant.users || 5, cases: tenant.cases || 100, documents: tenant.documents || 500, storage_mb: tenant.storageGb * 1024 || 10240, ai_tokens: tenant.aiTokens || 0, whatsapp_messages: tenant.whatsappMessages || 0, sinoe_syncs: tenant.sinoeSyncs || 0 });
+  const [limitState, setLimitState] = useState<"idle" | "saving" | "error" | "success">("idle");
+  const [limitMessage, setLimitMessage] = useState("");
 
   useEffect(() => {
     if (!hasOwnerSession()) {
@@ -383,10 +388,11 @@ export function TenantDetail({ tenantId }: { tenantId: string }) {
     }
     let active = true;
     setSource("loading");
-    loadOwnerTenantDetail(tenantId)
-      .then((payload) => {
+    Promise.all([loadOwnerTenantDetail(tenantId), loadOwnerLimits(tenantId)])
+      .then(([payload, nextLimits]) => {
         if (!active) return;
         setTenant(payload);
+        setLimits(Object.fromEntries(nextLimits.map((item) => [item.limit_key, item.limit_value])));
         setSource("live");
       })
       .catch(() => {
@@ -423,6 +429,26 @@ export function TenantDetail({ tenantId }: { tenantId: string }) {
     }
   }
 
+  async function saveLimits() {
+    if (!hasOwnerSession()) {
+      setLimitState("error");
+      setLimitMessage("Inicia sesion owner para guardar limites auditados.");
+      return;
+    }
+    setLimitState("saving");
+    setLimitMessage("");
+    try {
+      const saved = await updateOwnerLimits(tenant.id, limits);
+      setLimits(Object.fromEntries(saved.map((item) => [item.limit_key, item.limit_value])));
+      setSource("live");
+      setLimitState("success");
+      setLimitMessage("Limites guardados y auditados.");
+    } catch (caught) {
+      setLimitState("error");
+      setLimitMessage(caught instanceof Error ? caught.message : "No se pudieron guardar los limites.");
+    }
+  }
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Tenant" title={tenant.name} description="Vista administrativa con metadata operativa, billing, limites, soporte y flags. Los datos sensibles del estudio permanecen ocultos." />
@@ -453,9 +479,6 @@ export function TenantDetail({ tenantId }: { tenantId: string }) {
             <button className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-legal-50 disabled:opacity-60" disabled={actionState === "saving"} onClick={() => void runTenantAction("plan")} type="button">
               Cambiar plan
             </button>
-            <button className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500" type="button">
-              Configurar limites
-            </button>
           </div>
           {actionMessage ? <p className={`mt-3 rounded-md px-3 py-2 text-sm ${actionState === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{actionMessage}</p> : null}
         </Card>
@@ -469,6 +492,29 @@ export function TenantDetail({ tenantId }: { tenantId: string }) {
           </Link>
         </Card>
       </div>
+      <Card>
+        <SectionTitle icon={<Gauge size={18} />} title="Limites comerciales" />
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {["users", "cases", "documents", "storage_mb", "ai_tokens", "whatsapp_messages", "sinoe_syncs"].map((key) => (
+            <label className="grid gap-2 text-xs font-semibold uppercase tracking-normal text-slate-500" key={key}>
+              {key}
+              <input
+                className="h-11 rounded-md border border-slate-200 px-3 text-sm font-semibold text-ink outline-none focus:border-legal-500"
+                min="0"
+                onChange={(event) => setLimits((current) => ({ ...current, [key]: Number(event.target.value) }))}
+                type="number"
+                value={limits[key] ?? 0}
+              />
+            </label>
+          ))}
+        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button className="inline-flex h-10 items-center justify-center rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={limitState === "saving"} onClick={() => void saveLimits()} type="button">
+            {limitState === "saving" ? "Guardando..." : "Guardar limites"}
+          </button>
+          {limitMessage ? <span className={`rounded-md px-3 py-2 text-sm ${limitState === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{limitMessage}</span> : null}
+        </div>
+      </Card>
     </OwnerConsoleShell>
   );
 }

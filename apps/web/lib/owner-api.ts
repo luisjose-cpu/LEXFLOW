@@ -116,6 +116,12 @@ type ApiOwnerIntervention = {
   scopes: string[];
 };
 
+export type OwnerLimit = {
+  limit_key: string;
+  limit_value: number;
+  hard_limit: boolean;
+};
+
 export async function loadOwnerDashboard() {
   const body = await ownerApiRequest<ApiOwnerDashboard>("/owner/dashboard");
   const mrr = Math.round((body.revenue?.mrr_cents ?? 0) / 100);
@@ -183,6 +189,19 @@ export async function loadOwnerTenantUsage(tenantId: string) {
     ["WhatsApp", metrics.whatsapp_messages ?? 0, 5000],
     ["SINOE syncs", metrics.sinoe_syncs ?? 0, 1000]
   ] as const;
+}
+
+export async function loadOwnerLimits(tenantId: string): Promise<OwnerLimit[]> {
+  const body = await ownerApiRequest<OwnerLimit[]>(`/owner/tenants/${tenantId}/limits`);
+  return body;
+}
+
+export async function updateOwnerLimits(tenantId: string, limits: Record<string, number>, hardLimit = true, reason = "Actualizacion de limites desde Owner Console"): Promise<OwnerLimit[]> {
+  const body = await ownerApiRequest<OwnerLimit[]>(`/owner/tenants/${tenantId}/limits`, {
+    method: "POST",
+    body: JSON.stringify({ limits, hard_limit: hardLimit, reason })
+  });
+  return body;
 }
 
 export async function loadOwnerFeatures(tenantId: string) {

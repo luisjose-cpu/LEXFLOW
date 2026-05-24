@@ -109,6 +109,7 @@ def test_tenant_lifecycle_plan_features_health_and_audit(api: TestClient, db_ses
     reactivated = api.post(f"/api/v1/owner/tenants/{tenant_id}/reactivate", headers=owner_headers(), json={"reason": "pago regularizado"})
     changed = api.post(f"/api/v1/owner/tenants/{tenant_id}/change-plan", headers=owner_headers(), json={"plan": "AI", "reason": "upgrade piloto"})
     features = api.post(f"/api/v1/owner/tenants/{tenant_id}/features", headers=owner_headers(), json={"features": {"ai": True}, "reason": "activar IA"})
+    limits = api.post(f"/api/v1/owner/tenants/{tenant_id}/limits", headers=owner_headers(), json={"limits": {"users": 25, "cases": 700}, "reason": "piloto ampliado"})
     health = api.get(f"/api/v1/owner/tenants/{tenant_id}/health-score", headers=owner_headers())
 
     audits = db_session.scalars(select(OwnerAuditLog).where(OwnerAuditLog.tenant_id == tenant_id)).all()
@@ -116,8 +117,9 @@ def test_tenant_lifecycle_plan_features_health_and_audit(api: TestClient, db_ses
     assert reactivated.json()["status"] == "active"
     assert changed.json()["plan"] == "AI"
     assert any(flag["feature_key"] == "ai" and flag["enabled"] for flag in features.json())
+    assert any(item["limit_key"] == "users" and item["limit_value"] == 25 for item in limits.json())
     assert health.json()["score"] > 0
-    assert {audit.action for audit in audits} >= {"tenant_created", "tenant_suspended", "tenant_reactivated", "tenant_plan_changed", "tenant_features_updated"}
+    assert {audit.action for audit in audits} >= {"tenant_created", "tenant_suspended", "tenant_reactivated", "tenant_plan_changed", "tenant_features_updated", "tenant_limits_updated"}
 
 
 def test_support_ticket_resolution_intervention_expiry_and_owner_surfaces(api: TestClient, db_session: Session) -> None:

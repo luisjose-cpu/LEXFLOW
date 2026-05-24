@@ -10,6 +10,7 @@
 - Owner Console logout action that calls `/owner/auth/logout` and clears owner-only local tokens.
 - Owner Console web API bridge that loads dashboard, tenants, usage, features, plans, tickets, system health, demos, interventions and audit logs from `/api/v1/owner/*` when an owner JWT exists.
 - Owner Console plan management with audited create/update endpoints for SaaS plan catalog.
+- Owner Console tenant limit management with audited read/update endpoints and tenant detail controls.
 - Owner Console creation flows for tenants, support tickets, commercial demo tenants and temporary interventions through audited backend endpoints.
 - Owner Console support ticket resolution through audited backend endpoint.
 - Owner Console tenant lifecycle actions for suspend, reactivate and change plan through audited backend endpoints.

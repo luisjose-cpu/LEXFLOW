@@ -27,6 +27,7 @@ Coverage:
 - cambiar plan.
 - crear y actualizar planes owner.
 - activar feature.
+- configurar limites comerciales por tenant.
 - crear y resolver ticket.
 - crear y expirar intervencion.
 - health score calculado.
@@ -52,7 +53,7 @@ npm --workspace apps/web run test -- components/__tests__/owner-console.test.tsx
 
 Result:
 
-- 13 passed.
+- 14 passed.
 
 Global web command:
 
@@ -62,7 +63,7 @@ npm --workspace apps/web run test
 
 Result:
 
-- 58 passed.
+- 59 passed.
 
 Build and cloud checks:
 
@@ -92,6 +93,7 @@ Coverage:
 - Owner dashboard conectado al Owner API cuando existe JWT owner.
 - Owner logout remoto y limpieza de tokens locales owner.
 - Owner plan creation and status update via Owner API.
+- Owner tenant limit read/update via Owner API.
 - Owner tenant creation via Owner API.
 - Owner tenant lifecycle actions via Owner API.
 - Owner feature flag save via Owner API.

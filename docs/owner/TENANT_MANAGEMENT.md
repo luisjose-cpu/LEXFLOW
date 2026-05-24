@@ -9,6 +9,7 @@
 - Cancelar tenant futuro.
 - Cambiar plan.
 - Configurar limites.
+- Configurar limites duros por tenant desde Owner Console usando `/api/v1/owner/tenants/{id}/limits`.
 - Activar modulos por feature flag.
 - Revisar uso, health score, tickets y billing.
 - Crear demos comerciales aisladas usando `/api/v1/owner/demos`.
@@ -22,6 +23,7 @@ Generar `owner_audit_logs` para:
 - reactivacion
 - cambio de plan
 - cambio de feature flags
+- cambio de limites comerciales
 - creacion/resolucion de ticket
 - intervencion temporal
 
