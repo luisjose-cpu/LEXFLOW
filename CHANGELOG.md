@@ -73,6 +73,7 @@
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.
 - Readiness and provider mode telemetry now track `MALWARE_SCANNER_PROVIDER`.
 - Added `cloud:revision` to compare deployed API revision with the expected git commit.
+- Manual Cloud CI now runs deployed revision verification before generating release evidence.
 - Owner system health now includes live API request metrics, production readiness summary and storage backend metadata.
 - Owner Console frontend now renders live health details from the API instead of generic placeholder health text.
 - Added `cloud:evidence` to generate a local JSON release evidence report from cloud preflight, smoke, readiness and version checks.

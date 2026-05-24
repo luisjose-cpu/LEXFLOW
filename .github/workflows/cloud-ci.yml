@@ -63,6 +63,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check deployed revision
+        shell: pwsh
+        env:
+          LEXFLOW_API_URL: ${{ inputs.api_url }}
+        run: ./scripts/cloud-revision.ps1
+
       - name: Run cloud release evidence
         shell: pwsh
         env:

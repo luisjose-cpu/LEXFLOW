@@ -119,6 +119,7 @@ GitHub Actions ejecuta:
 - web build
 - API tests
 - production gate fast
+- revision check manual con `cloud:revision`
 - post-deploy release evidence manual con `workflow_dispatch` e inputs `api_url` / `web_url`
 - artifact `lexflow-cloud-release-evidence` con el JSON generado por `cloud:evidence`
 
