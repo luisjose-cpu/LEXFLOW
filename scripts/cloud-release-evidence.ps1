@@ -63,6 +63,12 @@ $readinessResponse = Invoke-WebRequest -Uri "$ApiUrl/readiness" -Method GET -Use
 $readiness = $readinessResponse.Content | ConvertFrom-Json
 $versionResponse = Invoke-WebRequest -Uri "$ApiUrl/version" -Method GET -UseBasicParsing -TimeoutSec 30
 $version = $versionResponse.Content | ConvertFrom-Json
+$blockerCount = @($readiness.blockers).Count
+$warningCount = @($readiness.warnings).Count
+$publicProductionReady = $readiness.public_production_ready
+if ($null -eq $publicProductionReady) {
+  $publicProductionReady = [bool]($readiness.status -eq "ready" -and $blockerCount -eq 0 -and $warningCount -eq 0)
+}
 
 $report = @{
   product = "LEXFLOW"
@@ -73,8 +79,10 @@ $report = @{
   readiness = @{
     status = $readiness.status
     app_env = $readiness.app_env
-    blockers = @($readiness.blockers).Count
-    warnings = @($readiness.warnings).Count
+    production_ready = $readiness.production_ready
+    public_production_ready = $publicProductionReady
+    blockers = $blockerCount
+    warnings = $warningCount
     blocker_keys = @($readiness.blockers | ForEach-Object { $_.key })
     warning_keys = @($readiness.warnings | ForEach-Object { $_.key })
   }

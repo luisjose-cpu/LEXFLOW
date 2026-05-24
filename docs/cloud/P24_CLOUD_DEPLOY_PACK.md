@@ -85,7 +85,7 @@ $env:LEXFLOW_WEB_URL="https://lexflow-web-nine.vercel.app"
 npm run cloud:evidence
 ```
 
-El comando ejecuta `cloud:preflight`, luego `cloud:smoke`, consulta `/readiness` y `/version`, y genera un JSON local en `reports/cloud/lexflow-cloud-release-*.json`. El reporte incluye conteo y claves de blockers/warnings de readiness para seguimiento operativo. No incluye passwords, tokens, secretos ni datos de tenants; `reports/` queda fuera de git.
+El comando ejecuta `cloud:preflight`, luego `cloud:smoke`, consulta `/readiness` y `/version`, y genera un JSON local en `reports/cloud/lexflow-cloud-release-*.json`. El reporte incluye `production_ready`, `public_production_ready`, conteo y claves de blockers/warnings de readiness para seguimiento operativo. No incluye passwords, tokens, secretos ni datos de tenants; `reports/` queda fuera de git.
 
 ## Validacion ejecutada
 

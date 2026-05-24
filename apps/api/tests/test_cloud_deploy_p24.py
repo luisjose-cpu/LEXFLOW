@@ -113,4 +113,5 @@ def test_cloud_release_evidence_script_writes_safe_report() -> None:
     assert "lexflow-cloud-release-" in script
     assert "warning_keys" in script
     assert "blocker_keys" in script
+    assert "public_production_ready" in script
     assert "reports/" in gitignore

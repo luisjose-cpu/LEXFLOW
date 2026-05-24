@@ -10,6 +10,8 @@ Iniciar el paso de `pilot-ready` a `production-ready` con controles de entorno, 
 - `SEED_DEMO_ON_STARTUP=false` es obligatorio en production.
 - `REQUIRE_PRODUCTION_READY=true` bloquea el arranque si hay blockers.
 - `/readiness` y `/api/v1/readiness` reportan estado productivo.
+- `production_ready` significa que no hay blockers de arranque.
+- `public_production_ready` exige cero blockers y cero warnings para salida comercial publica.
 - `.env.production.example` define variables esperadas sin credenciales reales.
 - `infra/docker/docker-compose.production.yml` define un perfil base para web, API, PostgreSQL, Redis y MinIO.
 

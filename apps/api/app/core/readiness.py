@@ -147,6 +147,7 @@ def production_readiness_report(settings: Settings) -> dict[str, object]:
         "phase": settings.release_phase,
         "release": settings.release_name,
         "production_ready": _is_production(settings) and not blockers,
+        "public_production_ready": _is_production(settings) and not blockers and not warnings,
         "status": "ready" if _is_production(settings) and not blockers else "blocked",
         "blockers": [check.as_dict() for check in blockers],
         "warnings": [check.as_dict() for check in warnings],

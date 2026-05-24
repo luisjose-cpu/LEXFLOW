@@ -28,6 +28,7 @@ def test_production_readiness_blocks_unsafe_defaults() -> None:
     blocker_keys = {item["key"] for item in report["blockers"]}
 
     assert report["production_ready"] is False
+    assert report["public_production_ready"] is False
     assert "database_postgresql" in blocker_keys
     assert "jwt_secret_strong" in blocker_keys
     assert "cors_no_localhost" in blocker_keys
@@ -42,9 +43,27 @@ def test_production_readiness_accepts_hardened_core_settings() -> None:
     report = production_readiness_report(settings)
 
     assert report["production_ready"] is True
+    assert report["public_production_ready"] is False
     assert report["status"] == "ready"
     assert report["blockers"] == []
     assert_startup_readiness(settings) is None
+
+
+def test_public_production_readiness_requires_no_warnings() -> None:
+    settings = production_settings(
+        storage_backend="s3",
+        s3_access_key="production-access-key",
+        s3_endpoint="https://r2.example.test",
+        s3_bucket="lexflow-prod",
+        openai_api_key="sk-production-openai-key-value-123456",
+        whatsapp_business_token="production-whatsapp-token-value-123456",
+        billing_provider_secret="production-billing-secret-value-123456",
+    )
+    report = production_readiness_report(settings)
+
+    assert report["production_ready"] is True
+    assert report["public_production_ready"] is True
+    assert report["warnings"] == []
 
 
 def test_production_readiness_reports_email_provider_configuration() -> None:
