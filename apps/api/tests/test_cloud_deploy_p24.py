@@ -78,6 +78,9 @@ def test_cloud_ci_runs_release_gates() -> None:
     assert "npm run build" in workflow
     assert "pytest -q" in workflow
     assert "production-gate.ps1 -Fast" in workflow
+    assert "cloud-release-evidence.ps1" in workflow
+    assert "actions/upload-artifact@v4" in workflow
+    assert "lexflow-cloud-release-evidence" in workflow
 
 
 def test_backup_restore_scripts_are_safe_by_default() -> None:
