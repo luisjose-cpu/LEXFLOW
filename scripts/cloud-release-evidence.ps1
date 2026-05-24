@@ -75,6 +75,8 @@ $report = @{
     app_env = $readiness.app_env
     blockers = @($readiness.blockers).Count
     warnings = @($readiness.warnings).Count
+    blocker_keys = @($readiness.blockers | ForEach-Object { $_.key })
+    warning_keys = @($readiness.warnings | ForEach-Object { $_.key })
   }
   steps = $steps
   security = @{

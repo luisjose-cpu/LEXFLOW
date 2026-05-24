@@ -72,6 +72,7 @@
 - Owner Console frontend now renders live health details from the API instead of generic placeholder health text.
 - Added `cloud:evidence` to generate a local JSON release evidence report from cloud preflight, smoke, readiness and version checks.
 - Added optional `REQUIRE_VERIFIED_DOCUMENT_DOWNLOADS` gate to block client portal downloads until storage verification and clean scan are complete.
+- Release evidence now records readiness blocker/warning keys so production gaps are explicit without reading raw logs.
 
 ### Security
 
