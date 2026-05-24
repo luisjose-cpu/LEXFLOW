@@ -98,6 +98,7 @@
 - Billing mock webhook can now require HMAC signatures through `REQUIRE_BILLING_WEBHOOK_SIGNATURE`.
 - Invalid billing webhook signatures now create redacted audit entries.
 - Restore drill script now writes non-secret JSON evidence under `reports/restore/`.
+- Added `db:restore-evidence` to gate public production on recent non-secret restore drill evidence.
 - Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.
 - Readiness and provider mode telemetry now track `MALWARE_SCANNER_PROVIDER`.

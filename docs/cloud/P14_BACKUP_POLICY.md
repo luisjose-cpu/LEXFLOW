@@ -57,6 +57,20 @@ npm run db:backup-retention -- -Apply
 
 `db:restore-drill` writes structured evidence under `reports/restore/lexflow-restore-drill-*.json`. The report includes backup filename, backup bytes, catalog sample, status, duration and security flags. It does not include database URLs, passwords, tokens or tenant data.
 
+Validate latest restore evidence before public production:
+
+```powershell
+npm run db:restore-evidence
+```
+
+By default, this gate requires recent evidence with `status=restore_completed` and `executed_restore=true`. It also verifies that the restore evidence declares `database_urls_included=false`, `credentials_included=false` and `tenant_data_included=false`.
+
+For a controlled pilot where only backup catalog inspection is being reviewed, the gate can be run explicitly in inspection mode:
+
+```powershell
+npm run db:restore-evidence -- -AllowInspectionOnly
+```
+
 ## Restore
 
 Before public production, run a restore drill:
@@ -70,4 +84,4 @@ Before public production, run a restore drill:
 
 ## RC1 Status
 
-Policy, scripts and local evidence generation are documented. Public production still requires a real restore drill against an isolated database and evidence review.
+Policy, scripts, local evidence generation and restore evidence gating are documented. Public production still requires a real restore drill against an isolated database, then `npm run db:restore-evidence`.

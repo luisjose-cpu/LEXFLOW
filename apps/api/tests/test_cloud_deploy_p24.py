@@ -40,6 +40,7 @@ def test_cloud_deploy_pack_files_are_present() -> None:
         "scripts/db-backup.ps1",
         "scripts/db-backup-retention.ps1",
         "scripts/db-restore-drill.ps1",
+        "scripts/db-restore-evidence.ps1",
         "scripts/production-gate.ps1",
         "docs/cloud/P24_CLOUD_DEPLOY_PACK.md",
         "docs/cloud/P25_PUBLIC_PRODUCTION_GAPS.md",
@@ -121,6 +122,7 @@ def test_backup_restore_scripts_are_safe_by_default() -> None:
     backup = read_repo_file("scripts/db-backup.ps1")
     retention = read_repo_file("scripts/db-backup-retention.ps1")
     restore = read_repo_file("scripts/db-restore-drill.ps1")
+    restore_evidence = read_repo_file("scripts/db-restore-evidence.ps1")
     package = json.loads(read_repo_file("package.json"))
     gitignore = read_repo_file(".gitignore")
 
@@ -148,6 +150,15 @@ def test_backup_restore_scripts_are_safe_by_default() -> None:
     assert "database_urls_included = $false" in restore
     assert "credentials_included = $false" in restore
     assert "lexflow-restore-drill-" in restore
+    assert "db:restore-evidence" in package["scripts"]
+    assert "lexflow-restore-drill-*.json" in restore_evidence
+    assert "restore_completed" in restore_evidence
+    assert "executed_restore" in restore_evidence
+    assert "database_urls_included" in restore_evidence
+    assert "credentials_included" in restore_evidence
+    assert "tenant_data_included" in restore_evidence
+    assert "AllowInspectionOnly" in restore_evidence
+    assert "MaxAgeHours" in restore_evidence
     assert "backups/" in gitignore
     assert "reports/" in gitignore
 

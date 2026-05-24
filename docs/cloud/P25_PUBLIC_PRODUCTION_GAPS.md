@@ -70,6 +70,7 @@ $env:LEXFLOW_WEB_URL="https://lexflow-web-nine.vercel.app"
 npm run cloud:revision -- -Strict
 npm run cloud:evidence
 npm run cloud:public-ready
+npm run db:restore-evidence
 ```
 
 4. Confirmar en el JSON:
@@ -85,11 +86,12 @@ npm run cloud:public-ready
 - `ALLOWED_ORIGINS` usa solo origenes HTTPS.
 - `LEXFLOW_WEB_URL` apunta al dominio publico HTTPS.
 - `REQUIRE_OWNER_MFA=true`.
+- `db:restore-evidence` valida un restore drill real reciente con `restore_completed` y sin secretos en la evidencia.
 
 ## Riesgos pendientes
 
 - Validar contratos comerciales y terminos de uso de cada proveedor.
 - Configurar monitoreo externo y alertas fuera de Render/Vercel.
 - Ejecutar pentest y registrar remediaciones.
-- Ejecutar restore drill real con evidencia RPO/RTO en `reports/restore/`.
+- Ejecutar restore drill real con evidencia RPO/RTO en `reports/restore/` y aprobar `npm run db:restore-evidence`.
 - Revisar CSP estricta por dominio cuando se cierren proveedores externos finales; Next ya aplica headers base de hardening.

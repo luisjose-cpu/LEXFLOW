@@ -42,6 +42,7 @@
     "cloud:public-ready": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cloud-public-ready.ps1",
     "db:backup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-backup.ps1",
     "db:backup-retention": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-backup-retention.ps1",
-    "db:restore-drill": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-restore-drill.ps1"
+    "db:restore-drill": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-restore-drill.ps1",
+    "db:restore-evidence": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-restore-evidence.ps1"
   }
 }
