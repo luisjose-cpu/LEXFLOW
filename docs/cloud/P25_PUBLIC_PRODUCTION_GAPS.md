@@ -82,3 +82,4 @@ npm run cloud:public-ready
 - Configurar monitoreo externo y alertas fuera de Render/Vercel.
 - Ejecutar pentest y registrar remediaciones.
 - Ejecutar restore drill real con evidencia RPO/RTO en `reports/restore/`.
+- Revisar CSP estricta por dominio cuando se cierren proveedores externos finales; Next ya aplica headers base de hardening.
