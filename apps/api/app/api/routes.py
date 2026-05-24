@@ -2169,6 +2169,40 @@ def create_user_invitation(
     )
 
 
+@router.post("/users/invitations/{invitation_id}/resend")
+def resend_user_invitation(
+    invitation_id: UUID,
+    actor: Annotated[User, Depends(require_permission("users:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return user_invitation_service.resend(
+        db,
+        tenant_id=tenant_id,
+        invitation_id=invitation_id,
+        actor=actor,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.post("/users/invitations/{invitation_id}/cancel")
+def cancel_user_invitation(
+    invitation_id: UUID,
+    actor: Annotated[User, Depends(require_permission("users:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return user_invitation_service.cancel(
+        db,
+        tenant_id=tenant_id,
+        invitation_id=invitation_id,
+        actor=actor,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
 @router.get("/users/{user_id}", response_model=UserOut)
 def get_user(
     user_id: UUID,

@@ -44,6 +44,61 @@ describe("UserInvitations", () => {
     expect(screen.getByText("New Lawyer")).toBeTruthy();
   });
 
+  it("resends and cancels pending invitations", async () => {
+    localStorage.setItem("lexflow.access_token", "access");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          {
+            id: "invite-1",
+            email: "pending@lexflow.com",
+            full_name: "Pending Lawyer",
+            role: "lawyer",
+            status: "pending",
+            expires_at: "2026-05-31T00:00:00Z"
+          }
+        ]
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: "invite-1",
+          email: "pending@lexflow.com",
+          full_name: "Pending Lawyer",
+          role: "lawyer",
+          status: "pending",
+          expires_at: "2026-05-31T01:00:00Z",
+          delivery: "prepared",
+          invitation_token: "rotated-token"
+        })
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: "invite-1",
+          email: "pending@lexflow.com",
+          full_name: "Pending Lawyer",
+          role: "lawyer",
+          status: "cancelled",
+          expires_at: "2026-05-31T01:00:00Z"
+        })
+      } as Response);
+
+    render(<UserInvitations />);
+
+    expect(await screen.findByText("Pending Lawyer")).toBeTruthy();
+    fireEvent.click(screen.getByText("Reenviar"));
+    await waitFor(() => expect(screen.getByText("Invitacion reenviada con token rotado.")).toBeTruthy());
+    expect(screen.getByText("rotated-token")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("Cancelar"));
+    await waitFor(() => expect(screen.getByText("Invitacion cancelada. El token ya no podra usarse.")).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/users/invitations/invite-1/resend"), expect.objectContaining({ method: "POST" }));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/users/invitations/invite-1/cancel"), expect.objectContaining({ method: "POST" }));
+  });
+
   it("accepts an invitation and stores session tokens", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,

@@ -13,6 +13,7 @@
 - El secreto MFA se guarda cifrado, se confirma con codigo temporal y se exige en login cuando `mfa_enabled=true`.
 - Invitaciones de usuarios en `/api/v1/users/invitations` y `/api/v1/auth/invitations/accept`.
 - Las invitaciones permiten que cada usuario defina su propia password y almacenan solo hash del token.
+- Reenvio de invitaciones rota token y cancelacion bloquea aceptacion pendiente.
 - `users.refresh_token_version` queda persistido por migracion `20260524_0013`.
 - `password_reset_tokens` queda persistido por migracion `20260524_0014`.
 - Los campos `users.mfa_secret_encrypted` y `users.mfa_confirmed_at` quedan persistidos por migracion `20260524_0015`.

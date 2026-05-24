@@ -160,6 +160,18 @@ export async function createUserInvitation(payload: { email: string; full_name: 
   });
 }
 
+export async function resendUserInvitation(invitationId: string) {
+  return apiRequest<UserInvitation & { delivery: string; invitation_token?: string }>(`/users/invitations/${invitationId}/resend`, {
+    method: "POST"
+  });
+}
+
+export async function cancelUserInvitation(invitationId: string) {
+  return apiRequest<UserInvitation>(`/users/invitations/${invitationId}/cancel`, {
+    method: "POST"
+  });
+}
+
 export async function acceptUserInvitation(payload: { invitation_token: string; password: string }) {
   return publicApiRequest<{ status: string; access_token: string; refresh_token: string; token_type: string }>("/auth/invitations/accept", {
     method: "POST",

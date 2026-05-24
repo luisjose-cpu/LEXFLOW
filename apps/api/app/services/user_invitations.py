@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.db import models as dbm
 from app.domain.models import AuditAction, RoleName, User
 from app.services.audit import audit_service
+from app.services.email_delivery import email_provider
 from app.services.security import hash_password
 from app.services.tenants import tenant_service
 from app.services.users import user_service
@@ -86,6 +87,7 @@ class UserInvitationService:
                 "updated_at": dbm.now_utc(),
             }
 
+        delivery = self._deliver(normalized_email, full_name)
         audit_service.record(
             tenant_id=tenant_id,
             actor_user_id=actor.id,
@@ -93,7 +95,7 @@ class UserInvitationService:
             entity_type="user_invitation",
             entity_id=invitation_id,
             request_id=request_id,
-            metadata={"email": normalized_email, "role": role.value, "delivery": "email_prepared"},
+            metadata={"email": normalized_email, "role": role.value, "delivery": delivery.status, "provider": delivery.provider},
         )
         response = {
             "id": str(invitation_id),
@@ -102,7 +104,7 @@ class UserInvitationService:
             "role": role.value,
             "status": "pending",
             "expires_at": expires_at.isoformat(),
-            "delivery": "email_prepared",
+            "delivery": delivery.status,
         }
         if settings.app_env.lower() in {"local", "test"}:
             response["invitation_token"] = raw_token
@@ -118,6 +120,75 @@ class UserInvitationService:
             rows = db.scalars(select(dbm.UserInvitation).where(dbm.UserInvitation.tenant_id == str(tenant_id)).order_by(dbm.UserInvitation.created_at.desc())).all()
             invitations.extend(self._serialize_db(row) for row in rows)
         return invitations
+
+    def resend(self, db: Session, *, tenant_id: UUID, invitation_id: UUID, actor: User, request_id: str | None = None) -> dict[str, object]:
+        settings = get_settings()
+        raw_token = token_urlsafe(32)
+        token_hash = self._token_hash(raw_token)
+        expires_at = dbm.now_utc() + timedelta(minutes=settings.user_invitation_token_minutes)
+        memory_key, memory_invitation = self._find_memory_by_id(tenant_id=tenant_id, invitation_id=invitation_id)
+        if memory_invitation:
+            if memory_invitation["status"] != "pending":
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Invitation is not pending")
+            self._memory_invitations.pop(memory_key)
+            memory_invitation["expires_at"] = expires_at
+            memory_invitation["updated_at"] = dbm.now_utc()
+            self._memory_invitations[token_hash] = memory_invitation
+            response = self._serialize_memory(memory_invitation)
+            response["delivery"] = self._deliver(memory_invitation["email"], memory_invitation["full_name"]).status
+        else:
+            invitation = self._get_db_invitation(db, tenant_id=tenant_id, invitation_id=invitation_id)
+            if invitation.status != "pending":
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Invitation is not pending")
+            invitation.token_hash = token_hash
+            invitation.expires_at = expires_at
+            invitation.updated_at = dbm.now_utc()
+            db.commit()
+            db.refresh(invitation)
+            response = self._serialize_db(invitation)
+            response["delivery"] = self._deliver(invitation.email, invitation.full_name).status
+
+        audit_service.record(
+            tenant_id=tenant_id,
+            actor_user_id=actor.id,
+            action=AuditAction.update,
+            entity_type="user_invitation",
+            entity_id=invitation_id,
+            request_id=request_id,
+            metadata={"reason": "invitation_resent", "delivery": response["delivery"]},
+        )
+        if settings.app_env.lower() in {"local", "test"}:
+            response["invitation_token"] = raw_token
+        return response
+
+    def cancel(self, db: Session, *, tenant_id: UUID, invitation_id: UUID, actor: User, request_id: str | None = None) -> dict[str, object]:
+        memory_key, memory_invitation = self._find_memory_by_id(tenant_id=tenant_id, invitation_id=invitation_id)
+        if memory_invitation:
+            if memory_invitation["status"] != "pending":
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Invitation is not pending")
+            memory_invitation["status"] = "cancelled"
+            memory_invitation["updated_at"] = dbm.now_utc()
+            response = self._serialize_memory(memory_invitation)
+        else:
+            invitation = self._get_db_invitation(db, tenant_id=tenant_id, invitation_id=invitation_id)
+            if invitation.status != "pending":
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Invitation is not pending")
+            invitation.status = "cancelled"
+            invitation.updated_at = dbm.now_utc()
+            db.commit()
+            db.refresh(invitation)
+            response = self._serialize_db(invitation)
+
+        audit_service.record(
+            tenant_id=tenant_id,
+            actor_user_id=actor.id,
+            action=AuditAction.update,
+            entity_type="user_invitation",
+            entity_id=invitation_id,
+            request_id=request_id,
+            metadata={"reason": "invitation_cancelled"},
+        )
+        return response
 
     def accept(self, db: Session, *, invitation_token: str, password: str, request_id: str | None = None) -> dict[str, object]:
         token_hash = self._token_hash(invitation_token)
@@ -149,13 +220,16 @@ class UserInvitationService:
             )
             return {"status": "accepted", "user": user}
 
-        invitation = db.scalar(
-            select(dbm.UserInvitation).where(
-                dbm.UserInvitation.token_hash == token_hash,
-                dbm.UserInvitation.status == "pending",
-                dbm.UserInvitation.expires_at > now,
+        try:
+            invitation = db.scalar(
+                select(dbm.UserInvitation).where(
+                    dbm.UserInvitation.token_hash == token_hash,
+                    dbm.UserInvitation.status == "pending",
+                    dbm.UserInvitation.expires_at > now,
+                )
             )
-        )
+        except SQLAlchemyError:
+            invitation = None
         if not invitation:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired invitation")
         if self._db_user_exists(db, tenant_id=UUID(invitation.tenant_id), email=invitation.email):
@@ -211,6 +285,21 @@ class UserInvitationService:
             )
             is not None
         )
+
+    def _get_db_invitation(self, db: Session, *, tenant_id: UUID, invitation_id: UUID) -> dbm.UserInvitation:
+        invitation = db.scalar(select(dbm.UserInvitation).where(dbm.UserInvitation.tenant_id == str(tenant_id), dbm.UserInvitation.id == str(invitation_id)))
+        if not invitation:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")
+        return invitation
+
+    def _find_memory_by_id(self, *, tenant_id: UUID, invitation_id: UUID) -> tuple[str, dict[str, object]] | tuple[None, None]:
+        for token_hash, invitation in self._memory_invitations.items():
+            if invitation["tenant_id"] == tenant_id and invitation["id"] == invitation_id:
+                return token_hash, invitation
+        return None, None
+
+    def _deliver(self, email: object, full_name: object):
+        return email_provider.send_user_invitation(to_email=str(email), full_name=str(full_name))
 
     def _ensure_role(self, db: Session, *, tenant_id: str, role: RoleName) -> dbm.Role:
         existing = db.scalars(select(dbm.Role).where(dbm.Role.tenant_id == tenant_id, dbm.Role.name == role.value)).first()

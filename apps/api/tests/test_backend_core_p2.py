@@ -286,7 +286,7 @@ def test_user_invitation_flow_accepts_once_and_blocks_low_permission() -> None:
 
     assert blocked.status_code == 403
     assert invited.status_code == 201
-    assert invited.json()["delivery"] == "email_prepared"
+    assert invited.json()["delivery"] == "prepared"
     assert "invitation_token" not in listed.json()[0]
     assert listed.json()[0]["email"] == "newlawyer@lexflow.com"
     assert accepted.status_code == 200
@@ -295,3 +295,36 @@ def test_user_invitation_flow_accepts_once_and_blocks_low_permission() -> None:
     assert reused.status_code == 401
     assert invited_login.status_code == 200
     assert any(entry["entity_type"] == "user_invitation" for entry in audit.json())
+
+
+def test_user_invitation_resend_rotates_token_and_cancel_blocks_acceptance() -> None:
+    seed_demo_data()
+    admin_headers = login()
+    invited = client.post(
+        "/api/v1/users/invitations",
+        headers=admin_headers,
+        json={"email": "rotated@lexflow.com", "full_name": "Rotated Invite", "role": "assistant"},
+    )
+    invitation_id = invited.json()["id"]
+    old_token = invited.json()["invitation_token"]
+    resent = client.post(f"/api/v1/users/invitations/{invitation_id}/resend", headers=admin_headers)
+    new_token = resent.json()["invitation_token"]
+    old_accept = client.post(
+        "/api/v1/auth/invitations/accept",
+        json={"invitation_token": old_token, "password": "RotatedInvite123!"},
+    )
+    cancelled = client.post(f"/api/v1/users/invitations/{invitation_id}/cancel", headers=admin_headers)
+    new_accept = client.post(
+        "/api/v1/auth/invitations/accept",
+        json={"invitation_token": new_token, "password": "RotatedInvite123!"},
+    )
+    listed = client.get("/api/v1/users/invitations", headers=admin_headers)
+
+    assert resent.status_code == 200
+    assert resent.json()["delivery"] == "prepared"
+    assert old_token != new_token
+    assert old_accept.status_code == 401
+    assert cancelled.status_code == 200
+    assert cancelled.json()["status"] == "cancelled"
+    assert new_accept.status_code == 401
+    assert listed.json()[0]["status"] == "cancelled"

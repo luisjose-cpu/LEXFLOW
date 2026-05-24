@@ -4,7 +4,7 @@ import { Badge, Button, Card } from "@lexflow/ui";
 import { MailPlus, UsersRound } from "lucide-react";
 import React from "react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { createUserInvitation, hasCloudSession, loadUserInvitations, UserInvitation } from "@/lib/lexflow-api";
+import { cancelUserInvitation, createUserInvitation, hasCloudSession, loadUserInvitations, resendUserInvitation, UserInvitation } from "@/lib/lexflow-api";
 
 const roles = [
   { value: "tenant_admin", label: "Admin tenant" },
@@ -61,6 +61,37 @@ export function UserInvitations() {
     } catch (caught) {
       setState("error");
       setMessage(caught instanceof Error ? caught.message : "No se pudo crear la invitacion.");
+    }
+  }
+
+  async function resend(invitationId: string) {
+    setState("saving");
+    setMessage("");
+    setDevToken("");
+    try {
+      const updated = await resendUserInvitation(invitationId);
+      setItems((current) => current.map((item) => (item.id === invitationId ? updated : item)));
+      setState("success");
+      setMessage("Invitacion reenviada con token rotado.");
+      setDevToken(updated.invitation_token ?? "");
+    } catch (caught) {
+      setState("error");
+      setMessage(caught instanceof Error ? caught.message : "No se pudo reenviar la invitacion.");
+    }
+  }
+
+  async function cancel(invitationId: string) {
+    setState("saving");
+    setMessage("");
+    setDevToken("");
+    try {
+      const updated = await cancelUserInvitation(invitationId);
+      setItems((current) => current.map((item) => (item.id === invitationId ? updated : item)));
+      setState("success");
+      setMessage("Invitacion cancelada. El token ya no podra usarse.");
+    } catch (caught) {
+      setState("error");
+      setMessage(caught instanceof Error ? caught.message : "No se pudo cancelar la invitacion.");
     }
   }
 
@@ -130,7 +161,19 @@ export function UserInvitations() {
                   <Badge>{item.status}</Badge>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">{item.email}</p>
-                <p className="mt-2 text-xs font-semibold text-legal-700">Rol: {labelForRole(item.role)}</p>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-legal-700">Rol: {labelForRole(item.role)}</p>
+                  {item.status === "pending" ? (
+                    <div className="flex flex-wrap gap-2">
+                      <button className="h-8 rounded-md border border-slate-200 px-3 text-xs font-semibold text-ink disabled:opacity-60" disabled={state === "saving"} onClick={() => resend(item.id)} type="button">
+                        Reenviar
+                      </button>
+                      <button className="h-8 rounded-md border border-rose-200 px-3 text-xs font-semibold text-rose-700 disabled:opacity-60" disabled={state === "saving"} onClick={() => cancel(item.id)} type="button">
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>
