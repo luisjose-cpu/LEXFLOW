@@ -160,3 +160,47 @@ def test_auth_change_password_revokes_old_tokens_and_allows_new_password() -> No
     assert old_me.status_code == 401
     assert old_refresh_response.status_code == 401
     assert new_login.status_code == 200
+
+
+def test_auth_password_reset_flow_does_not_expose_unknown_accounts_and_revokes_sessions() -> None:
+    seed_demo_data()
+    unknown = client.post(
+        "/api/v1/auth/password-reset/request",
+        json={"email": "missing@lexflow.demo", "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+    logged = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": DEMO_SEED.password, "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+    old_access = logged.json()["access_token"]
+    requested = client.post(
+        "/api/v1/auth/password-reset/request",
+        json={"email": DEMO_SEED.admin_email, "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+    reset_token = requested.json()["reset_token"]
+    confirmed = client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"reset_token": reset_token, "new_password": "ResetPilotPassword123!"},
+    )
+    reused = client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"reset_token": reset_token, "new_password": "ResetPilotPassword456!"},
+    )
+    old_me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {old_access}"})
+    old_password = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": DEMO_SEED.password, "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+    new_password = client.post(
+        "/api/v1/auth/login",
+        json={"email": DEMO_SEED.admin_email, "password": "ResetPilotPassword123!", "tenant_slug": DEMO_SEED.tenant_slug},
+    )
+
+    assert unknown.status_code == 200
+    assert "reset_token" not in unknown.json()
+    assert requested.status_code == 200
+    assert confirmed.json()["status"] == "password_reset_complete"
+    assert reused.status_code == 401
+    assert old_me.status_code == 401
+    assert old_password.status_code == 401
+    assert new_password.status_code == 200

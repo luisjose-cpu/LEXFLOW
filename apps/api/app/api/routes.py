@@ -83,6 +83,16 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=10, max_length=500)
 
 
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+    tenant_slug: str = Field(min_length=2, max_length=120)
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    reset_token: str = Field(min_length=20, max_length=500)
+    new_password: str = Field(min_length=10, max_length=500)
+
+
 class UserOut(BaseModel):
     id: UUID
     tenant_id: UUID
@@ -1245,6 +1255,22 @@ def login(payload: LoginRequest, request: Request) -> dict[str, object]:
 @router.post("/auth/refresh", response_model=TokenResponse)
 def refresh(payload: RefreshRequest, request: Request) -> dict[str, str]:
     return auth_service.refresh(refresh_token=payload.refresh_token, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/auth/password-reset/request")
+def request_password_reset(payload: PasswordResetRequest, db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return auth_service.request_password_reset(
+        db,
+        email=payload.email,
+        tenant_slug=payload.tenant_slug,
+        request_id=getattr(request.state, "request_id", None),
+        requested_ip=request.client.host if request.client else None,
+    )
+
+
+@router.post("/auth/password-reset/confirm")
+def confirm_password_reset(payload: PasswordResetConfirmRequest, db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return auth_service.confirm_password_reset(db, reset_token=payload.reset_token, new_password=payload.new_password, request_id=getattr(request.state, "request_id", None))
 
 
 @router.post("/auth/logout")

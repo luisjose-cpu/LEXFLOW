@@ -108,6 +108,25 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     tasks: Mapped[list["Task"]] = relationship(back_populates="assigned_user")
 
 
+class PasswordResetToken(Base, TimestampMixin):
+    __tablename__ = "password_reset_tokens"
+    __table_args__ = (
+        Index("ix_password_reset_tokens_tenant_id", "tenant_id"),
+        Index("ix_password_reset_tokens_user_id", "user_id"),
+        Index("ix_password_reset_tokens_token_hash", "token_hash"),
+        Index("ix_password_reset_tokens_expires_at", "expires_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(String(40), default="pending", nullable=False)
+    requested_ip: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class Client(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "clients"
     __table_args__ = (

@@ -2,6 +2,7 @@
 
 import { Button, Card } from "@lexflow/ui";
 import { Building2, ShieldCheck, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { FormEvent, useMemo, useState } from "react";
@@ -144,6 +145,14 @@ export default function LoginPage() {
           ) : null}
           <Button type="submit">{status === "loading" ? "Validando acceso..." : "Entrar al Legal OS"}</Button>
         </form>
+        <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+          <Link className="font-semibold text-legal-900" href="/login/reset">
+            Recuperar acceso
+          </Link>
+          <Link className="font-semibold text-slate-600" href="/login/reset/confirm">
+            Tengo un token
+          </Link>
+        </div>
         <div className="mt-6 flex items-start gap-2 rounded-lg bg-legal-50 p-3 text-sm text-legal-900">
           <ShieldCheck size={18} aria-hidden="true" />
           <p>Ingreso conectado al API cloud con JWT, contexto tenant y auditoria de acceso.</p>

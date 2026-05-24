@@ -1,9 +1,13 @@
+from datetime import timedelta
+from hashlib import sha256
+from secrets import token_urlsafe
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from jwt import InvalidTokenError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db import models as dbm
@@ -16,6 +20,9 @@ from app.services.users import user_service
 
 
 class AuthService:
+    def __init__(self) -> None:
+        self._memory_password_resets: dict[str, dict[str, object]] = {}
+
     def login(self, *, email: str, password: str, tenant_slug: str | None = None, request_id: str | None = None) -> dict[str, object]:
         tenant_id: UUID | None = None
         if tenant_slug:
@@ -128,6 +135,131 @@ class AuthService:
             version=updated.refresh_token_version,
         )
         return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "user": updated}
+
+    def request_password_reset(self, db: Session, *, email: str, tenant_slug: str, request_id: str | None = None, requested_ip: str | None = None) -> dict[str, object]:
+        settings = get_settings()
+        tenant = tenant_service.find_by_slug(tenant_slug) or self._load_tenant_by_slug(tenant_slug)
+        response: dict[str, object] = {"status": "reset_requested", "delivery": "email_prepared"}
+        if not tenant:
+            return response
+
+        raw_token = token_urlsafe(32)
+        token_hash = self._token_hash(raw_token)
+        expires_at = dbm.now_utc() + timedelta(minutes=settings.password_reset_token_minutes)
+
+        user = user_service.find_by_email(email, tenant.id)
+        if user:
+            self._memory_password_resets[token_hash] = {
+                "tenant_id": str(user.tenant_id),
+                "user_id": str(user.id),
+                "expires_at": expires_at,
+                "used": False,
+            }
+            audit_service.record(
+                tenant_id=user.tenant_id,
+                actor_user_id=user.id,
+                action=AuditAction.update,
+                entity_type="auth_password_reset",
+                entity_id=user.id,
+                request_id=request_id,
+                metadata={"reason": "password_reset_requested"},
+            )
+            if settings.app_env.lower() in {"local", "test"}:
+                response["reset_token"] = raw_token
+            return response
+
+        try:
+            db_user = db.scalars(
+                select(dbm.User)
+                .join(dbm.Tenant)
+                .where(
+                    dbm.Tenant.slug == tenant_slug,
+                    dbm.Tenant.deleted_at.is_(None),
+                    dbm.User.email == email.lower(),
+                    dbm.User.status == "active",
+                    dbm.User.deleted_at.is_(None),
+                )
+            ).first()
+        except SQLAlchemyError:
+            return response
+        if not db_user:
+            return response
+
+        db.add(
+            dbm.PasswordResetToken(
+                tenant_id=db_user.tenant_id,
+                user_id=db_user.id,
+                token_hash=token_hash,
+                requested_ip=requested_ip,
+                expires_at=expires_at,
+            )
+        )
+        db.commit()
+        audit_service.record(
+            tenant_id=UUID(db_user.tenant_id),
+            actor_user_id=UUID(db_user.id),
+            action=AuditAction.update,
+            entity_type="auth_password_reset",
+            entity_id=UUID(db_user.id),
+            request_id=request_id,
+            metadata={"reason": "password_reset_requested"},
+        )
+        if settings.app_env.lower() in {"local", "test"}:
+            response["reset_token"] = raw_token
+        return response
+
+    def confirm_password_reset(self, db: Session, *, reset_token: str, new_password: str, request_id: str | None = None) -> dict[str, object]:
+        token_hash = self._token_hash(reset_token)
+        now = dbm.now_utc()
+        memory_token = self._memory_password_resets.get(token_hash)
+        if memory_token:
+            if memory_token["used"] or memory_token["expires_at"] <= now:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired reset token")
+            user = user_service.get(UUID(str(memory_token["tenant_id"])), UUID(str(memory_token["user_id"])))
+            if not user or not user.is_active:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid reset token subject")
+            memory_token["used"] = True
+            updated = user_service.change_password(user, hash_password(new_password))
+            self._sync_user_password(updated)
+            audit_service.record(
+                tenant_id=updated.tenant_id,
+                actor_user_id=updated.id,
+                action=AuditAction.update,
+                entity_type="auth_password_reset",
+                entity_id=updated.id,
+                request_id=request_id,
+                metadata={"reason": "password_reset_completed"},
+            )
+            return {"status": "password_reset_complete"}
+
+        reset_row = db.scalar(
+            select(dbm.PasswordResetToken).where(
+                dbm.PasswordResetToken.token_hash == token_hash,
+                dbm.PasswordResetToken.used_at.is_(None),
+                dbm.PasswordResetToken.expires_at > now,
+            )
+        )
+        if not reset_row:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired reset token")
+        db_user = db.get(dbm.User, reset_row.user_id)
+        if not db_user or db_user.status != "active" or db_user.deleted_at is not None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid reset token subject")
+        db_user.hashed_password = hash_password(new_password)
+        db_user.refresh_token_version += 1
+        reset_row.used_at = now
+        reset_row.status = "used"
+        db.commit()
+        user_service.upsert(self._domain_user_from_db(db_user))
+        audit_service.record(
+            tenant_id=UUID(db_user.tenant_id),
+            actor_user_id=UUID(db_user.id),
+            action=AuditAction.update,
+            entity_type="auth_password_reset",
+            entity_id=UUID(db_user.id),
+            request_id=request_id,
+            metadata={"reason": "password_reset_completed"},
+        )
+        return {"status": "password_reset_complete"}
 
     def user_from_token(self, token: str, *, expected_type: str = "access") -> User:
         try:
@@ -252,6 +384,10 @@ class AuthService:
                 db.commit()
         except SQLAlchemyError:
             return
+
+    @staticmethod
+    def _token_hash(raw_token: str) -> str:
+        return sha256(raw_token.encode("utf-8")).hexdigest()
 
 
 auth_service = AuthService()

@@ -99,6 +99,36 @@ export async function changePassword(payload: { current_password: string; new_pa
   });
 }
 
+export async function requestPasswordReset(payload: { email: string; tenant_slug: string }) {
+  return publicApiRequest<{ status: string; delivery: string; reset_token?: string }>("/auth/password-reset/request", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function confirmPasswordReset(payload: { reset_token: string; new_password: string }) {
+  return publicApiRequest<{ status: string }>("/auth/password-reset/confirm", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+async function publicApiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_URL}/api/v1${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers ?? {})
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`LEXFLOW API error ${response.status}`);
+  }
+
+  return (await response.json()) as T;
+}
+
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getAccessToken();
   const response = await fetch(`${API_URL}/api/v1${path}`, {

@@ -1,5 +1,20 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Password Reset Workflow
+
+### Added
+
+- `password_reset_tokens` persistence with Alembic migration `20260524_0014`.
+- `/api/v1/auth/password-reset/request` with generic account-safe response and hashed one-time tokens.
+- `/api/v1/auth/password-reset/confirm` with token expiration, single-use enforcement and session revocation.
+- Login password recovery pages for requesting and confirming reset tokens.
+- Backend and frontend tests for reset request, token confirmation, reuse blocking and old-session revocation.
+
+### Security
+
+- Reset tokens are stored only as SHA-256 hashes and are never returned outside local/test environments.
+- Password reset audit events avoid logging passwords, hashes or token values.
+
 ## 2026-05-24 - Production Auth Hardening
 
 ### Added
