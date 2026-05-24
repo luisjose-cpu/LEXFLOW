@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 30
     refresh_token_minutes: int = 60 * 24 * 7
+    failed_login_limit: int = 10
+    failed_login_window_minutes: int = 15
     password_reset_token_minutes: int = 30
     user_invitation_token_minutes: int = 60 * 24 * 7
     require_owner_mfa: bool = False

@@ -28,6 +28,7 @@
 - `tenant_security_policies` queda persistido por migracion `20260524_0018`.
 - `REQUIRE_OWNER_MFA=true` exige MFA owner antes de permitir login propietario sin segundo factor.
 - `CREDENTIAL_ENCRYPTION_KEY` dedicado queda validado por readiness para proteger secretos MFA y credenciales de integraciones sin depender del `JWT_SECRET`.
+- `FAILED_LOGIN_LIMIT` y `FAILED_LOGIN_WINDOW_MINUTES` aplican bloqueo temporal en memoria por cuenta/tenant y por owner ante intentos fallidos repetidos.
 
 ## Auditoria
 
@@ -82,6 +83,7 @@ No se registra secreto MFA, codigo temporal ni password.
 - Cola/retry de email y eventos de entrega.
 - Grace-period real por usuario para MFA obligatorio.
 - Flujo de bootstrap seguro para activar `REQUIRE_OWNER_MFA=true` despues de enrolar al primer owner admin.
+- Persistir/centralizar counters de intentos fallidos en Redis para multiples replicas.
 - Alertas por cambio de password.
 - Politica configurable de complejidad y expiracion.
 - Pantalla de sesiones activas por usuario.

@@ -58,6 +58,10 @@ services:
         sync: false
       - key: RATE_LIMIT_PER_MINUTE
         value: "120"
+      - key: FAILED_LOGIN_LIMIT
+        value: "10"
+      - key: FAILED_LOGIN_WINDOW_MINUTES
+        value: "15"
       - key: REQUIRE_OWNER_MFA
         value: "false"
 

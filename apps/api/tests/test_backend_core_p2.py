@@ -3,8 +3,10 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
+from app.core.config import Settings
 from app.domain.models import RoleName
 from app.main import app
+from app.services import auth as auth_module
 from app.services.mfa import totp_code
 from app.services.seed import DEMO_SEED, seed_demo_data
 from app.services.tenants import tenant_service
@@ -134,6 +136,22 @@ def test_auth_rejects_bad_password() -> None:
     )
 
     assert response.status_code == 401
+
+
+def test_auth_temporarily_blocks_repeated_failed_logins(monkeypatch) -> None:
+    seed_demo_data()
+    auth_module.auth_service._failed_logins.clear()
+    monkeypatch.setattr(auth_module, "get_settings", lambda: Settings(failed_login_limit=2, failed_login_window_minutes=15))
+    payload = {"email": DEMO_SEED.admin_email, "password": "wrong-password", "tenant_slug": DEMO_SEED.tenant_slug}
+
+    first = client.post("/api/v1/auth/login", json=payload)
+    second = client.post("/api/v1/auth/login", json=payload)
+    blocked = client.post("/api/v1/auth/login", json={**payload, "password": DEMO_SEED.password})
+
+    assert first.status_code == 401
+    assert second.status_code == 401
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"] == "Too many failed login attempts"
 
 
 def test_auth_change_password_revokes_old_tokens_and_allows_new_password() -> None:

@@ -109,6 +109,22 @@ def test_owner_login_blocks_when_owner_mfa_required_and_not_enrolled(api: TestCl
     assert response.json()["detail"] == "Owner MFA enrollment required"
 
 
+def test_owner_login_temporarily_blocks_repeated_failures(api: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    create_owner_user(db_session)
+    owner_auth_module.owner_auth_service._failed_logins.clear()
+    monkeypatch.setattr(owner_auth_module, "get_settings", lambda: Settings(failed_login_limit=2, failed_login_window_minutes=15))
+    payload = {"email": "owner@lexflow.com", "password": "wrong-password"}
+
+    first = api.post("/api/v1/owner/auth/login", json=payload)
+    second = api.post("/api/v1/owner/auth/login", json=payload)
+    blocked = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!"})
+
+    assert first.status_code == 401
+    assert second.status_code == 401
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"] == "Too many failed login attempts"
+
+
 def test_owner_security_alerts_are_created_and_acknowledged(api: TestClient, db_session: Session) -> None:
     create_owner_user(db_session)
     logged = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!"})

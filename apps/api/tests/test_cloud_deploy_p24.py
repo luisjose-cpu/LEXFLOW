@@ -69,6 +69,8 @@ def test_render_blueprint_declares_required_runtime_contracts() -> None:
     assert "LEXFLOW_WEB_URL" in render_yaml
     assert "CREDENTIAL_ENCRYPTION_KEY" in render_yaml
     assert "REQUIRE_OWNER_MFA" in render_yaml
+    assert "FAILED_LOGIN_LIMIT" in render_yaml
+    assert "FAILED_LOGIN_WINDOW_MINUTES" in render_yaml
     assert "ALLOWED_ORIGINS" in render_yaml
     assert "STORAGE_LOCAL_ROOT" in render_yaml
     assert "lexflow-security-alert-deliveries" in render_yaml
@@ -106,9 +108,9 @@ def test_fast_production_gate_requires_public_security_env_contract() -> None:
     gate = read_repo_file("scripts/production-gate.ps1")
     preflight = read_repo_file("scripts/cloud-preflight.ps1")
 
-    for key in ["LEXFLOW_WEB_URL=", "CREDENTIAL_ENCRYPTION_KEY=", "REQUIRE_OWNER_MFA="]:
+    for key in ["LEXFLOW_WEB_URL=", "CREDENTIAL_ENCRYPTION_KEY=", "REQUIRE_OWNER_MFA=", "FAILED_LOGIN_LIMIT=", "FAILED_LOGIN_WINDOW_MINUTES="]:
         assert key in gate
-    for key in ["LEXFLOW_WEB_URL", "CREDENTIAL_ENCRYPTION_KEY", "REQUIRE_OWNER_MFA"]:
+    for key in ["LEXFLOW_WEB_URL", "CREDENTIAL_ENCRYPTION_KEY", "REQUIRE_OWNER_MFA", "FAILED_LOGIN_LIMIT", "FAILED_LOGIN_WINDOW_MINUTES"]:
         assert key in preflight
 
 
