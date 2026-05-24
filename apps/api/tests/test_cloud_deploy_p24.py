@@ -43,6 +43,7 @@ def test_cloud_deploy_pack_files_are_present() -> None:
         "docs/cloud/P24_CLOUD_DEPLOY_PACK.md",
         "docs/cloud/P25_PUBLIC_PRODUCTION_GAPS.md",
         "docs/cloud/POST_DEPLOY_RUNBOOK.md",
+        "docs/cloud/ROLLBACK_RUNBOOK.md",
         "infra/cloud/s3-lifecycle-policy.json",
         "infra/cloud/s3-cors-policy.json",
         "docs/cloud/S3_STORAGE_POLICY.md",
@@ -189,6 +190,17 @@ def test_public_production_gate_script_blocks_warnings() -> None:
     assert "public_production_ready" in script
     assert "External providers" in script
     assert "Public production gate failed" in script
+
+
+def test_cloud_rollback_runbook_documents_safe_recovery() -> None:
+    runbook = read_repo_file("docs/cloud/ROLLBACK_RUNBOOK.md")
+
+    assert "Render" in runbook
+    assert "Vercel" in runbook
+    assert "Owner Console" in runbook
+    assert "cloud:smoke" in runbook
+    assert "db:restore-drill" in runbook
+    assert "No pegar secretos" in runbook
 
 
 def test_s3_storage_policy_templates_are_safe() -> None:

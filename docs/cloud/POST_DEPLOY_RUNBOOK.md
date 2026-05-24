@@ -77,6 +77,7 @@ El workflow manual `Cloud CI` acepta `wait_for_revision=true` y `public_ready_ga
 - Revision mismatch: revisar que Render/Vercel esten apuntando a branch `master` y que el deploy no haya fallado.
 - Readiness blocked: abrir `/settings/production-gate` y resolver blockers listados.
 - Provider modes mock: cerrar gaps de `docs/cloud/P25_PUBLIC_PRODUCTION_GAPS.md`.
+- Degradacion posterior a deploy: ejecutar [ROLLBACK_RUNBOOK.md](ROLLBACK_RUNBOOK.md).
 
 ## Evidencia
 

@@ -31,6 +31,7 @@ Ruta recomendada para staging:
 - Readiness warning `storage_backend_public_ready` cuando produccion sigue usando `STORAGE_BACKEND=local`.
 - Render cron `lexflow-security-alert-deliveries` para procesar entregas criticas cada 15 minutos.
 - Scripts `db:backup` y `db:restore-drill` para backup PostgreSQL y restore drill aislado.
+- Runbook de rollback cloud: [ROLLBACK_RUNBOOK.md](ROLLBACK_RUNBOOK.md).
 
 ## Render
 

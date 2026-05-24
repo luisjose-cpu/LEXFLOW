@@ -77,6 +77,7 @@
 - Cloud smoke, revision, and public-ready checks now retry transient HTTP failures during redeploy windows.
 - Cloud smoke now verifies baseline API and web security headers.
 - Cloud CI workflow now exposes manual `wait_for_revision` and `public_ready_gate` controls.
+- Added a cloud rollback runbook for Render, Vercel, database restore drills, and owner incident closure.
 - Restore drill script now writes non-secret JSON evidence under `reports/restore/`.
 - Database backup script now writes a non-secret JSON manifest under `reports/backup/`.
 - Added S3/R2 lifecycle and CORS policy templates plus storage policy runbook.
