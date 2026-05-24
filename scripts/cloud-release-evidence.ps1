@@ -60,6 +60,20 @@ function Resolve-ExpectedRevision {
   return $head.Trim()
 }
 
+function Get-SecurityHeaders {
+  param([string]$Url)
+  if (-not $Url) {
+    return $null
+  }
+  $response = Invoke-WebRequest -Uri $Url -Method GET -UseBasicParsing -TimeoutSec 30
+  return @{
+    x_content_type_options = "$($response.Headers['X-Content-Type-Options'])"
+    x_frame_options = "$($response.Headers['X-Frame-Options'])"
+    referrer_policy = "$($response.Headers['Referrer-Policy'])"
+    strict_transport_security = "$($response.Headers['Strict-Transport-Security'])"
+  }
+}
+
 $ApiUrl = Normalize-Url $ApiUrl
 $WebUrl = Normalize-Url $WebUrl
 $ExpectedRevision = Resolve-ExpectedRevision $ExpectedRevision
@@ -83,6 +97,8 @@ $statusResponse = Invoke-WebRequest -Uri "$ApiUrl/api/v1/status" -Method GET -Us
 $apiStatus = $statusResponse.Content | ConvertFrom-Json
 $versionResponse = Invoke-WebRequest -Uri "$ApiUrl/version" -Method GET -UseBasicParsing -TimeoutSec 30
 $version = $versionResponse.Content | ConvertFrom-Json
+$apiSecurityHeaders = Get-SecurityHeaders "$ApiUrl/health"
+$webSecurityHeaders = Get-SecurityHeaders $WebUrl
 $actualRevision = "$($version.revision)".Trim()
 $revisionMatches = $false
 if ($ExpectedRevision -and $actualRevision -and $actualRevision -ne "unknown") {
@@ -116,6 +132,10 @@ $report = @{
     warnings = $warningCount
     blocker_keys = @($readiness.blockers | ForEach-Object { $_.key })
     warning_keys = @($readiness.warnings | ForEach-Object { $_.key })
+  }
+  security_headers = @{
+    api = $apiSecurityHeaders
+    web = $webSecurityHeaders
   }
   steps = $steps
   security = @{

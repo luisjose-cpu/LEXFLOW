@@ -167,6 +167,9 @@ def test_cloud_release_evidence_script_writes_safe_report() -> None:
     assert "api/v1/status" in script
     assert "external_providers" in script
     assert "matches_expected" in script
+    assert "security_headers" in script
+    assert "Get-SecurityHeaders" in script
+    assert "Strict-Transport-Security" in script
     assert "LEXFLOW_EXPECTED_REVISION" in script
     assert "revision" in script
     assert "secrets_included = $false" in script
