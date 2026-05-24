@@ -10,6 +10,7 @@
 - Automatic prepared/email-provider delivery for `high` and `critical` security alerts.
 - Retry-ready delivery processing with attempt counters, due dates and failure state.
 - One-off script `scripts/process_security_alert_deliveries.py` for Render jobs or cron-based processing.
+- Settings and Owner Console panels now show security alert delivery telemetry and manual retry processing.
 
 ### Security
 

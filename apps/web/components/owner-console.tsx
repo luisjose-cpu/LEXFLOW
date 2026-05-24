@@ -55,6 +55,7 @@ import {
   loadOwnerLimits,
   loadOwnerMfaStatus,
   loadOwnerPlans,
+  loadOwnerSecurityAlertDeliveries,
   loadOwnerSecurityAlerts,
   loadOwnerSystemChecks,
   loadOwnerSystemIncidents,
@@ -65,6 +66,7 @@ import {
   logoutOwner,
   reactivateOwnerTenant,
   acknowledgeOwnerSecurityAlert,
+  processOwnerSecurityAlertDeliveries,
   regenerateOwnerMfaRecoveryCodes,
   resolveOwnerSystemIncident,
   resolveOwnerTicket,
@@ -406,6 +408,7 @@ export function OwnerSecurityPanel() {
 
 export function OwnerSecurityAlertsPanel() {
   const [alerts, setAlerts] = useState<{ id: string; severity: string; title: string; body: string; status: string; created_at: string }[]>([]);
+  const [deliveries, setDeliveries] = useState<{ id: string; template: string; recipient_hint: string; status: string; attempts: number; max_attempts: number }[]>([]);
   const [state, setState] = useState<OwnerDataSource>("demo");
   const [message, setMessage] = useState("");
 
@@ -416,10 +419,11 @@ export function OwnerSecurityAlertsPanel() {
     }
     let active = true;
     setState("loading");
-    void loadOwnerSecurityAlerts()
-      .then((items) => {
+    void Promise.all([loadOwnerSecurityAlerts(), loadOwnerSecurityAlertDeliveries()])
+      .then(([items, deliveryItems]) => {
         if (!active) return;
         setAlerts(items);
+        setDeliveries(deliveryItems);
         setState("live");
       })
       .catch(() => {
@@ -442,8 +446,23 @@ export function OwnerSecurityAlertsPanel() {
     }
   }
 
+  async function processDeliveries() {
+    setMessage("");
+    try {
+      const result = await processOwnerSecurityAlertDeliveries();
+      const deliveryItems = await loadOwnerSecurityAlertDeliveries();
+      setDeliveries(deliveryItems);
+      setMessage(`Entregas owner procesadas: ${result.processed}.`);
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "No se pudieron procesar entregas owner.");
+    }
+  }
+
   const visibleAlerts = alerts.length ? alerts : [
     { id: "demo-owner-alert", severity: "medium", title: "Owner security listo", body: "Conecta una sesion owner para ver alertas reales.", status: "demo", created_at: "" }
+  ];
+  const visibleDeliveries = deliveries.length ? deliveries : [
+    { id: "demo-owner-delivery", template: "security_alert", recipient_hint: "sin entregas", status: "demo", attempts: 0, max_attempts: 3 }
   ];
 
   return (
@@ -471,6 +490,26 @@ export function OwnerSecurityAlertsPanel() {
             )}
           </div>
         ))}
+      </div>
+      <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-ink">Entregas owner</p>
+          {hasOwnerSession() ? (
+            <button className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-ink" onClick={() => void processDeliveries()} type="button">
+              Procesar pendientes
+            </button>
+          ) : null}
+        </div>
+        <div className="mt-3 grid gap-2">
+          {visibleDeliveries.map((delivery) => (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white px-3 py-2 text-xs text-slate-600" key={delivery.id}>
+              <span className="font-semibold text-ink">{delivery.recipient_hint}</span>
+              <span>{delivery.template}</span>
+              <span>{delivery.status}</span>
+              <span>{delivery.attempts}/{delivery.max_attempts}</span>
+            </div>
+          ))}
+        </div>
       </div>
       <p className="mt-3 text-xs font-semibold text-slate-500">Fuente: {state}</p>
       {message ? <p className="mt-3 rounded-md bg-sky-50 px-3 py-2 text-sm text-legal-900">{message}</p> : null}

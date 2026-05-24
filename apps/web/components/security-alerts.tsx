@@ -3,19 +3,29 @@
 import { Card } from "@lexflow/ui";
 import { AlertTriangle } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { acknowledgeSecurityAlert, hasCloudSession, loadSecurityAlerts, SecurityAlert } from "@/lib/lexflow-api";
+import {
+  acknowledgeSecurityAlert,
+  hasCloudSession,
+  loadSecurityAlertDeliveries,
+  loadSecurityAlerts,
+  processSecurityAlertDeliveries,
+  SecurityAlert,
+  SecurityAlertDelivery
+} from "@/lib/lexflow-api";
 
 export function SecurityAlerts() {
   const [alerts, setAlerts] = useState<SecurityAlert[]>([]);
+  const [deliveries, setDeliveries] = useState<SecurityAlertDelivery[]>([]);
   const [state, setState] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     if (!hasCloudSession()) return;
     setState("loading");
-    void loadSecurityAlerts()
-      .then((items) => {
+    void Promise.all([loadSecurityAlerts(), loadSecurityAlertDeliveries()])
+      .then(([items, deliveryItems]) => {
         setAlerts(items);
+        setDeliveries(deliveryItems);
         setState("success");
       })
       .catch(() => {
@@ -35,8 +45,24 @@ export function SecurityAlerts() {
     }
   }
 
+  async function processDeliveries() {
+    setMessage("");
+    try {
+      const result = await processSecurityAlertDeliveries();
+      const deliveryItems = await loadSecurityAlertDeliveries();
+      setDeliveries(deliveryItems);
+      setMessage(`Entregas procesadas: ${result.processed}.`);
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "No se pudieron procesar entregas.");
+    }
+  }
+
   const visibleAlerts = alerts.length ? alerts : [
     { id: "empty", severity: "info", event_type: "empty", title: "Sin alertas pendientes", body: hasCloudSession() ? "Los eventos criticos apareceran aqui." : "Inicia sesion para ver alertas reales.", status: "empty", created_at: "" }
+  ];
+
+  const visibleDeliveries = deliveries.length ? deliveries : [
+    { id: "empty-delivery", template: "security_alert", provider: "prepared", status: "empty", recipient_hint: "sin entregas", attempts: 0, max_attempts: 3, created_at: "" }
   ];
 
   return (
@@ -68,6 +94,26 @@ export function SecurityAlerts() {
             )}
           </div>
         ))}
+      </div>
+      <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-ink">Entregas criticas</p>
+          {hasCloudSession() ? (
+            <button className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-ink" onClick={() => void processDeliveries()} type="button">
+              Procesar pendientes
+            </button>
+          ) : null}
+        </div>
+        <div className="mt-3 grid gap-2">
+          {visibleDeliveries.map((delivery) => (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white px-3 py-2 text-xs text-slate-600" key={delivery.id}>
+              <span className="font-semibold text-ink">{delivery.recipient_hint}</span>
+              <span>{delivery.template}</span>
+              <span>{delivery.status}</span>
+              <span>{delivery.attempts}/{delivery.max_attempts}</span>
+            </div>
+          ))}
+        </div>
       </div>
       {state === "loading" ? <p className="mt-3 text-sm text-slate-500">Cargando alertas...</p> : null}
       {message ? <p className={`mt-3 rounded-md px-3 py-2 text-sm ${state === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{message}</p> : null}

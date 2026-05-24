@@ -191,12 +191,33 @@ export type OwnerSecurityAlert = {
   created_at: string;
 };
 
+export type OwnerSecurityAlertDelivery = {
+  id: string;
+  template: string;
+  provider?: string | null;
+  status: string;
+  recipient_hint: string;
+  attempts: number;
+  max_attempts: number;
+  created_at: string;
+};
+
 export async function loadOwnerSecurityAlerts() {
   return ownerApiRequest<OwnerSecurityAlert[]>("/owner/security-alerts?limit=10");
 }
 
 export async function acknowledgeOwnerSecurityAlert(alertId: string) {
   return ownerApiRequest<OwnerSecurityAlert>(`/owner/security-alerts/${alertId}/acknowledge`, {
+    method: "POST"
+  });
+}
+
+export async function loadOwnerSecurityAlertDeliveries() {
+  return ownerApiRequest<OwnerSecurityAlertDelivery[]>("/owner/security-alert-deliveries?limit=10");
+}
+
+export async function processOwnerSecurityAlertDeliveries() {
+  return ownerApiRequest<{ processed: number }>("/owner/security-alert-deliveries/process", {
     method: "POST"
   });
 }

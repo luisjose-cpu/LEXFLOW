@@ -153,12 +153,33 @@ export type SecurityAlert = {
   created_at: string;
 };
 
+export type SecurityAlertDelivery = {
+  id: string;
+  template: string;
+  provider?: string | null;
+  status: string;
+  recipient_hint: string;
+  attempts: number;
+  max_attempts: number;
+  created_at: string;
+};
+
 export async function loadSecurityAlerts() {
   return apiRequest<SecurityAlert[]>("/settings/security-alerts?limit=10");
 }
 
 export async function acknowledgeSecurityAlert(alertId: string) {
   return apiRequest<SecurityAlert>(`/settings/security-alerts/${alertId}/acknowledge`, {
+    method: "POST"
+  });
+}
+
+export async function loadSecurityAlertDeliveries() {
+  return apiRequest<SecurityAlertDelivery[]>("/settings/security-alert-deliveries?limit=10");
+}
+
+export async function processSecurityAlertDeliveries() {
+  return apiRequest<{ processed: number }>("/settings/security-alert-deliveries/process", {
     method: "POST"
   });
 }

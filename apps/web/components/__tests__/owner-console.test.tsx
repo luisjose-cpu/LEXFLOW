@@ -7,6 +7,7 @@ import {
   OwnerAuditLogs,
   OwnerDashboard,
   OwnerLogin,
+  OwnerSecurityAlertsPanel,
   OwnerSecurityPanel,
   PlansManager,
   SupportTickets,
@@ -138,6 +139,37 @@ describe("Owner Console UI", () => {
     expect(screen.getByText("LF-1111-2222-3333")).toBeTruthy();
     expect(localStorage.getItem("lexflow.owner_access_token")).toBe("new-owner-access");
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/owner/auth/mfa/verify"), expect.objectContaining({ method: "POST" }));
+  });
+
+  it("shows owner security alert deliveries and processes retries", async () => {
+    localStorage.setItem("lexflow.owner_access_token", "owner-token");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ([{ id: "alert-owner-1", severity: "critical", event_type: "owner.owner_mfa_disabled", title: "MFA owner desactivado", body: "Revisar evento.", status: "open", created_at: "2026-05-24T00:00:00Z" }])
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ([{ id: "delivery-owner-1", template: "security_alert", provider: "email_prepared", status: "prepared", recipient_hint: "ow***@lexflow.com", attempts: 1, max_attempts: 3, created_at: "2026-05-24T00:00:00Z" }])
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ processed: 1 })
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ([{ id: "delivery-owner-1", template: "security_alert", provider: "email_prepared", status: "prepared", recipient_hint: "ow***@lexflow.com", attempts: 1, max_attempts: 3, created_at: "2026-05-24T00:00:00Z" }])
+      } as Response);
+
+    render(<OwnerSecurityAlertsPanel />);
+
+    expect(await screen.findByText("MFA owner desactivado")).toBeTruthy();
+    expect(screen.getByText("ow***@lexflow.com")).toBeTruthy();
+    fireEvent.click(screen.getByText("Procesar pendientes"));
+
+    await waitFor(() => expect(screen.getByText("Entregas owner procesadas: 1.")).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/owner/security-alert-deliveries/process"), expect.objectContaining({ method: "POST" }));
   });
 
   it("loads owner dashboard from cloud API when owner token exists", async () => {
