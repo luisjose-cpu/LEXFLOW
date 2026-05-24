@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID, uuid4
 
@@ -233,6 +234,13 @@ class CaseTaskCreate(BaseModel):
     title: str
     assigned_user_id: UUID | None = None
     due_at: str | None = None
+
+
+class CaseHearingCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=240)
+    starts_at: str
+    location: str | None = Field(default=None, max_length=240)
+    status: str = Field(default="scheduled", pattern="^(scheduled|completed|cancelled|postponed)$")
 
 
 class CaseDocumentCreate(BaseModel):
@@ -506,6 +514,15 @@ class CSVImportRequest(BaseModel):
 
 def resolve_tenant(x_tenant_id: str | None = Header(default=None)) -> UUID:
     return UUID(x_tenant_id) if x_tenant_id else UUID("00000000-0000-0000-0000-000000000001")
+
+
+def parse_api_datetime(value: str | None, *, field_name: str) -> datetime | None:
+    if value is None:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"{field_name} must be an ISO datetime") from exc
 
 
 def get_owner_db_user(db: Session, owner: OwnerPrincipal) -> dbm.OwnerUser:
@@ -2780,6 +2797,7 @@ def create_case_task(
         assigned_user_id=str(payload.assigned_user_id) if payload.assigned_user_id else None,
         title=payload.title,
         status="open",
+        due_at=parse_api_datetime(payload.due_at, field_name="due_at"),
     )
     db.add(task)
     db.flush()
@@ -2794,7 +2812,64 @@ def create_case_task(
         metadata={"case_id": str(case_id)},
     )
     db.commit()
-    return {"id": task.id, "case_id": task.case_id, "title": task.title, "status": task.status}
+    return {"id": task.id, "case_id": task.case_id, "title": task.title, "status": task.status, "due_at": task.due_at.isoformat() if task.due_at else None}
+
+
+@router.post("/cases/{case_id}/hearings", status_code=status.HTTP_201_CREATED)
+def create_case_hearing(
+    case_id: UUID,
+    payload: CaseHearingCreate,
+    actor: Annotated[User, Depends(require_permission("cases:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    get_case_or_404(db, tenant_id=tenant_id, case_id=case_id)
+    hearing = dbm.Hearing(
+        tenant_id=str(tenant_id),
+        case_id=str(case_id),
+        title=payload.title,
+        starts_at=parse_api_datetime(payload.starts_at, field_name="starts_at") or now(),
+        location=payload.location,
+        status=payload.status,
+    )
+    event = dbm.CaseEvent(
+        tenant_id=str(tenant_id),
+        case_id=str(case_id),
+        event_type="hearing_created",
+        title=f"Audiencia creada: {payload.title}",
+        description=f"{payload.location or 'Sin ubicacion'} · {hearing.starts_at.isoformat()}",
+    )
+    notification = dbm.Notification(
+        tenant_id=str(tenant_id),
+        user_id=str(actor.id),
+        case_id=str(case_id),
+        title="Audiencia registrada",
+        body=f"{payload.title} quedo agendada para {hearing.starts_at.isoformat()}",
+        channel="in_app",
+        status="unread",
+    )
+    db.add_all([hearing, event, notification])
+    db.flush()
+    audit_case_action(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor.id,
+        action="create",
+        entity_type="hearing",
+        entity_id=hearing.id,
+        request_id=getattr(request.state, "request_id", None),
+        metadata={"case_id": str(case_id), "hearing_id": hearing.id, "starts_at": hearing.starts_at.isoformat()},
+    )
+    db.commit()
+    return {
+        "id": hearing.id,
+        "case_id": hearing.case_id,
+        "title": hearing.title,
+        "starts_at": hearing.starts_at.isoformat(),
+        "location": hearing.location,
+        "status": hearing.status,
+    }
 
 
 @router.post("/cases/{case_id}/documents", status_code=status.HTTP_201_CREATED)

@@ -1,5 +1,20 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Expediente 360 Functional Workspace
+
+### Added
+
+- `POST /api/v1/cases/{case_id}/hearings` to create audited hearings from Expediente 360.
+- Case task creation now persists ISO `due_at` values.
+- `Case360Workspace` loads live case overview data when authenticated and keeps demo fallback when offline.
+- Expediente 360 can now create notes, tasks, document records, hearings and portal communications from the case page.
+- Expediente 360 can trigger SINOE source checks and case AI summaries from the same workspace.
+
+### Security
+
+- Hearing creation, tasks, documents, communications and status changes remain tenant-scoped, RBAC-protected and audit-logged.
+- SINOE checks continue to consume the existing human-in-the-loop module without CAPTCHA bypass.
+
 ## 2026-05-24 - Security Alert Email Deliveries
 
 ### Added

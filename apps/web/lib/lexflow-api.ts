@@ -1,4 +1,5 @@
 import { CaseOps, ClientOps, SearchResult } from "@/lib/operational-demo";
+import type { Case360Data } from "@/components/case-360";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://lexflow-api.onrender.com";
 
@@ -376,6 +377,57 @@ export async function loadCaseResource(caseId: string, type: "documents" | "hear
     communications: ["channel", "direction", "body", "status"]
   }[type];
   return items.map((item) => itemLabel(item as Record<string, unknown>, keys));
+}
+
+export async function loadCaseOverview(caseId: string) {
+  return apiRequest<Case360Data>(`/cases/${caseId}/overview`);
+}
+
+export async function createCaseEvent(caseId: string, payload: { title: string; description?: string; event_type?: string }) {
+  return apiRequest<{ id: string }>(`/cases/${caseId}/events`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function createCaseTask(caseId: string, payload: { title: string; due_at?: string }) {
+  return apiRequest<{ id: string }>(`/cases/${caseId}/tasks`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function createCaseDocument(caseId: string, payload: { filename: string; storage_key: string; classification?: string; content_type?: string }) {
+  return apiRequest<{ id: string }>(`/cases/${caseId}/documents`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function createCaseHearing(caseId: string, payload: { title: string; starts_at: string; location?: string; status?: string }) {
+  return apiRequest<{ id: string }>(`/cases/${caseId}/hearings`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function createCaseCommunication(caseId: string, payload: { body: string; channel?: string; direction?: string }) {
+  return apiRequest<{ id: string }>(`/cases/${caseId}/communications`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function runCaseAiSummary(caseId: string) {
+  return apiRequest<{ id: string; result: Record<string, unknown>; disclaimer?: string }>(`/ai/cases/${caseId}/summary`, {
+    method: "POST"
+  });
+}
+
+export async function checkSinoeSource(sourceId: string) {
+  return apiRequest<{ status: string }>(`/case-sources/${sourceId}/sinoe/check`, {
+    method: "POST"
+  });
 }
 
 function normalizeSearchResult(result: ApiSearchResult): SearchResult {

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db.database import get_db
-from app.db.models import AuditLog, Base, Case, CaseEvent, Document, Task, Tenant
+from app.db.models import AuditLog, Base, Case, CaseEvent, Document, Hearing, Task, Tenant
 from app.db.seed import seed_demo_database
 from app.main import app
 from app.services.seed import DEMO_SEED, seed_demo_data
@@ -110,7 +110,12 @@ def test_case_event_task_document_and_status_create_audit(api: TestClient, db_se
     case_id = first_case_id(db_session, tenant_id)
 
     event = api.post(f"/api/v1/cases/{case_id}/events", headers=headers, json={"title": "Nota de seguimiento", "description": "Cliente envio anexos."})
-    task = api.post(f"/api/v1/cases/{case_id}/tasks", headers=headers, json={"title": "Preparar memorial"})
+    task = api.post(f"/api/v1/cases/{case_id}/tasks", headers=headers, json={"title": "Preparar memorial", "due_at": "2026-06-01T10:00:00Z"})
+    hearing = api.post(
+        f"/api/v1/cases/{case_id}/hearings",
+        headers=headers,
+        json={"title": "Audiencia de pruebas", "starts_at": "2026-06-03T15:00:00Z", "location": "Virtual"},
+    )
     document = api.post(
         f"/api/v1/cases/{case_id}/documents",
         headers=headers,
@@ -120,15 +125,32 @@ def test_case_event_task_document_and_status_create_audit(api: TestClient, db_se
 
     assert event.status_code == 201
     assert task.status_code == 201
+    assert task.json()["due_at"].startswith("2026-06-01T10:00:00")
+    assert hearing.status_code == 201
     assert document.status_code == 201
     assert status_change.status_code == 200
 
     assert db_session.scalars(select(CaseEvent).where(CaseEvent.title == "Nota de seguimiento")).first() is not None
     assert db_session.scalars(select(Task).where(Task.title == "Preparar memorial")).first() is not None
+    assert db_session.scalars(select(Hearing).where(Hearing.title == "Audiencia de pruebas")).first() is not None
     assert db_session.scalars(select(Document).where(Document.filename == "anexo.pdf")).first() is not None
 
     audits = db_session.scalars(select(AuditLog).where(AuditLog.tenant_id == tenant_id, AuditLog.metadata_json["case_id"].as_string() == case_id)).all()
-    assert len(audits) >= 4
+    assert len(audits) >= 5
+
+
+def test_case_hearing_rejects_invalid_datetime(api: TestClient, db_session: Session) -> None:
+    headers = auth_headers(api)
+    tenant_id = seed_db_for_auth_tenant(api, db_session, headers)
+    case_id = first_case_id(db_session, tenant_id)
+
+    response = api.post(
+        f"/api/v1/cases/{case_id}/hearings",
+        headers=headers,
+        json={"title": "Audiencia invalida", "starts_at": "manana", "location": "Virtual"},
+    )
+
+    assert response.status_code == 422
 
 
 def test_lawyer_can_read_but_client_user_cannot_write_events(api: TestClient, db_session: Session) -> None:
