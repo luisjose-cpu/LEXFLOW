@@ -71,6 +71,17 @@ Delivered scope:
 - Case center with create/edit and dedicated resource views for documents, hearings, communications, judicial/SINOE, automation and intelligence.
 - Backend operational endpoints with tenant isolation and SINOE module consumption.
 
+## Owner Console - SaaS Proprietary Control Plane
+
+Goal: give LEXFLOW's owner a separate control plane to manage tenants, plans, billing, support, feature flags, demos, interventions, audit and system health.
+
+Delivered scope:
+
+- Owner backend tables and endpoints under `/owner/*`.
+- Owner RBAC boundary separate from tenant users.
+- Owner SaaS dashboard, tenant list/detail, usage, billing, feature flags, plans, support, system health, demos, interventions and audit views.
+- Security docs for temporary authorized support access and sensitive data redaction.
+
 ## P6 - Portal Cliente
 
 Goal: provide secure, mobile-first client access to authorized cases, documents, notifications, and messages.

@@ -51,3 +51,13 @@ Decision: Client, case and Expediente 360 advanced views expose judicial status 
 Reason: Judicial automation already has a governed module with CAPTCHA human-in-the-loop, audit and evidence rules. Recreating that logic inside client or case screens would fragment compliance and increase operational risk.
 
 Status: Accepted
+
+### D-0006 - Owner Console Is A Separate Control Plane
+
+Date: 2026-05-24
+
+Decision: Owner Console is implemented as a SaaS owner control plane under `/owner` and `/api/v1/owner/*`, separated from normal tenant workflows.
+
+Reason: LEXFLOW's product owner must manage tenants, billing, plans, support, feature flags, demos and health without becoming a privileged tenant user or exposing sensitive legal content by default.
+
+Status: Accepted

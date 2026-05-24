@@ -6,6 +6,7 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, get_request_tenant, require_permission
+from app.api.owner_dependencies import OwnerPrincipal, require_owner_permission
 from app.core.config import get_settings
 from app.core.readiness import production_readiness_report
 from app.db import models as dbm
@@ -50,6 +51,7 @@ from app.services.mobile import mobile_client_service, mobile_lawyer_service
 from app.services.ops_center import ops_center_service
 from app.services.ops_import import ops_import_service
 from app.services.operational_core import operational_core_service
+from app.services.owner_console import owner_console_service
 from app.services.roles import role_service
 from app.services.seed import DEMO_SEED
 from app.services.sinoe_integration import sinoe_automation_service
@@ -243,6 +245,55 @@ class NotificationSendRequest(BaseModel):
     variables: dict[str, object] = Field(default_factory=dict)
 
 
+class OwnerTenantCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=180)
+    slug: str = Field(min_length=2, max_length=120)
+    plan: str = Field(default="START", max_length=40)
+    trial: bool = True
+    demo_data: bool = False
+    demo_type: str = "general"
+
+
+class OwnerReasonRequest(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class OwnerPlanChangeRequest(BaseModel):
+    plan: str = Field(min_length=2, max_length=40)
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class OwnerFeatureUpdateRequest(BaseModel):
+    features: dict[str, bool]
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class OwnerTicketCreate(BaseModel):
+    title: str = Field(min_length=3, max_length=240)
+    tenant_id: UUID | None = None
+    category: str = "support"
+    priority: str = "medium"
+    body: str = "Ticket creado"
+
+
+class OwnerTicketResolve(BaseModel):
+    resolution: str = Field(min_length=3, max_length=1000)
+
+
+class OwnerDemoCreate(BaseModel):
+    name: str = "LEXFLOW Demo Tenant"
+    slug: str | None = None
+    plan: str = "AI"
+    demo_type: str = "general"
+
+
+class OwnerInterventionCreate(BaseModel):
+    tenant_id: UUID
+    reason: str = Field(min_length=5, max_length=1000)
+    duration_minutes: int = Field(default=60, ge=5, le=480)
+    scopes: list[str] = Field(default_factory=lambda: ["metadata:read"])
+
+
 class NotificationTestRequest(BaseModel):
     template_id: UUID
     variables: dict[str, object] = Field(default_factory=dict)
@@ -390,6 +441,7 @@ def api_status() -> dict[str, object]:
             "csv-import",
             "pilot-ops-center",
             "production-gate",
+            "owner-console",
         ],
         "release": settings.release_name,
     }
@@ -398,6 +450,121 @@ def api_status() -> dict[str, object]:
 @router.get("/readiness")
 def api_readiness() -> dict[str, object]:
     return production_readiness_report(get_settings())
+
+
+@router.get("/owner/dashboard")
+def owner_dashboard(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> dict[str, object]:
+    return owner_console_service.dashboard(db)
+
+
+@router.get("/owner/tenants")
+def owner_tenants(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
+    return owner_console_service.list_tenants(db)
+
+
+@router.post("/owner/tenants", status_code=status.HTTP_201_CREATED)
+def owner_create_tenant(payload: OwnerTenantCreate, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("tenants:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.create_tenant(db, owner=owner, payload=payload.model_dump(exclude_none=True), request_id=getattr(request.state, "request_id", None))
+
+
+@router.get("/owner/tenants/{tenant_id}")
+def owner_tenant_detail(tenant_id: UUID, _: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> dict[str, object]:
+    return owner_console_service.tenant_detail(db, tenant_id=tenant_id)
+
+
+@router.post("/owner/tenants/{tenant_id}/suspend")
+def owner_suspend_tenant(tenant_id: UUID, payload: OwnerReasonRequest, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("tenants:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.suspend_tenant(db, owner=owner, tenant_id=tenant_id, reason=payload.reason, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/owner/tenants/{tenant_id}/reactivate")
+def owner_reactivate_tenant(tenant_id: UUID, payload: OwnerReasonRequest, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("tenants:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.reactivate_tenant(db, owner=owner, tenant_id=tenant_id, reason=payload.reason, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/owner/tenants/{tenant_id}/change-plan")
+def owner_change_plan(tenant_id: UUID, payload: OwnerPlanChangeRequest, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("billing:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.change_plan(db, owner=owner, tenant_id=tenant_id, plan=payload.plan, reason=payload.reason, request_id=getattr(request.state, "request_id", None))
+
+
+@router.get("/owner/tenants/{tenant_id}/features")
+def owner_get_features(tenant_id: UUID, _: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
+    return owner_console_service.features(db, tenant_id=tenant_id)
+
+
+@router.post("/owner/tenants/{tenant_id}/features")
+def owner_update_features(tenant_id: UUID, payload: OwnerFeatureUpdateRequest, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("tenants:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> list[dict[str, object]]:
+    return owner_console_service.update_features(db, owner=owner, tenant_id=tenant_id, features=payload.features, reason=payload.reason, request_id=getattr(request.state, "request_id", None))
+
+
+@router.get("/owner/tenants/{tenant_id}/usage")
+def owner_tenant_usage(tenant_id: UUID, _: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> dict[str, object]:
+    return owner_console_service.usage(db, tenant_id=tenant_id)
+
+
+@router.get("/owner/tenants/{tenant_id}/health-score")
+def owner_tenant_health_score(tenant_id: UUID, _: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> dict[str, object]:
+    return owner_console_service.health_score(db, tenant_id=tenant_id)
+
+
+@router.get("/owner/plans")
+def owner_plans(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
+    return owner_console_service.plans(db)
+
+
+@router.get("/owner/billing")
+def owner_billing(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> dict[str, object]:
+    return owner_console_service.billing(db)
+
+
+@router.get("/owner/support/tickets")
+def owner_support_tickets(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
+    return owner_console_service.tickets(db)
+
+
+@router.post("/owner/support/tickets", status_code=status.HTTP_201_CREATED)
+def owner_create_ticket(payload: OwnerTicketCreate, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("support:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.create_ticket(db, owner=owner, payload=payload.model_dump(exclude_none=True), request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/owner/support/tickets/{ticket_id}/resolve")
+def owner_resolve_ticket(ticket_id: UUID, payload: OwnerTicketResolve, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("support:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.resolve_ticket(db, owner=owner, ticket_id=ticket_id, resolution=payload.resolution, request_id=getattr(request.state, "request_id", None))
+
+
+@router.get("/owner/system/health")
+def owner_system_health(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> dict[str, object]:
+    return owner_console_service.system_health(db)
+
+
+@router.get("/owner/system/incidents")
+def owner_system_incidents(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
+    return owner_console_service.incidents(db)
+
+
+@router.get("/owner/demos")
+def owner_demo_tenants(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
+    return owner_console_service.demos(db)
+
+
+@router.post("/owner/demos", status_code=status.HTTP_201_CREATED)
+def owner_create_demo_tenant(payload: OwnerDemoCreate, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("demos:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.create_demo(db, owner=owner, payload=payload.model_dump(exclude_none=True), request_id=getattr(request.state, "request_id", None))
+
+
+@router.get("/owner/interventions")
+def owner_interventions(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
+    return owner_console_service.interventions(db)
+
+
+@router.post("/owner/interventions", status_code=status.HTTP_201_CREATED)
+def owner_create_intervention(payload: OwnerInterventionCreate, owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("interventions:write"))], db: Annotated[Session, Depends(get_db)], request: Request) -> dict[str, object]:
+    return owner_console_service.create_intervention(db, owner=owner, payload=payload.model_dump(), request_id=getattr(request.state, "request_id", None))
+
+
+@router.get("/owner/audit-logs")
+def owner_audit_logs(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
+    return owner_console_service.audit_logs(db)
 
 
 @router.get("/storage/status")

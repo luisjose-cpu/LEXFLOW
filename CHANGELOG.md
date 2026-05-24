@@ -1,5 +1,22 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Owner Console Foundation
+
+### Added
+
+- Owner-only backend models for owner users, roles, audit logs, health scores, support tickets, feature flags, limits, usage, interventions, demos, system health and incidents.
+- `/api/v1/owner/*` endpoints for dashboard, tenants, lifecycle, plans, billing, support, health, demos, interventions and audit logs.
+- Owner RBAC boundary with owner roles separated from tenant users.
+- Owner Console frontend under `/owner` with dashboard, tenant management, usage, billing, feature flags, plans, support, system health, demos, interventions and audit.
+- Owner documentation for security, tenant management, support workflow, feature flags and health score.
+- Backend and frontend tests for owner flows.
+
+### Security
+
+- Owner views show SaaS metadata and redact sensitive tenant content unless a temporary intervention exists.
+- Tenant JWT users are blocked from owner endpoints.
+- Critical owner actions create `owner_audit_logs`.
+
 ## 2026-05-24 - Operational Core: Clients, Cases And Advanced Expediente 360
 
 ### Added

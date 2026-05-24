@@ -873,3 +873,228 @@ class AutomationRunStep(Base, TimestampMixin):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     run: Mapped[AutomationRun] = relationship(back_populates="steps")
+
+
+class OwnerRole(Base, TimestampMixin):
+    __tablename__ = "owner_roles"
+    __table_args__ = (
+        UniqueConstraint("name", name="uq_owner_roles_name"),
+        Index("ix_owner_roles_name", "name"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    permissions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+
+
+class OwnerUser(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "owner_users"
+    __table_args__ = (
+        UniqueConstraint("email", name="uq_owner_users_email"),
+        Index("ix_owner_users_email", "email"),
+        Index("ix_owner_users_role", "role"),
+        Index("ix_owner_users_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    email: Mapped[str] = mapped_column(String(240), nullable=False)
+    full_name: Mapped[str] = mapped_column(String(180), nullable=False)
+    role: Mapped[str] = mapped_column(String(80), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="active", nullable=False)
+    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+class OwnerAuditLog(Base):
+    __tablename__ = "owner_audit_logs"
+    __table_args__ = (
+        Index("ix_owner_audit_logs_owner_email", "owner_email"),
+        Index("ix_owner_audit_logs_tenant_id", "tenant_id"),
+        Index("ix_owner_audit_logs_action", "action"),
+        Index("ix_owner_audit_logs_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    owner_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("owner_users.id"), nullable=True)
+    owner_email: Mapped[str] = mapped_column(String(240), nullable=False)
+    tenant_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=True)
+    action: Mapped[str] = mapped_column(String(120), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    entity_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    reason: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    request_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, nullable=False)
+
+
+class TenantHealthScore(Base, TimestampMixin):
+    __tablename__ = "tenant_health_scores"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", name="uq_tenant_health_scores_tenant"),
+        Index("ix_tenant_health_scores_tenant_id", "tenant_id"),
+        Index("ix_tenant_health_scores_score", "score"),
+        Index("ix_tenant_health_scores_risk_level", "risk_level"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    score: Mapped[int] = mapped_column(Integer, default=80, nullable=False)
+    adoption_score: Mapped[int] = mapped_column(Integer, default=70, nullable=False)
+    payment_score: Mapped[int] = mapped_column(Integer, default=90, nullable=False)
+    support_score: Mapped[int] = mapped_column(Integer, default=85, nullable=False)
+    risk_level: Mapped[str] = mapped_column(String(40), default="low", nullable=False)
+    signals_json: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    calculated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, nullable=False)
+
+
+class SupportTicket(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "support_tickets"
+    __table_args__ = (
+        Index("ix_support_tickets_tenant_id", "tenant_id"),
+        Index("ix_support_tickets_status", "status"),
+        Index("ix_support_tickets_priority", "priority"),
+        Index("ix_support_tickets_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=True)
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    category: Mapped[str] = mapped_column(String(80), default="support", nullable=False)
+    priority: Mapped[str] = mapped_column(String(40), default="medium", nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="open", nullable=False)
+    sla_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    assigned_owner_email: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    resolution: Mapped[str | None] = mapped_column(Text, nullable=True)
+    attachments_json: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+
+
+class SupportTicketMessage(Base, TimestampMixin):
+    __tablename__ = "support_ticket_messages"
+    __table_args__ = (
+        Index("ix_support_ticket_messages_ticket_id", "ticket_id"),
+        Index("ix_support_ticket_messages_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    ticket_id: Mapped[str] = mapped_column(String(36), ForeignKey("support_tickets.id"), nullable=False)
+    author_type: Mapped[str] = mapped_column(String(40), default="owner", nullable=False)
+    author_email: Mapped[str] = mapped_column(String(240), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    is_internal: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+class TenantFeatureFlag(Base, TimestampMixin):
+    __tablename__ = "tenant_feature_flags"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "feature_key", name="uq_tenant_feature_flags_tenant_feature"),
+        Index("ix_tenant_feature_flags_tenant_id", "tenant_id"),
+        Index("ix_tenant_feature_flags_feature_key", "feature_key"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    feature_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    source: Mapped[str] = mapped_column(String(80), default="owner_console", nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class TenantLimit(Base, TimestampMixin):
+    __tablename__ = "tenant_limits"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "limit_key", name="uq_tenant_limits_tenant_key"),
+        Index("ix_tenant_limits_tenant_id", "tenant_id"),
+        Index("ix_tenant_limits_limit_key", "limit_key"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    limit_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    limit_value: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    hard_limit: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class TenantUsageDaily(Base, TimestampMixin):
+    __tablename__ = "tenant_usage_daily"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "usage_date", "metric_key", name="uq_tenant_usage_daily_metric"),
+        Index("ix_tenant_usage_daily_tenant_id", "tenant_id"),
+        Index("ix_tenant_usage_daily_usage_date", "usage_date"),
+        Index("ix_tenant_usage_daily_metric_key", "metric_key"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    usage_date: Mapped[str] = mapped_column(String(10), nullable=False)
+    metric_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    used: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    cost_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class TenantIntervention(Base, TimestampMixin):
+    __tablename__ = "tenant_interventions"
+    __table_args__ = (
+        Index("ix_tenant_interventions_tenant_id", "tenant_id"),
+        Index("ix_tenant_interventions_status", "status"),
+        Index("ix_tenant_interventions_expires_at", "expires_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    requested_by_email: Mapped[str] = mapped_column(String(240), nullable=False)
+    approved_by_email: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    scopes_json: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="active", nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DemoTenant(Base, TimestampMixin):
+    __tablename__ = "demo_tenants"
+    __table_args__ = (
+        Index("ix_demo_tenants_tenant_id", "tenant_id"),
+        Index("ix_demo_tenants_status", "status"),
+        Index("ix_demo_tenants_demo_type", "demo_type"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    demo_type: Mapped[str] = mapped_column(String(80), default="general", nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="ready", nullable=False)
+    last_reset_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class SystemHealthCheck(Base, TimestampMixin):
+    __tablename__ = "system_health_checks"
+    __table_args__ = (
+        Index("ix_system_health_checks_component", "component"),
+        Index("ix_system_health_checks_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    component: Mapped[str] = mapped_column(String(120), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="ok", nullable=False)
+    latency_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    details_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, nullable=False)
+
+
+class SystemIncident(Base, TimestampMixin):
+    __tablename__ = "system_incidents"
+    __table_args__ = (
+        Index("ix_system_incidents_component", "component"),
+        Index("ix_system_incidents_status", "status"),
+        Index("ix_system_incidents_severity", "severity"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    component: Mapped[str] = mapped_column(String(120), nullable=False)
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    severity: Mapped[str] = mapped_column(String(40), default="medium", nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="open", nullable=False)
+    summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
