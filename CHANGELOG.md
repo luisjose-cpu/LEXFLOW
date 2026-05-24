@@ -1,5 +1,21 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Owner MFA Recovery Codes
+
+### Added
+
+- `owner_mfa_recovery_codes` persistence with Alembic migration `20260524_0020`.
+- One-time owner MFA recovery codes generated after MFA verification.
+- Owner login accepts either TOTP or unused recovery code when MFA is active.
+- `/api/v1/owner/auth/mfa/recovery-codes` for audited recovery code regeneration.
+- Owner Console displays generated recovery codes once and shows remaining count.
+
+### Security
+
+- Recovery codes are stored only as SHA-256 hashes.
+- Used recovery codes are marked with `used_at` and cannot be reused.
+- Regeneration requires owner password and MFA/recovery verification.
+
 ## 2026-05-24 - Owner MFA Security
 
 ### Added

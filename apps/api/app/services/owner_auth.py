@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
+from secrets import token_hex
 
 import jwt
 from fastapi import HTTPException, status
 from jwt import InvalidTokenError
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.api.owner_dependencies import OWNER_ROLE_PERMISSIONS, OwnerPrincipal
@@ -25,7 +27,7 @@ class OwnerAuthService:
         if owner.role not in OWNER_ROLE_PERMISSIONS or not verify_password(password, owner.hashed_password):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid owner credentials")
         if self._mfa_is_enabled(owner):
-            self._verify_owner_mfa(owner, mfa_code)
+            self._verify_owner_mfa(db, owner=owner, code=mfa_code, request_id=request_id)
 
         owner.last_login_at = now_utc()
         self._audit(db, owner=owner, action="owner_login", entity_type="owner_user", entity_id=owner.id, request_id=request_id)
@@ -48,10 +50,11 @@ class OwnerAuthService:
         self._audit(db, owner=owner, action="owner_logout", entity_type="owner_user", entity_id=owner.id, request_id=request_id)
         db.commit()
 
-    def mfa_status(self, *, owner: dbm.OwnerUser) -> dict[str, object]:
+    def mfa_status(self, db: Session, *, owner: dbm.OwnerUser) -> dict[str, object]:
         return {
             "mfa_enabled": self._mfa_is_enabled(owner),
             "enrollment_pending": bool(owner.mfa_secret_encrypted and not owner.mfa_enabled),
+            "recovery_codes_remaining": self._recovery_codes_remaining(db, owner=owner),
         }
 
     def start_mfa_enrollment(self, db: Session, *, owner: dbm.OwnerUser, request_id: str | None = None) -> dict[str, object]:
@@ -70,10 +73,11 @@ class OwnerAuthService:
     def confirm_mfa_enrollment(self, db: Session, *, owner: dbm.OwnerUser, code: str, request_id: str | None = None) -> dict[str, object]:
         if not owner.mfa_secret_encrypted:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Owner MFA enrollment has not started")
-        self._verify_owner_mfa(owner, code)
+        self._verify_owner_totp(owner, code)
         owner.mfa_enabled = True
         owner.mfa_confirmed_at = now_utc()
         owner.refresh_token_version += 1
+        recovery_codes = self._replace_recovery_codes(db, owner=owner)
         self._audit(db, owner=owner, action="owner_mfa_enabled", entity_type="owner_mfa", entity_id=owner.id, request_id=request_id)
         db.commit()
         return {
@@ -81,16 +85,18 @@ class OwnerAuthService:
             "refresh_token": self._create_token(owner, token_type="refresh", expires_minutes=get_settings().refresh_token_minutes),
             "token_type": "bearer",
             "owner": self._owner_payload(owner),
+            "recovery_codes": recovery_codes,
         }
 
     def disable_mfa(self, db: Session, *, owner: dbm.OwnerUser, current_password: str, code: str | None = None, request_id: str | None = None) -> dict[str, object]:
         if not owner.hashed_password or not verify_password(current_password, owner.hashed_password):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid owner credentials")
         if self._mfa_is_enabled(owner):
-            self._verify_owner_mfa(owner, code)
+            self._verify_owner_mfa(db, owner=owner, code=code, request_id=request_id)
         owner.mfa_enabled = False
         owner.mfa_secret_encrypted = None
         owner.mfa_confirmed_at = None
+        db.execute(delete(dbm.OwnerMfaRecoveryCode).where(dbm.OwnerMfaRecoveryCode.owner_user_id == owner.id))
         owner.refresh_token_version += 1
         self._audit(db, owner=owner, action="owner_mfa_disabled", entity_type="owner_mfa", entity_id=owner.id, request_id=request_id)
         db.commit()
@@ -100,6 +106,17 @@ class OwnerAuthService:
             "token_type": "bearer",
             "owner": self._owner_payload(owner),
         }
+
+    def regenerate_recovery_codes(self, db: Session, *, owner: dbm.OwnerUser, current_password: str, code: str | None = None, request_id: str | None = None) -> dict[str, object]:
+        if not self._mfa_is_enabled(owner):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Owner MFA is not enabled")
+        if not owner.hashed_password or not verify_password(current_password, owner.hashed_password):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid owner credentials")
+        self._verify_owner_mfa(db, owner=owner, code=code, request_id=request_id)
+        codes = self._replace_recovery_codes(db, owner=owner)
+        self._audit(db, owner=owner, action="owner_mfa_recovery_codes_regenerated", entity_type="owner_mfa", entity_id=owner.id, request_id=request_id)
+        db.commit()
+        return {"status": "recovery_codes_regenerated", "recovery_codes": codes}
 
     def principal_from_token(self, db: Session, token: str, *, expected_type: str = "access") -> OwnerPrincipal:
         owner = self.owner_from_token(db, token, expected_type=expected_type)
@@ -157,15 +174,61 @@ class OwnerAuthService:
     def _mfa_is_enabled(owner: dbm.OwnerUser) -> bool:
         return bool(owner.mfa_enabled and owner.mfa_secret_encrypted)
 
-    @staticmethod
-    def _verify_owner_mfa(owner: dbm.OwnerUser, code: str | None) -> None:
+    def _verify_owner_mfa(self, db: Session, *, owner: dbm.OwnerUser, code: str | None, request_id: str | None = None) -> None:
         if not owner.mfa_secret_encrypted:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Owner MFA required")
         if not code:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Owner MFA required")
+        if self._consume_recovery_code(db, owner=owner, code=code):
+            self._audit(db, owner=owner, action="owner_mfa_recovery_code_used", entity_type="owner_mfa", entity_id=owner.id, request_id=request_id)
+            return
         secret = CredentialCipher().decrypt(owner.mfa_secret_encrypted)
         if not verify_totp(secret, code):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid owner MFA code")
+
+    @staticmethod
+    def _verify_owner_totp(owner: dbm.OwnerUser, code: str | None) -> None:
+        if not owner.mfa_secret_encrypted or not code:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Owner MFA required")
+        secret = CredentialCipher().decrypt(owner.mfa_secret_encrypted)
+        if not verify_totp(secret, code):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid owner MFA code")
+
+    def _replace_recovery_codes(self, db: Session, *, owner: dbm.OwnerUser) -> list[str]:
+        db.execute(delete(dbm.OwnerMfaRecoveryCode).where(dbm.OwnerMfaRecoveryCode.owner_user_id == owner.id))
+        codes = [self._new_recovery_code() for _ in range(10)]
+        for code in codes:
+            db.add(dbm.OwnerMfaRecoveryCode(owner_user_id=owner.id, code_hash=self._recovery_code_hash(code)))
+        return codes
+
+    def _consume_recovery_code(self, db: Session, *, owner: dbm.OwnerUser, code: str) -> bool:
+        normalized_hash = self._recovery_code_hash(code)
+        rows = db.scalars(select(dbm.OwnerMfaRecoveryCode).where(dbm.OwnerMfaRecoveryCode.owner_user_id == owner.id, dbm.OwnerMfaRecoveryCode.used_at.is_(None))).all()
+        for row in rows:
+            if row.code_hash == normalized_hash:
+                row.used_at = now_utc()
+                return True
+        return False
+
+    def _recovery_codes_remaining(self, db: Session, *, owner: dbm.OwnerUser) -> int:
+        return int(
+            db.scalar(
+                select(func.count())
+                .select_from(dbm.OwnerMfaRecoveryCode)
+                .where(dbm.OwnerMfaRecoveryCode.owner_user_id == owner.id, dbm.OwnerMfaRecoveryCode.used_at.is_(None))
+            )
+            or 0
+        )
+
+    @staticmethod
+    def _new_recovery_code() -> str:
+        raw = token_hex(6).upper()
+        return f"LF-{raw[:4]}-{raw[4:8]}-{raw[8:]}"
+
+    @staticmethod
+    def _recovery_code_hash(code: str) -> str:
+        normalized = code.strip().upper().replace(" ", "")
+        return sha256(normalized.encode("utf-8")).hexdigest()
 
     @staticmethod
     def _audit(db: Session, *, owner: dbm.OwnerUser, action: str, entity_type: str, entity_id: str | None = None, request_id: str | None = None) -> None:

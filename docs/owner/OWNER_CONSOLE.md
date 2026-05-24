@@ -30,7 +30,7 @@ Endpoints implementados bajo `/api/v1/owner/*`:
 - `POST /owner/auth/refresh`
 - `POST /owner/auth/logout`
 - `GET /owner/auth/me`
-- `GET|POST /owner/auth/mfa/status|enroll|verify|disable`
+- `GET|POST /owner/auth/mfa/status|enroll|verify|disable|recovery-codes`
 - `GET /owner/dashboard`
 - `GET|POST /owner/tenants`
 - `GET /owner/tenants/{id}`

@@ -973,6 +973,19 @@ class OwnerUser(Base, TimestampMixin, SoftDeleteMixin):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class OwnerMfaRecoveryCode(Base, TimestampMixin):
+    __tablename__ = "owner_mfa_recovery_codes"
+    __table_args__ = (
+        Index("ix_owner_mfa_recovery_codes_owner_user_id", "owner_user_id"),
+        Index("ix_owner_mfa_recovery_codes_used_at", "used_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    owner_user_id: Mapped[str] = mapped_column(String(36), ForeignKey("owner_users.id"), nullable=False)
+    code_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class OwnerAuditLog(Base):
     __tablename__ = "owner_audit_logs"
     __table_args__ = (

@@ -50,6 +50,7 @@ export async function logoutOwner() {
 export type OwnerMfaStatus = {
   mfa_enabled: boolean;
   enrollment_pending: boolean;
+  recovery_codes_remaining: number;
 };
 
 export async function loadOwnerMfaStatus() {
@@ -64,7 +65,7 @@ export async function startOwnerMfaEnrollment() {
 }
 
 export async function verifyOwnerMfaEnrollment(payload: { code: string }) {
-  return ownerApiRequest<{ access_token: string; refresh_token: string; token_type: string; owner: { email: string; role: string; mfa_enabled: boolean } }>("/owner/auth/mfa/verify", {
+  return ownerApiRequest<{ access_token: string; refresh_token: string; token_type: string; owner: { email: string; role: string; mfa_enabled: boolean }; recovery_codes?: string[] }>("/owner/auth/mfa/verify", {
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -72,6 +73,13 @@ export async function verifyOwnerMfaEnrollment(payload: { code: string }) {
 
 export async function disableOwnerMfa(payload: { current_password: string; code?: string }) {
   return ownerApiRequest<{ access_token: string; refresh_token: string; token_type: string; owner: { email: string; role: string; mfa_enabled: boolean } }>("/owner/auth/mfa/disable", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function regenerateOwnerMfaRecoveryCodes(payload: { current_password: string; code: string }) {
+  return ownerApiRequest<{ status: string; recovery_codes: string[] }>("/owner/auth/mfa/recovery-codes", {
     method: "POST",
     body: JSON.stringify(payload)
   });

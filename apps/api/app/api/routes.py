@@ -103,7 +103,12 @@ class MfaCodeRequest(BaseModel):
 
 class MfaDisableRequest(BaseModel):
     current_password: str = Field(min_length=1, max_length=500)
-    code: str | None = Field(default=None, min_length=6, max_length=12)
+    code: str | None = Field(default=None, min_length=6, max_length=32)
+
+
+class OwnerMfaRecoveryCodesRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=500)
+    code: str = Field(min_length=6, max_length=32)
 
 
 class TenantSecurityPolicyUpdate(BaseModel):
@@ -138,7 +143,7 @@ class TokenResponse(BaseModel):
 class OwnerLoginRequest(BaseModel):
     email: EmailStr
     password: str
-    mfa_code: str | None = Field(default=None, min_length=6, max_length=12)
+    mfa_code: str | None = Field(default=None, min_length=6, max_length=32)
 
 
 class OwnerOut(BaseModel):
@@ -636,7 +641,7 @@ def owner_mfa_status(
     db: Annotated[Session, Depends(get_db)],
 ) -> dict[str, object]:
     db_owner = get_owner_db_user(db, owner)
-    return owner_auth_service.mfa_status(owner=db_owner)
+    return owner_auth_service.mfa_status(db, owner=db_owner)
 
 
 @router.post("/owner/auth/mfa/enroll")
@@ -649,7 +654,7 @@ def owner_enroll_mfa(
     return owner_auth_service.start_mfa_enrollment(db, owner=db_owner, request_id=getattr(request.state, "request_id", None))
 
 
-@router.post("/owner/auth/mfa/verify", response_model=OwnerLoginResponse)
+@router.post("/owner/auth/mfa/verify")
 def owner_verify_mfa(
     payload: MfaCodeRequest,
     owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))],
@@ -669,6 +674,23 @@ def owner_disable_mfa(
 ) -> dict[str, object]:
     db_owner = get_owner_db_user(db, owner)
     return owner_auth_service.disable_mfa(db, owner=db_owner, current_password=payload.current_password, code=payload.code, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/owner/auth/mfa/recovery-codes")
+def owner_regenerate_mfa_recovery_codes(
+    payload: OwnerMfaRecoveryCodesRequest,
+    owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    db_owner = get_owner_db_user(db, owner)
+    return owner_auth_service.regenerate_recovery_codes(
+        db,
+        owner=db_owner,
+        current_password=payload.current_password,
+        code=payload.code,
+        request_id=getattr(request.state, "request_id", None),
+    )
 
 
 @router.get("/owner/auth/me")

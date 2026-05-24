@@ -63,6 +63,7 @@ import {
   loadOwnerTickets,
   logoutOwner,
   reactivateOwnerTenant,
+  regenerateOwnerMfaRecoveryCodes,
   resolveOwnerSystemIncident,
   resolveOwnerTicket,
   resetOwnerDemo,
@@ -217,6 +218,8 @@ export function OwnerSecurityPanel() {
   const [loaded, setLoaded] = useState(false);
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [mfaPending, setMfaPending] = useState(false);
+  const [recoveryCodesRemaining, setRecoveryCodesRemaining] = useState(0);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [secret, setSecret] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
@@ -236,6 +239,7 @@ export function OwnerSecurityPanel() {
       setLoaded(true);
       setMfaEnabled(status.mfa_enabled);
       setMfaPending(status.enrollment_pending);
+      setRecoveryCodesRemaining(status.recovery_codes_remaining);
       setState("idle");
     } catch (caught) {
       setState("error");
@@ -269,6 +273,8 @@ export function OwnerSecurityPanel() {
       storeOwnerSession(session);
       setMfaEnabled(true);
       setMfaPending(false);
+      setRecoveryCodes(session.recovery_codes ?? []);
+      setRecoveryCodesRemaining(session.recovery_codes?.length ?? 0);
       setCode("");
       setState("success");
       setMessage("MFA owner activado. Las sesiones anteriores quedaron revocadas.");
@@ -287,6 +293,8 @@ export function OwnerSecurityPanel() {
       storeOwnerSession(session);
       setMfaEnabled(false);
       setMfaPending(false);
+      setRecoveryCodes([]);
+      setRecoveryCodesRemaining(0);
       setSecret("");
       setPassword("");
       setCode("");
@@ -295,6 +303,23 @@ export function OwnerSecurityPanel() {
     } catch (caught) {
       setState("error");
       setMessage(caught instanceof Error ? caught.message : "No se pudo desactivar MFA owner.");
+    }
+  }
+
+  async function regenerateCodes() {
+    setState("saving");
+    setMessage("");
+    try {
+      const result = await regenerateOwnerMfaRecoveryCodes({ current_password: password, code: code.trim() });
+      setRecoveryCodes(result.recovery_codes);
+      setRecoveryCodesRemaining(result.recovery_codes.length);
+      setPassword("");
+      setCode("");
+      setState("success");
+      setMessage("Codigos de recuperacion regenerados. Guardalos en un gestor seguro.");
+    } catch (caught) {
+      setState("error");
+      setMessage(caught instanceof Error ? caught.message : "No se pudieron regenerar los codigos.");
     }
   }
 
@@ -312,6 +337,19 @@ export function OwnerSecurityPanel() {
           <p className="rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-ink">
             Estado: {mfaEnabled ? "Activo" : mfaPending ? "Pendiente de verificacion" : "Inactivo"}
           </p>
+        ) : null}
+        {mfaEnabled ? (
+          <p className="rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-ink">
+            Codigos de recuperacion disponibles: {recoveryCodesRemaining}
+          </p>
+        ) : null}
+        {recoveryCodes.length ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <p className="font-semibold">Codigos de recuperacion owner</p>
+            <div className="mt-2 grid gap-1 font-mono text-xs sm:grid-cols-2">
+              {recoveryCodes.map((item) => <span key={item}>{item}</span>)}
+            </div>
+          </div>
         ) : null}
         {!mfaEnabled ? (
           <>
@@ -337,19 +375,26 @@ export function OwnerSecurityPanel() {
             ) : null}
           </>
         ) : (
-          <form className="grid gap-3" onSubmit={removeMfa}>
+          <div className="grid gap-3">
             <label className="grid gap-2 text-sm font-semibold text-ink">
               Password owner
               <input className="h-10 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500" onChange={(event) => setPassword(event.target.value)} type="password" value={password} />
             </label>
             <label className="grid gap-2 text-sm font-semibold text-ink">
-              Codigo MFA
-              <input className="h-10 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500" inputMode="numeric" onChange={(event) => setCode(event.target.value)} value={code} />
+              Codigo MFA o recuperacion
+              <input className="h-10 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-legal-500" onChange={(event) => setCode(event.target.value)} value={code} />
             </label>
-            <button className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-ink disabled:opacity-60" disabled={state === "saving"} type="submit">
-              Desactivar MFA owner
-            </button>
-          </form>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-ink disabled:opacity-60" disabled={state === "saving"} onClick={regenerateCodes} type="button">
+                Regenerar codigos
+              </button>
+              <form onSubmit={removeMfa}>
+                <button className="inline-flex h-10 w-full items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-ink disabled:opacity-60" disabled={state === "saving"} type="submit">
+                  Desactivar MFA owner
+                </button>
+              </form>
+            </div>
+          </div>
         )}
       </div>
       {message ? <p className={`mt-4 rounded-md px-3 py-2 text-sm ${state === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{message}</p> : null}
