@@ -75,6 +75,8 @@ npm run cloud:public-ready
 - `external_providers.ai=live`
 - `external_providers.whatsapp=live`
 - `external_providers.billing=live`
+- `ALLOWED_ORIGINS` usa solo origenes HTTPS.
+- `LEXFLOW_WEB_URL` apunta al dominio publico HTTPS.
 
 ## Riesgos pendientes
 

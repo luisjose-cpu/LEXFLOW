@@ -81,6 +81,18 @@ def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
             message="Production origins must not point to localhost or loopback hosts.",
         ),
         ReadinessCheck(
+            key="cors_https_only",
+            ok=all(origin.startswith("https://") for origin in origins),
+            severity="blocker",
+            message="Production ALLOWED_ORIGINS must use HTTPS origins only.",
+        ),
+        ReadinessCheck(
+            key="public_web_url_https",
+            ok=settings.lexflow_web_url.startswith("https://"),
+            severity="warning",
+            message="LEXFLOW_WEB_URL should be the public HTTPS web URL in production.",
+        ),
+        ReadinessCheck(
             key="s3_secret_configured",
             ok=_secret_is_strong(settings.s3_secret_key),
             severity="blocker",

@@ -21,12 +21,14 @@ Iniciar el paso de `pilot-ready` a `production-ready` con controles de entorno, 
 - JWT secret fuerte.
 - CORS sin wildcard.
 - CORS sin localhost.
+- CORS solo HTTPS.
 - S3 secret fuerte.
 - Demo seed deshabilitado.
 
 ## Warnings
 
 - Rate limit productivo recomendado.
+- `LEXFLOW_WEB_URL` publico HTTPS.
 - OpenAI key requerido antes de IA real.
 - WhatsApp token requerido antes de WhatsApp real.
 - Billing secret requerido antes de suscripcion real.

@@ -32,6 +32,7 @@ def test_production_readiness_blocks_unsafe_defaults() -> None:
     assert "database_postgresql" in blocker_keys
     assert "jwt_secret_strong" in blocker_keys
     assert "cors_no_localhost" in blocker_keys
+    assert "cors_https_only" in blocker_keys
     assert "s3_secret_configured" in blocker_keys
     assert "demo_seed_disabled" in blocker_keys
     with pytest.raises(RuntimeError):
@@ -59,6 +60,7 @@ def test_public_production_readiness_requires_no_warnings() -> None:
         whatsapp_business_token="production-whatsapp-token-value-123456",
         billing_provider_secret="production-billing-secret-value-123456",
         malware_scanner_provider="clamav",
+        lexflow_web_url="https://app.lexflow.example",
     )
     report = production_readiness_report(settings)
 
@@ -81,6 +83,20 @@ def test_production_readiness_rejects_placeholder_secrets() -> None:
     assert "jwt_secret_strong" in blocker_keys
     assert "s3_secret_configured" in blocker_keys
     assert "s3_access_key_configured" in blocker_keys
+
+
+def test_production_readiness_requires_https_public_urls() -> None:
+    settings = production_settings(
+        allowed_origins="https://app.lexflow.example,http://admin.lexflow.example",
+        lexflow_web_url="http://app.lexflow.example",
+    )
+    report = production_readiness_report(settings)
+    blocker_keys = {item["key"] for item in report["blockers"]}
+    warning_keys = {item["key"] for item in report["warnings"]}
+
+    assert report["production_ready"] is False
+    assert "cors_https_only" in blocker_keys
+    assert "public_web_url_https" in warning_keys
 
 
 def test_production_readiness_reports_email_provider_configuration() -> None:
