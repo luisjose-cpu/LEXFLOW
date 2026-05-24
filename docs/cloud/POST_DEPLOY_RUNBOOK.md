@@ -61,6 +61,7 @@ npm run cloud:public-ready
 - `/health` responde 200.
 - `/api/v1/status` responde 200.
 - `/metrics` responde 200.
+- Headers de seguridad API/web presentes: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, HSTS.
 - `/readiness` tiene `status=ready`.
 - `readiness.blockers=0`.
 - `production_ready=true`.

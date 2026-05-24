@@ -66,6 +66,32 @@ function Assert-HttpOk {
   return $response
 }
 
+function Assert-HeaderValue {
+  param(
+    [object]$Response,
+    [string]$Name,
+    [string]$Header,
+    [string]$Expected
+  )
+  $actual = "$($Response.Headers[$Header])"
+  if ($actual -ne $Expected) {
+    throw "$Name missing expected header $Header=$Expected"
+  }
+}
+
+function Assert-HeaderContains {
+  param(
+    [object]$Response,
+    [string]$Name,
+    [string]$Header,
+    [string]$ExpectedFragment
+  )
+  $actual = "$($Response.Headers[$Header])"
+  if (-not $actual.Contains($ExpectedFragment)) {
+    throw "$Name missing expected header fragment $Header contains $ExpectedFragment"
+  }
+}
+
 $ApiUrl = Normalize-Url $ApiUrl
 $WebUrl = Normalize-Url $WebUrl
 
@@ -73,7 +99,11 @@ if (-not $ApiUrl) {
   throw "LEXFLOW_API_URL or -ApiUrl is required"
 }
 
-Assert-HttpOk "API health" "$ApiUrl/health" | Out-Null
+$healthResponse = Assert-HttpOk "API health" "$ApiUrl/health"
+Assert-HeaderValue $healthResponse "API health" "X-Content-Type-Options" "nosniff"
+Assert-HeaderValue $healthResponse "API health" "X-Frame-Options" "DENY"
+Assert-HeaderValue $healthResponse "API health" "Referrer-Policy" "no-referrer"
+Assert-HeaderContains $healthResponse "API health" "Strict-Transport-Security" "includeSubDomains"
 $versionResponse = Assert-HttpOk "API version" "$ApiUrl/version"
 $versionBody = $versionResponse.Content | ConvertFrom-Json
 if ($versionBody.revision) {
@@ -98,7 +128,11 @@ if ($readinessBody.app_env -eq "production" -and $readinessBody.status -ne "read
 Write-Host "Readiness status: $($readinessBody.status)"
 
 if ($WebUrl) {
-  Assert-HttpOk "Web home" $WebUrl | Out-Null
+  $webHome = Assert-HttpOk "Web home" $WebUrl
+  Assert-HeaderValue $webHome "Web home" "X-Content-Type-Options" "nosniff"
+  Assert-HeaderValue $webHome "Web home" "X-Frame-Options" "DENY"
+  Assert-HeaderValue $webHome "Web home" "Referrer-Policy" "no-referrer"
+  Assert-HeaderContains $webHome "Web home" "Strict-Transport-Security" "includeSubDomains"
   Assert-HttpOk "Web login" "$WebUrl/login" | Out-Null
 }
 
