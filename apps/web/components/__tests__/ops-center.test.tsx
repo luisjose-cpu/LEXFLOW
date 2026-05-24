@@ -33,7 +33,9 @@ describe("Ops center UI", () => {
 
     expect(screen.getByText("Production Gate")).toBeTruthy();
     expect(gateCommands).toContain("npm run test:api");
+    expect(gateCommands).toContain("npm run cloud:public-ready");
     expect(screen.getByText("npm run build")).toBeTruthy();
+    expect(screen.getByText("npm run cloud:public-ready")).toBeTruthy();
     expect(screen.getByText("Pentest")).toBeTruthy();
   });
 

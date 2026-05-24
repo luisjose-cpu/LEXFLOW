@@ -50,7 +50,7 @@ export const pilotChecklist = [
 export const productionGate = [
   { key: "PostgreSQL", status: "required", detail: "DATABASE_URL productivo" },
   { key: "Secrets", status: "required", detail: "JWT/S3 fuertes" },
-  { key: "CORS", status: "required", detail: "sin localhost" },
+  { key: "CORS", status: "required", detail: "sin localhost y solo HTTPS" },
   { key: "Seeds", status: "required", detail: "demo seed off" },
   { key: "Tests", status: "pass", detail: "lint/test/build/API" },
   { key: "Pentest", status: "pending", detail: "externo" }
@@ -61,5 +61,9 @@ export const gateCommands = [
   "npm run test",
   "npm run build",
   "npm run test:api",
-  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/production-gate.ps1"
+  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/production-gate.ps1",
+  "npm run cloud:wait-revision",
+  "npm run cloud:smoke",
+  "npm run cloud:evidence",
+  "npm run cloud:public-ready"
 ];

@@ -93,6 +93,7 @@ class OpsCenterService:
             "PostgreSQL production database",
             "Strong JWT/S3 secrets",
             "No localhost CORS origins",
+            "HTTPS-only public origins",
             "External pentest and monitoring",
         ]
         readiness_requirements = [
@@ -113,6 +114,10 @@ class OpsCenterService:
                 "npm run build",
                 "npm run test:api",
                 "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/production-gate.ps1",
+                "npm run cloud:wait-revision",
+                "npm run cloud:smoke",
+                "npm run cloud:evidence",
+                "npm run cloud:public-ready",
             ],
             "required_before_public_production": [*static_requirements, *readiness_requirements],
         }

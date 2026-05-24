@@ -142,6 +142,7 @@ GitHub Actions ejecuta:
 - revision check manual con `cloud:revision`
 - espera de redeploy con `cloud:wait-revision`
 - gate publico estricto opcional con `cloud:public-ready`
+- Production Gate UI lista `cloud:wait-revision`, `cloud:smoke`, `cloud:evidence` y `cloud:public-ready`.
 - post-deploy release evidence manual con `workflow_dispatch` e inputs `api_url` / `web_url`
 - artifact `lexflow-cloud-release-evidence` con el JSON generado por `cloud:evidence`
 
