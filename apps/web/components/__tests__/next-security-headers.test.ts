@@ -15,6 +15,9 @@ describe("Next security headers", () => {
     expect(headers["Permissions-Policy"]).toContain("camera=()");
     expect(headers["Content-Security-Policy"]).toContain("default-src 'self'");
     expect(headers["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
+    expect(headers["Cross-Origin-Opener-Policy"]).toBe("same-origin");
+    expect(headers["Cross-Origin-Resource-Policy"]).toBe("same-origin");
+    expect(headers["X-Permitted-Cross-Domain-Policies"]).toBe("none");
     expect(headers["Strict-Transport-Security"]).toContain("includeSubDomains");
   });
 });

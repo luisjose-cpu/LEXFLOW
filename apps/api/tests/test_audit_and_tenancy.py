@@ -43,10 +43,14 @@ def test_p14_security_headers_metrics_and_origin_guard() -> None:
     assert response.headers["X-Frame-Options"] == "DENY"
     assert response.headers["Referrer-Policy"] == "no-referrer"
     assert response.headers["Content-Security-Policy"] == "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    assert response.headers["Cross-Origin-Opener-Policy"] == "same-origin"
+    assert response.headers["Cross-Origin-Resource-Policy"] == "same-origin"
+    assert response.headers["X-Permitted-Cross-Domain-Policies"] == "none"
     assert "includeSubDomains" in response.headers["Strict-Transport-Security"]
     assert blocked.headers["X-Content-Type-Options"] == "nosniff"
     assert blocked.headers["X-Frame-Options"] == "DENY"
     assert blocked.headers["Content-Security-Policy"] == "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    assert blocked.headers["Cross-Origin-Opener-Policy"] == "same-origin"
     assert blocked.headers["X-Request-Id"]
     assert metrics.status_code == 200
     assert metrics.json()["release"] == "CLOUD-DEPLOY-PACK"

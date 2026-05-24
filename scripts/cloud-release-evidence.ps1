@@ -70,6 +70,9 @@ function Get-SecurityHeaders {
     x_content_type_options = "$($response.Headers['X-Content-Type-Options'])"
     x_frame_options = "$($response.Headers['X-Frame-Options'])"
     referrer_policy = "$($response.Headers['Referrer-Policy'])"
+    cross_origin_opener_policy = "$($response.Headers['Cross-Origin-Opener-Policy'])"
+    cross_origin_resource_policy = "$($response.Headers['Cross-Origin-Resource-Policy'])"
+    x_permitted_cross_domain_policies = "$($response.Headers['X-Permitted-Cross-Domain-Policies'])"
     content_security_policy = "$($response.Headers['Content-Security-Policy'])"
     strict_transport_security = "$($response.Headers['Strict-Transport-Security'])"
   }

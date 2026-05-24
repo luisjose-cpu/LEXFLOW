@@ -178,6 +178,9 @@ def test_cloud_smoke_checks_external_provider_modes() -> None:
     assert "Assert-HeaderValue" in smoke
     assert "Strict-Transport-Security" in smoke
     assert "X-Content-Type-Options" in smoke
+    assert "Cross-Origin-Opener-Policy" in smoke
+    assert "Cross-Origin-Resource-Policy" in smoke
+    assert "X-Permitted-Cross-Domain-Policies" in smoke
     assert "Content-Security-Policy" in smoke
     assert "default-src 'self'" in smoke
 
@@ -215,6 +218,9 @@ def test_cloud_release_evidence_script_writes_safe_report() -> None:
     assert "security_headers" in script
     assert "Get-SecurityHeaders" in script
     assert "Strict-Transport-Security" in script
+    assert "Cross-Origin-Opener-Policy" in script
+    assert "Cross-Origin-Resource-Policy" in script
+    assert "X-Permitted-Cross-Domain-Policies" in script
     assert "content_security_policy" in script
     assert "LEXFLOW_EXPECTED_REVISION" in script
     assert "revision" in script

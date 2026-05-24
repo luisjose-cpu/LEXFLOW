@@ -90,6 +90,7 @@
 - Added public production readiness warning for a dedicated credential encryption key.
 - Render and fast cloud preflight now declare/check `LEXFLOW_WEB_URL`, `CREDENTIAL_ENCRYPTION_KEY`, and `REQUIRE_OWNER_MFA`.
 - API responses now include a restrictive `Content-Security-Policy`, and cloud smoke/evidence records it.
+- API and web responses now include COOP, CORP and cross-domain policy hardening headers.
 - Tenant and owner login now apply configurable temporary blocking after repeated failed attempts.
 - Failed-login throttling now uses a shared `LoginThrottle` service across tenant and owner auth.
 - Web responses now declare a Next-compatible `Content-Security-Policy`, and cloud smoke checks it.
