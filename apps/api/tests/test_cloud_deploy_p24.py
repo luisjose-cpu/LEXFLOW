@@ -159,6 +159,7 @@ def test_cloud_smoke_checks_external_provider_modes() -> None:
     assert "Assert-HeaderValue" in smoke
     assert "Strict-Transport-Security" in smoke
     assert "X-Content-Type-Options" in smoke
+    assert "Content-Security-Policy" in smoke
 
 
 def test_cloud_revision_script_compares_expected_commit_safely() -> None:
@@ -194,6 +195,7 @@ def test_cloud_release_evidence_script_writes_safe_report() -> None:
     assert "security_headers" in script
     assert "Get-SecurityHeaders" in script
     assert "Strict-Transport-Security" in script
+    assert "content_security_policy" in script
     assert "LEXFLOW_EXPECTED_REVISION" in script
     assert "revision" in script
     assert "secrets_included = $false" in script

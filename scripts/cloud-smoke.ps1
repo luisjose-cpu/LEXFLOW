@@ -103,6 +103,7 @@ $healthResponse = Assert-HttpOk "API health" "$ApiUrl/health"
 Assert-HeaderValue $healthResponse "API health" "X-Content-Type-Options" "nosniff"
 Assert-HeaderValue $healthResponse "API health" "X-Frame-Options" "DENY"
 Assert-HeaderValue $healthResponse "API health" "Referrer-Policy" "no-referrer"
+Assert-HeaderContains $healthResponse "API health" "Content-Security-Policy" "default-src 'none'"
 Assert-HeaderContains $healthResponse "API health" "Strict-Transport-Security" "includeSubDomains"
 $versionResponse = Assert-HttpOk "API version" "$ApiUrl/version"
 $versionBody = $versionResponse.Content | ConvertFrom-Json

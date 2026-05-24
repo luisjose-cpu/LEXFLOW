@@ -70,6 +70,7 @@ function Get-SecurityHeaders {
     x_content_type_options = "$($response.Headers['X-Content-Type-Options'])"
     x_frame_options = "$($response.Headers['X-Frame-Options'])"
     referrer_policy = "$($response.Headers['Referrer-Policy'])"
+    content_security_policy = "$($response.Headers['Content-Security-Policy'])"
     strict_transport_security = "$($response.Headers['Strict-Transport-Security'])"
   }
 }

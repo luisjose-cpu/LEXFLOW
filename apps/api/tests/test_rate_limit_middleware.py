@@ -49,3 +49,4 @@ def test_rate_limit_response_has_security_headers_and_request_id() -> None:
     assert blocked.headers["X-Request-Id"] == "req-rate-limit"
     assert blocked.headers["X-Content-Type-Options"] == "nosniff"
     assert blocked.headers["X-Frame-Options"] == "DENY"
+    assert blocked.headers["Content-Security-Policy"] == "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"

@@ -64,7 +64,7 @@ El workflow manual `Cloud CI` acepta `wait_for_revision=true` y `public_ready_ga
 - `/health` responde 200.
 - `/api/v1/status` responde 200.
 - `/metrics` responde 200.
-- Headers de seguridad API/web presentes: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, HSTS.
+- Headers de seguridad API/web presentes: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, CSP API, HSTS.
 - `/readiness` tiene `status=ready`.
 - `readiness.blockers=0`.
 - `production_ready=true`.
