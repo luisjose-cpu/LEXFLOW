@@ -9,6 +9,7 @@
   - invitaciones de usuarios
 - Los links usan `LEXFLOW_WEB_URL` y agregan `?token=...` solo para entrega al destinatario.
 - Los tokens siguen guardandose solo como hash en backend.
+- Cada intento de entrega se registra en `email_delivery_logs` sin contenido, sin token y sin email completo.
 - Las pantallas `/login/reset/confirm` y `/login/invite` leen `?token=` para autocompletar el formulario.
 
 ## Variables
@@ -38,9 +39,21 @@ LEXFLOW envia `POST` JSON al proveedor configurado:
 
 La API key se envia como `Authorization: Bearer ...` y nunca se expone al frontend.
 
+## Telemetria Redactada
+
+`GET /api/v1/settings/email/deliveries` devuelve entregas recientes por tenant:
+
+- template
+- provider
+- status
+- recipient_hint
+- created_at
+
+No devuelve `recipient_hash`, token, URL de invitacion/reset ni cuerpo del mensaje.
+
 ## Pendiente productivo
 
 - Seleccionar proveedor real y configurar dominio remitente.
 - Verificar SPF, DKIM y DMARC.
 - Agregar cola/retry para envios fallidos.
-- Registrar eventos de entrega sin guardar contenido sensible.
+- Panel avanzado de filtros/reintento para entregas fallidas.

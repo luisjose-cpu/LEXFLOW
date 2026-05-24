@@ -149,8 +149,21 @@ export type UserInvitation = {
   created_at?: string;
 };
 
+export type EmailDelivery = {
+  id: string;
+  template: string;
+  provider: string;
+  status: string;
+  recipient_hint: string;
+  created_at: string;
+};
+
 export async function loadUserInvitations() {
   return apiRequest<UserInvitation[]>("/users/invitations");
+}
+
+export async function loadEmailDeliveries() {
+  return apiRequest<EmailDelivery[]>("/settings/email/deliveries?limit=10");
 }
 
 export async function createUserInvitation(payload: { email: string; full_name: string; role: string }) {

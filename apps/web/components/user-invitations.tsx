@@ -4,7 +4,7 @@ import { Badge, Button, Card } from "@lexflow/ui";
 import { MailPlus, UsersRound } from "lucide-react";
 import React from "react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { cancelUserInvitation, createUserInvitation, hasCloudSession, loadUserInvitations, resendUserInvitation, UserInvitation } from "@/lib/lexflow-api";
+import { cancelUserInvitation, createUserInvitation, EmailDelivery, hasCloudSession, loadEmailDeliveries, loadUserInvitations, resendUserInvitation, UserInvitation } from "@/lib/lexflow-api";
 
 const roles = [
   { value: "tenant_admin", label: "Admin tenant" },
@@ -19,6 +19,7 @@ export function UserInvitations() {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("lawyer");
   const [items, setItems] = useState<UserInvitation[]>([]);
+  const [deliveries, setDeliveries] = useState<EmailDelivery[]>([]);
   const [state, setState] = useState<"idle" | "loading" | "saving" | "error" | "success">("idle");
   const [message, setMessage] = useState("");
   const [devToken, setDevToken] = useState("");
@@ -27,9 +28,10 @@ export function UserInvitations() {
   useEffect(() => {
     if (!hasCloudSession()) return;
     setState("loading");
-    void loadUserInvitations()
-      .then((next) => {
-        setItems(next);
+    void Promise.all([loadUserInvitations(), loadEmailDeliveries()])
+      .then(([nextInvitations, nextDeliveries]) => {
+        setItems(nextInvitations);
+        setDeliveries(nextDeliveries);
         setState("idle");
       })
       .catch(() => setState("idle"));
@@ -58,6 +60,7 @@ export function UserInvitations() {
       setState("success");
       setMessage("Invitacion preparada. El usuario definira su propia password.");
       setDevToken(created.invitation_token ?? "");
+      await refreshDeliveries();
     } catch (caught) {
       setState("error");
       setMessage(caught instanceof Error ? caught.message : "No se pudo crear la invitacion.");
@@ -74,9 +77,18 @@ export function UserInvitations() {
       setState("success");
       setMessage("Invitacion reenviada con token rotado.");
       setDevToken(updated.invitation_token ?? "");
+      await refreshDeliveries();
     } catch (caught) {
       setState("error");
       setMessage(caught instanceof Error ? caught.message : "No se pudo reenviar la invitacion.");
+    }
+  }
+
+  async function refreshDeliveries() {
+    try {
+      setDeliveries(await loadEmailDeliveries());
+    } catch {
+      // Delivery telemetry is helpful, but invitation actions should not fail because of a read-side refresh.
     }
   }
 
@@ -181,10 +193,34 @@ export function UserInvitations() {
           <p className="rounded-md border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">Aun no hay invitaciones registradas.</p>
         ) : null}
       </div>
+      <div className="mt-6 grid gap-3 border-t border-slate-200 pt-5">
+        <p className="text-sm font-semibold text-ink">Entregas email</p>
+        {deliveries.length ? (
+          <div className="grid gap-2">
+            {deliveries.slice(0, 4).map((item) => (
+              <div className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600" key={item.id}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-ink">{labelForTemplate(item.template)}</span>
+                  <Badge>{item.status}</Badge>
+                </div>
+                <p className="mt-1">
+                  {item.recipient_hint} · {item.provider}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-md border border-dashed border-slate-200 px-3 py-3 text-sm text-slate-500">Sin entregas registradas todavia.</p>
+        )}
+      </div>
     </Card>
   );
 }
 
 function labelForRole(value: string) {
   return roles.find((role) => role.value === value)?.label ?? value;
+}
+
+function labelForTemplate(value: string) {
+  return value === "user_invitation" ? "Invitacion" : value === "password_reset" ? "Recuperacion" : value;
 }

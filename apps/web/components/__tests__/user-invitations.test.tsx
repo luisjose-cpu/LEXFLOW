@@ -20,6 +20,10 @@ describe("UserInvitations", () => {
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
+        json: async () => []
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
         json: async () => ({
           id: "invite-1",
           email: "newlawyer@lexflow.com",
@@ -30,10 +34,15 @@ describe("UserInvitations", () => {
           delivery: "email_prepared",
           invitation_token: "local-token"
         })
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ id: "email-1", template: "user_invitation", provider: "email_prepared", status: "prepared", recipient_hint: "ne***@lexflow.com", created_at: "2026-05-24T00:00:00Z" }]
       } as Response);
 
     render(<UserInvitations />);
 
+    expect(await screen.findByText("Aun no hay invitaciones registradas.")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Correo"), { target: { value: "newlawyer@lexflow.com" } });
     fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "New Lawyer" } });
     fireEvent.click(screen.getByText("Crear invitacion"));
@@ -63,6 +72,10 @@ describe("UserInvitations", () => {
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
+        json: async () => []
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
         json: async () => ({
           id: "invite-1",
           email: "pending@lexflow.com",
@@ -73,6 +86,10 @@ describe("UserInvitations", () => {
           delivery: "prepared",
           invitation_token: "rotated-token"
         })
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ id: "email-1", template: "user_invitation", provider: "email_prepared", status: "prepared", recipient_hint: "pe***@lexflow.com", created_at: "2026-05-24T00:00:00Z" }]
       } as Response)
       .mockResolvedValueOnce({
         ok: true,

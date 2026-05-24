@@ -34,6 +34,7 @@ from app.services.command_center import (
     risk_service,
 )
 from app.services.document_lifecycle import document_lifecycle_service
+from app.services.email_delivery_logs import email_delivery_log_service
 from app.services.judicial_automation import captcha_checkpoint_service, judicial_source_service, judicial_update_service
 from app.services.legal_intelligence import (
     legal_alert_service,
@@ -548,6 +549,16 @@ def api_status() -> dict[str, object]:
 @router.get("/readiness")
 def api_readiness() -> dict[str, object]:
     return production_readiness_report(get_settings())
+
+
+@router.get("/settings/email/deliveries")
+def list_email_deliveries(
+    _: Annotated[User, Depends(require_permission("users:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = Query(default=25, ge=1, le=100),
+) -> list[dict[str, object]]:
+    return email_delivery_log_service.list_for_tenant(db, tenant_id=tenant_id, limit=limit)
 
 
 @router.post("/owner/auth/login", response_model=OwnerLoginResponse)

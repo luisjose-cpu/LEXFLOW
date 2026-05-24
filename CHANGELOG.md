@@ -5,8 +5,11 @@
 ### Added
 
 - Configurable transactional email provider boundary with `EMAIL_PROVIDER=prepared|http_json`.
+- `email_delivery_logs` persistence with Alembic migration `20260524_0017`.
+- `/api/v1/settings/email/deliveries` for tenant-scoped delivery telemetry.
 - `EMAIL_API_URL`, `EMAIL_API_KEY`, `EMAIL_FROM`, and `LEXFLOW_WEB_URL` settings.
 - Password reset and user invitation delivery now use the shared email provider boundary.
+- Settings now shows recent redacted email deliveries.
 - `/login/reset/confirm` and `/login/invite` auto-fill tokens from `?token=`.
 - Production readiness warning for incomplete HTTP JSON email provider configuration.
 
@@ -14,6 +17,7 @@
 
 - Email provider secrets remain server-side environment variables.
 - Email links deliver plain tokens only to the recipient while backend persistence remains hash-only.
+- Delivery telemetry redacts recipient email and never stores message body, token or URL.
 
 ## 2026-05-24 - Tenant User Invitations
 

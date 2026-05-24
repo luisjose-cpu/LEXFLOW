@@ -22,6 +22,7 @@
 - La UI de Settings permite activar y desactivar MFA TOTP con rotacion de sesion.
 - La UI de Login permite solicitar recuperacion y confirmar token sin exponer password ni secretos.
 - Los links de email para recuperacion e invitacion usan `LEXFLOW_WEB_URL` y autocompletan `?token=` en frontend.
+- Las entregas de email registran telemetria redactada por tenant en `email_delivery_logs`.
 
 ## Auditoria
 

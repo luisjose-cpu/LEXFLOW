@@ -151,6 +151,25 @@ class UserInvitation(Base, TimestampMixin):
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class EmailDeliveryLog(Base, TimestampMixin):
+    __tablename__ = "email_delivery_logs"
+    __table_args__ = (
+        Index("ix_email_delivery_logs_tenant_id", "tenant_id"),
+        Index("ix_email_delivery_logs_template", "template"),
+        Index("ix_email_delivery_logs_status", "status"),
+        Index("ix_email_delivery_logs_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    template: Mapped[str] = mapped_column(String(80), nullable=False)
+    provider: Mapped[str] = mapped_column(String(80), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), nullable=False)
+    recipient_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    recipient_hint: Mapped[str] = mapped_column(String(120), nullable=False)
+    request_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+
 class Client(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "clients"
     __table_args__ = (

@@ -15,6 +15,7 @@ from app.db.database import SessionLocal
 from app.domain.models import AuditAction, User
 from app.services.audit import audit_service
 from app.services.email_delivery import get_email_provider
+from app.services.email_delivery_logs import email_delivery_log_service
 from app.services.mfa import build_otpauth_url, generate_totp_secret, verify_totp
 from app.services.security import create_token, decode_token, hash_password, verify_password
 from app.services.sinoe_integration import CredentialCipher
@@ -234,6 +235,7 @@ class AuthService:
                 metadata={"reason": "password_reset_requested"},
             )
             delivery = self._deliver_password_reset(email=user.email, token=raw_token)
+            email_delivery_log_service.record(db, tenant_id=user.tenant_id, template="password_reset", to_email=user.email, result=delivery, request_id=request_id)
             response["delivery"] = delivery.provider if delivery.status == "prepared" else delivery.status
             if settings.app_env.lower() in {"local", "test"}:
                 response["reset_token"] = raw_token
@@ -276,6 +278,7 @@ class AuthService:
             metadata={"reason": "password_reset_requested"},
         )
         delivery = self._deliver_password_reset(email=db_user.email, token=raw_token)
+        email_delivery_log_service.record(db, tenant_id=db_user.tenant_id, template="password_reset", to_email=db_user.email, result=delivery, request_id=request_id)
         response["delivery"] = delivery.provider if delivery.status == "prepared" else delivery.status
         if settings.app_env.lower() in {"local", "test"}:
             response["reset_token"] = raw_token

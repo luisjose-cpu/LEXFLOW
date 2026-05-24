@@ -13,6 +13,7 @@ from app.db import models as dbm
 from app.domain.models import AuditAction, RoleName, User
 from app.services.audit import audit_service
 from app.services.email_delivery import get_email_provider
+from app.services.email_delivery_logs import email_delivery_log_service
 from app.services.security import hash_password
 from app.services.tenants import tenant_service
 from app.services.users import user_service
@@ -88,6 +89,7 @@ class UserInvitationService:
             }
 
         delivery = self._deliver(normalized_email, full_name, token=raw_token)
+        email_delivery_log_service.record(db, tenant_id=tenant_id, template="user_invitation", to_email=normalized_email, result=delivery, request_id=request_id)
         audit_service.record(
             tenant_id=tenant_id,
             actor_user_id=actor.id,
@@ -135,7 +137,9 @@ class UserInvitationService:
             memory_invitation["updated_at"] = dbm.now_utc()
             self._memory_invitations[token_hash] = memory_invitation
             response = self._serialize_memory(memory_invitation)
-            response["delivery"] = self._deliver(memory_invitation["email"], memory_invitation["full_name"], token=raw_token).status
+            delivery = self._deliver(memory_invitation["email"], memory_invitation["full_name"], token=raw_token)
+            email_delivery_log_service.record(db, tenant_id=tenant_id, template="user_invitation", to_email=str(memory_invitation["email"]), result=delivery, request_id=request_id)
+            response["delivery"] = delivery.status
         else:
             invitation = self._get_db_invitation(db, tenant_id=tenant_id, invitation_id=invitation_id)
             if invitation.status != "pending":
@@ -146,7 +150,9 @@ class UserInvitationService:
             db.commit()
             db.refresh(invitation)
             response = self._serialize_db(invitation)
-            response["delivery"] = self._deliver(invitation.email, invitation.full_name, token=raw_token).status
+            delivery = self._deliver(invitation.email, invitation.full_name, token=raw_token)
+            email_delivery_log_service.record(db, tenant_id=tenant_id, template="user_invitation", to_email=invitation.email, result=delivery, request_id=request_id)
+            response["delivery"] = delivery.status
 
         audit_service.record(
             tenant_id=tenant_id,
