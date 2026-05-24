@@ -64,6 +64,26 @@ def test_production_readiness_reports_email_provider_configuration() -> None:
     assert "email_configured" not in configured_warnings
 
 
+def test_production_readiness_warns_when_storage_is_local_and_accepts_s3() -> None:
+    local_report = production_readiness_report(production_settings(storage_backend="local"))
+    s3_report = production_readiness_report(
+        production_settings(
+            storage_backend="s3",
+            s3_access_key="production-access-key",
+            s3_endpoint="https://r2.example.test",
+            s3_bucket="lexflow-prod",
+        )
+    )
+
+    local_warnings = {item["key"] for item in local_report["warnings"]}
+    s3_blockers = {item["key"] for item in s3_report["blockers"]}
+    s3_warnings = {item["key"] for item in s3_report["warnings"]}
+
+    assert "storage_backend_public_ready" in local_warnings
+    assert "s3_access_key_configured" not in s3_blockers
+    assert "storage_backend_public_ready" not in s3_warnings
+
+
 def test_readiness_endpoint_reports_current_environment() -> None:
     client = TestClient(app)
 

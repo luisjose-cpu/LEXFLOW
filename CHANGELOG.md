@@ -40,6 +40,7 @@
 - S3/R2-compatible document storage backend with lazy `boto3` client.
 - `STORAGE_BACKEND=s3` support for upload, metadata verification and download through the existing signed API proxy contract.
 - Storage tests with fake S3 client to validate bytes, checksum metadata and download without real credentials.
+- Production readiness now warns when public production is still using `STORAGE_BACKEND=local` and checks S3 access key when S3 mode is enabled.
 
 ### Security
 

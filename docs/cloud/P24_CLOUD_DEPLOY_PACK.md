@@ -24,6 +24,7 @@ Ruta recomendada para staging:
 - `npm run cloud:smoke`.
 - Normalizacion de `postgres://` y `postgresql://` a `postgresql+psycopg://`.
 - Backend S3/R2 real para documentos via API proxy firmado.
+- Readiness warning `storage_backend_public_ready` cuando produccion sigue usando `STORAGE_BACKEND=local`.
 
 ## Render
 
@@ -101,6 +102,7 @@ El workflow corre en `main` y `master`. Para habilitar login tenant en el smoke 
 
 - Dominios reales y CORS final.
 - Secrets reales en Render/Vercel.
+- Cambiar de `STORAGE_BACKEND=local` a `STORAGE_BACKEND=s3` para produccion publica.
 - Primer tenant/admin productivo.
 - Backups/restore probados.
 - Observabilidad externa y alertas.

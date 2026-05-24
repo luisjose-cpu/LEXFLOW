@@ -70,6 +70,18 @@ def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
             message="S3_SECRET_KEY must be configured with a strong value.",
         ),
         ReadinessCheck(
+            key="s3_access_key_configured",
+            ok=settings.storage_backend == "local" or bool(settings.s3_access_key),
+            severity="blocker",
+            message="S3_ACCESS_KEY must be configured when STORAGE_BACKEND is not local.",
+        ),
+        ReadinessCheck(
+            key="storage_backend_public_ready",
+            ok=settings.storage_backend != "local",
+            severity="warning",
+            message="Public production should use STORAGE_BACKEND=s3 or another S3-compatible backend.",
+        ),
+        ReadinessCheck(
             key="demo_seed_disabled",
             ok=settings.seed_demo_on_startup is False,
             severity="blocker",
