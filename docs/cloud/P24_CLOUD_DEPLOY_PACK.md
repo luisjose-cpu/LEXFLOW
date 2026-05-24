@@ -69,7 +69,7 @@ $env:LEXFLOW_SMOKE_ADMIN_PASSWORD="<password-seguro>"
 npm run cloud:smoke
 ```
 
-El smoke valida `/health`, `/version`, `/api/v1/status`, home web, login web y login tenant opcional sin imprimir secretos.
+El smoke valida `/health`, `/version`, `/api/v1/status`, `/readiness`, home web, login web y login tenant opcional sin imprimir secretos. Si `APP_ENV=production`, falla cuando readiness reporta blockers.
 
 ## Validacion ejecutada
 
