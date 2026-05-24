@@ -15,6 +15,30 @@
 - Encryption: at rest and in transit.
 - Access: least privilege, break-glass audited.
 
+## Scripts
+
+Create a PostgreSQL custom-format backup:
+
+```powershell
+$env:DATABASE_URL="<render-postgres-url>"
+npm run db:backup -- -Label staging
+```
+
+Validate backup catalog without restoring:
+
+```powershell
+npm run db:restore-drill -- -BackupPath backups/postgres/lexflow-staging-YYYYMMDDTHHMMSSZ.dump
+```
+
+Restore into an isolated drill database:
+
+```powershell
+$env:RESTORE_DATABASE_URL="<isolated-restore-db-url>"
+npm run db:restore-drill -- -BackupPath backups/postgres/lexflow-staging-YYYYMMDDTHHMMSSZ.dump -Execute
+```
+
+The scripts do not print database URLs or credentials. Backup artifacts are ignored by git under `backups/`.
+
 ## Restore
 
 Before public production, run a restore drill:
@@ -28,4 +52,4 @@ Before public production, run a restore drill:
 
 ## RC1 Status
 
-Policy is documented. Restore drill evidence remains open for pilot/prod readiness.
+Policy and scripts are documented. Restore drill evidence remains open for pilot/prod readiness.

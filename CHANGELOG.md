@@ -49,6 +49,20 @@
 - S3 credentials stay server-side and are never returned to the frontend.
 - Existing signed token, tenant storage key, content-type, size limit and audit controls remain enforced for S3 mode.
 
+## 2026-05-24 - Backup And Restore Drill Scripts
+
+### Added
+
+- `scripts/db-backup.ps1` for PostgreSQL custom-format backups using `pg_dump`.
+- `scripts/db-restore-drill.ps1` for safe backup catalog inspection and optional isolated restore with `-Execute`.
+- `npm run db:backup` and `npm run db:restore-drill`.
+- `backups/` ignored by git.
+
+### Security
+
+- Backup and restore scripts do not print database URLs, tokens or credentials.
+- Restore execution requires explicit `-Execute` and `RESTORE_DATABASE_URL`.
+
 ## 2026-05-24 - Security Alerts
 
 ### Added

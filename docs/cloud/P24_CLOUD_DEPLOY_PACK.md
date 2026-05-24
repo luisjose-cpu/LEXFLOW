@@ -26,6 +26,7 @@ Ruta recomendada para staging:
 - Backend S3/R2 real para documentos via API proxy firmado.
 - Readiness warning `storage_backend_public_ready` cuando produccion sigue usando `STORAGE_BACKEND=local`.
 - Render cron `lexflow-security-alert-deliveries` para procesar entregas criticas cada 15 minutos.
+- Scripts `db:backup` y `db:restore-drill` para backup PostgreSQL y restore drill aislado.
 
 ## Render
 
@@ -105,6 +106,6 @@ El workflow corre en `main` y `master`. Para habilitar login tenant en el smoke 
 - Secrets reales en Render/Vercel.
 - Cambiar de `STORAGE_BACKEND=local` a `STORAGE_BACKEND=s3` para produccion publica.
 - Primer tenant/admin productivo.
-- Backups/restore probados.
+- Ejecutar restore drill real y guardar evidencia RPO/RTO.
 - Observabilidad externa y alertas.
 - Pentest.

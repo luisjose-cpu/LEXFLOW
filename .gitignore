@@ -18,3 +18,4 @@ uploads/
 minio-data/
 postgres-data/
 redis-data/
+backups/

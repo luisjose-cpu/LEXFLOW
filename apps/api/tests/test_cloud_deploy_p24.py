@@ -32,6 +32,9 @@ def test_cloud_deploy_pack_files_are_present() -> None:
         "apps/api/Dockerfile",
         "infra/docker/web.Dockerfile",
         "scripts/cloud-preflight.ps1",
+        "scripts/cloud-smoke.ps1",
+        "scripts/db-backup.ps1",
+        "scripts/db-restore-drill.ps1",
         "scripts/production-gate.ps1",
         "docs/cloud/P24_CLOUD_DEPLOY_PACK.md",
     ]
@@ -74,3 +77,19 @@ def test_cloud_ci_runs_release_gates() -> None:
     assert "npm run build" in workflow
     assert "pytest -q" in workflow
     assert "production-gate.ps1 -Fast" in workflow
+
+
+def test_backup_restore_scripts_are_safe_by_default() -> None:
+    backup = read_repo_file("scripts/db-backup.ps1")
+    restore = read_repo_file("scripts/db-restore-drill.ps1")
+    gitignore = read_repo_file(".gitignore")
+
+    assert "pg_dump" in backup
+    assert "--format custom" in backup
+    assert "DATABASE_URL" in backup
+    assert "Write-Host \"Backup ready" in backup
+    assert "pg_restore" in restore
+    assert "--list" in restore
+    assert "-Execute" in restore
+    assert "RESTORE_DATABASE_URL" in restore
+    assert "backups/" in gitignore
