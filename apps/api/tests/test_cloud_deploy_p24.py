@@ -38,6 +38,7 @@ def test_cloud_deploy_pack_files_are_present() -> None:
         "scripts/db-restore-drill.ps1",
         "scripts/production-gate.ps1",
         "docs/cloud/P24_CLOUD_DEPLOY_PACK.md",
+        "docs/cloud/P25_PUBLIC_PRODUCTION_GAPS.md",
     ]
 
     missing = [path for path in required_files if not (ROOT / path).exists()]

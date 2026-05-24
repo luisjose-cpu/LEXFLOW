@@ -117,10 +117,4 @@ El workflow corre en `main` y `master`. Para habilitar login tenant en el smoke 
 
 ## Pendiente antes de produccion publica
 
-- Dominios reales y CORS final.
-- Secrets reales en Render/Vercel.
-- Cambiar de `STORAGE_BACKEND=local` a `STORAGE_BACKEND=s3` para produccion publica.
-- Primer tenant/admin productivo.
-- Ejecutar restore drill real y guardar evidencia RPO/RTO.
-- Observabilidad externa y alertas.
-- Pentest.
+Ver [P25_PUBLIC_PRODUCTION_GAPS.md](P25_PUBLIC_PRODUCTION_GAPS.md).

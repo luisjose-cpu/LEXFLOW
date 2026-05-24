@@ -83,6 +83,7 @@
 - Cloud release evidence now stores non-secret external provider modes from `/api/v1/status`.
 - Version, metrics and API status now expose deployment revision from cloud/git environment variables.
 - Production Gate API/UI now surface deployment revision and non-secret external provider modes.
+- Added P25 public production gaps guide with exact provider/storage variables and validation steps.
 
 ### Security
 
