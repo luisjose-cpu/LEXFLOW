@@ -22,6 +22,8 @@ Mientras no se configuren proveedores reales, readiness mantiene warnings:
 - `billing_configured`: configurar `BILLING_PROVIDER_SECRET` antes de suscripciones/pagos reales.
 - `malware_scanner_configured`: configurar `MALWARE_SCANNER_PROVIDER` real antes de cargas publicas.
 
+Si el cloud todavia no muestra `malware_scanner_configured`, significa que Render no esta corriendo el ultimo commit. Ejecutar `npm run cloud:revision` y redeploy latest `master`.
+
 ## Variables a cerrar
 
 ```env
