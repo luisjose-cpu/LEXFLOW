@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db import models as dbm
 from app.domain.models import AuditAction, RoleName, User
 from app.services.audit import audit_service
+from app.services.security_alerts import security_alert_service
 
 
 DEFAULT_MFA_REQUIRED_ROLES = [RoleName.tenant_admin.value, RoleName.partner.value]
@@ -90,6 +91,22 @@ class TenantSecurityPolicyService:
                 "allow_client_user_mfa_bypass": str(policy["allow_client_user_mfa_bypass"]).lower(),
             },
         )
+        security_alert_service.create_tenant_alert(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=actor.id,
+            event_type="settings.security_policy_updated",
+            title="Politica de seguridad actualizada",
+            body="Se modifico la politica MFA del tenant.",
+            severity="high" if policy["enforce_mfa"] else "medium",
+            request_id=request_id,
+            metadata={
+                "actor_email": actor.email,
+                "enforce_mfa": str(policy["enforce_mfa"]).lower(),
+                "mfa_required_roles": ",".join(policy["mfa_required_roles"]),
+            },
+        )
+        db.commit()
         return dict(policy)
 
     def is_mfa_required(self, db: Session | None, *, user: User) -> bool:

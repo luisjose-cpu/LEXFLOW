@@ -1,5 +1,20 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Security Alerts
+
+### Added
+
+- `security_alerts` persistence with Alembic migration `20260524_0021`.
+- Tenant security alert endpoints under `/api/v1/settings/security-alerts`.
+- Owner security alert endpoints under `/api/v1/owner/security-alerts`.
+- Automatic alerts for owner login, owner MFA/recovery events, tenant MFA/password events, security policy changes and invitations.
+- Settings and Owner Console panels to review and acknowledge alerts.
+
+### Security
+
+- Alerts never store passwords, MFA secrets, tokens or recovery codes.
+- Acknowledgement is tenant/owner scoped and records responsible user plus timestamp.
+
 ## 2026-05-24 - Owner MFA Recovery Codes
 
 ### Added

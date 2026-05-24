@@ -56,6 +56,7 @@ from app.services.owner_auth import owner_auth_service
 from app.services.owner_console import owner_console_service
 from app.services.roles import role_service
 from app.services.seed import DEMO_SEED
+from app.services.security_alerts import security_alert_service
 from app.services.sinoe_integration import sinoe_automation_service
 from app.services.storage import storage_service
 from app.services.tenant_security_policy import tenant_security_policy_service
@@ -593,6 +594,26 @@ def get_tenant_security_policy(
     return tenant_security_policy_service.get(db, tenant_id=tenant_id)
 
 
+@router.get("/settings/security-alerts")
+def list_tenant_security_alerts(
+    _: Annotated[User, Depends(require_permission("users:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = Query(default=50, ge=1, le=100),
+) -> list[dict[str, object]]:
+    return security_alert_service.list_tenant(db, tenant_id=tenant_id, limit=limit)
+
+
+@router.post("/settings/security-alerts/{alert_id}/acknowledge")
+def acknowledge_tenant_security_alert(
+    alert_id: UUID,
+    actor: Annotated[User, Depends(require_permission("users:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return security_alert_service.acknowledge_tenant(db, tenant_id=tenant_id, alert_id=alert_id, actor=actor)
+
+
 @router.patch("/settings/security-policy")
 def update_tenant_security_policy(
     payload: TenantSecurityPolicyUpdate,
@@ -856,6 +877,21 @@ def owner_close_intervention(intervention_id: UUID, payload: OwnerReasonRequest,
 @router.get("/owner/audit-logs")
 def owner_audit_logs(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)]) -> list[dict[str, object]]:
     return owner_console_service.audit_logs(db)
+
+
+@router.get("/owner/security-alerts")
+def owner_security_alerts(_: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))], db: Annotated[Session, Depends(get_db)], limit: int = Query(default=50, ge=1, le=100)) -> list[dict[str, object]]:
+    return security_alert_service.list_owner(db, limit=limit)
+
+
+@router.post("/owner/security-alerts/{alert_id}/acknowledge")
+def owner_acknowledge_security_alert(
+    alert_id: UUID,
+    owner: Annotated[OwnerPrincipal, Depends(require_owner_permission("owner:read"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    db_owner = get_owner_db_user(db, owner)
+    return security_alert_service.acknowledge_owner(db, alert_id=alert_id, owner=db_owner)
 
 
 @router.get("/storage/status")

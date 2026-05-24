@@ -15,6 +15,7 @@ from app.services.audit import audit_service
 from app.services.email_delivery import get_email_provider
 from app.services.email_delivery_logs import email_delivery_log_service
 from app.services.security import hash_password
+from app.services.security_alerts import security_alert_service
 from app.services.tenants import tenant_service
 from app.services.users import user_service
 
@@ -99,6 +100,18 @@ class UserInvitationService:
             request_id=request_id,
             metadata={"email": normalized_email, "role": role.value, "delivery": delivery.status, "provider": delivery.provider},
         )
+        security_alert_service.create_tenant_alert(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=actor.id,
+            event_type="users.invitation_created",
+            title="Invitacion de usuario creada",
+            body=f"Se invito una cuenta con rol {role.value}.",
+            severity="medium" if role not in {RoleName.tenant_admin, RoleName.partner} else "high",
+            request_id=request_id,
+            metadata={"invited_email": normalized_email, "invited_role": role.value, "actor_email": actor.email},
+        )
+        db.commit()
         response = {
             "id": str(invitation_id),
             "email": normalized_email,
@@ -163,6 +176,18 @@ class UserInvitationService:
             request_id=request_id,
             metadata={"reason": "invitation_resent", "delivery": response["delivery"]},
         )
+        security_alert_service.create_tenant_alert(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=actor.id,
+            event_type="users.invitation_resent",
+            title="Invitacion de usuario reenviada",
+            body="Se regenero el token de una invitacion pendiente.",
+            severity="medium",
+            request_id=request_id,
+            metadata={"invitation_id": str(invitation_id), "actor_email": actor.email},
+        )
+        db.commit()
         if settings.app_env.lower() in {"local", "test"}:
             response["invitation_token"] = raw_token
         return response
@@ -194,6 +219,18 @@ class UserInvitationService:
             request_id=request_id,
             metadata={"reason": "invitation_cancelled"},
         )
+        security_alert_service.create_tenant_alert(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=actor.id,
+            event_type="users.invitation_cancelled",
+            title="Invitacion de usuario cancelada",
+            body="Se cancelo una invitacion pendiente.",
+            severity="medium",
+            request_id=request_id,
+            metadata={"invitation_id": str(invitation_id), "actor_email": actor.email},
+        )
+        db.commit()
         return response
 
     def accept(self, db: Session, *, invitation_token: str, password: str, request_id: str | None = None) -> dict[str, object]:

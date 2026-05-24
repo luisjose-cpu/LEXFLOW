@@ -181,6 +181,26 @@ export type OwnerLimit = {
   hard_limit: boolean;
 };
 
+export type OwnerSecurityAlert = {
+  id: string;
+  severity: string;
+  event_type: string;
+  title: string;
+  body: string;
+  status: string;
+  created_at: string;
+};
+
+export async function loadOwnerSecurityAlerts() {
+  return ownerApiRequest<OwnerSecurityAlert[]>("/owner/security-alerts?limit=10");
+}
+
+export async function acknowledgeOwnerSecurityAlert(alertId: string) {
+  return ownerApiRequest<OwnerSecurityAlert>(`/owner/security-alerts/${alertId}/acknowledge`, {
+    method: "POST"
+  });
+}
+
 export async function loadOwnerDashboard() {
   const body = await ownerApiRequest<ApiOwnerDashboard>("/owner/dashboard");
   const mrr = Math.round((body.revenue?.mrr_cents ?? 0) / 100);

@@ -18,6 +18,7 @@ from app.services.email_delivery import get_email_provider
 from app.services.email_delivery_logs import email_delivery_log_service
 from app.services.mfa import build_otpauth_url, generate_totp_secret, verify_totp
 from app.services.security import create_token, decode_token, hash_password, verify_password
+from app.services.security_alerts import security_alert_service
 from app.services.sinoe_integration import CredentialCipher
 from app.services.tenants import tenant_service
 from app.services.tenant_security_policy import tenant_security_policy_service
@@ -110,6 +111,14 @@ class AuthService:
             request_id=request_id,
             metadata={"reason": "user_password_changed"},
         )
+        self._create_tenant_security_alert(
+            user=updated,
+            event_type="auth.password_changed",
+            title="Password actualizada",
+            body="Una cuenta del tenant cambio su password autenticada.",
+            severity="medium",
+            request_id=request_id,
+        )
         tokens = self._issue_session(updated)
         return {**tokens, "user": updated}
 
@@ -165,6 +174,14 @@ class AuthService:
             request_id=request_id,
             metadata={"reason": "mfa_enabled"},
         )
+        self._create_tenant_security_alert(
+            user=updated,
+            event_type="auth.mfa_enabled",
+            title="MFA activado",
+            body="Una cuenta activo MFA TOTP.",
+            severity="medium",
+            request_id=request_id,
+        )
         return {**self._issue_session(updated), "user": updated}
 
     def disable_mfa(self, *, user: User, current_password: str, code: str | None = None, request_id: str | None = None) -> dict[str, object]:
@@ -191,6 +208,14 @@ class AuthService:
             request_id=request_id,
             metadata={"reason": "mfa_disabled"},
         )
+        self._create_tenant_security_alert(
+            user=updated,
+            event_type="auth.mfa_disabled",
+            title="MFA desactivado",
+            body="Una cuenta desactivo MFA. Revisar si fue esperado.",
+            severity="high",
+            request_id=request_id,
+        )
         return {**self._issue_session(updated), "user": updated}
 
     def _issue_session(self, user: User) -> dict[str, str]:
@@ -216,6 +241,21 @@ class AuthService:
     def _tenant_policy_requires_mfa(self, user: User) -> bool:
         with SessionLocal() as db:
             return tenant_security_policy_service.is_mfa_required(db, user=user)
+
+    def _create_tenant_security_alert(self, *, user: User, event_type: str, title: str, body: str, severity: str, request_id: str | None = None) -> None:
+        with SessionLocal() as db:
+            security_alert_service.create_tenant_alert(
+                db,
+                tenant_id=user.tenant_id,
+                actor_user_id=user.id,
+                event_type=event_type,
+                title=title,
+                body=body,
+                severity=severity,
+                request_id=request_id,
+                metadata={"actor_email": user.email, "actor_role": user.role.value},
+            )
+            db.commit()
 
     def request_password_reset(self, db: Session, *, email: str, tenant_slug: str, request_id: str | None = None, requested_ip: str | None = None) -> dict[str, object]:
         settings = get_settings()
@@ -317,6 +357,14 @@ class AuthService:
                 request_id=request_id,
                 metadata={"reason": "password_reset_completed"},
             )
+            self._create_tenant_security_alert(
+                user=updated,
+                event_type="auth.password_reset_completed",
+                title="Password recuperada",
+                body="Una cuenta completo recuperacion de password.",
+                severity="high",
+                request_id=request_id,
+            )
             return {"status": "password_reset_complete"}
 
         reset_row = db.scalar(
@@ -346,6 +394,18 @@ class AuthService:
             request_id=request_id,
             metadata={"reason": "password_reset_completed"},
         )
+        security_alert_service.create_tenant_alert(
+            db,
+            tenant_id=db_user.tenant_id,
+            actor_user_id=db_user.id,
+            event_type="auth.password_reset_completed",
+            title="Password recuperada",
+            body="Una cuenta completo recuperacion de password.",
+            severity="high",
+            request_id=request_id,
+            metadata={"actor_email": db_user.email, "actor_role": db_user.role},
+        )
+        db.commit()
         return {"status": "password_reset_complete"}
 
     def user_from_token(self, token: str, *, expected_type: str = "access") -> User:

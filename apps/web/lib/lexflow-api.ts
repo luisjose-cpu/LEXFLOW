@@ -143,6 +143,26 @@ export async function updateTenantSecurityPolicy(payload: Partial<Omit<TenantSec
   });
 }
 
+export type SecurityAlert = {
+  id: string;
+  severity: string;
+  event_type: string;
+  title: string;
+  body: string;
+  status: string;
+  created_at: string;
+};
+
+export async function loadSecurityAlerts() {
+  return apiRequest<SecurityAlert[]>("/settings/security-alerts?limit=10");
+}
+
+export async function acknowledgeSecurityAlert(alertId: string) {
+  return apiRequest<SecurityAlert>(`/settings/security-alerts/${alertId}/acknowledge`, {
+    method: "POST"
+  });
+}
+
 export async function requestPasswordReset(payload: { email: string; tenant_slug: string }) {
   return publicApiRequest<{ status: string; delivery: string; reset_token?: string }>("/auth/password-reset/request", {
     method: "POST",

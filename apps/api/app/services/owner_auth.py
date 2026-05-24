@@ -16,6 +16,7 @@ from app.db import models as dbm
 from app.db.models import now_utc
 from app.services.mfa import build_otpauth_url, generate_totp_secret, verify_totp
 from app.services.security import verify_password
+from app.services.security_alerts import security_alert_service
 from app.services.sinoe_integration import CredentialCipher
 
 
@@ -243,6 +244,25 @@ class OwnerAuthService:
                 request_id=request_id,
             )
         )
+        alert_titles = {
+            "owner_login": ("Owner login", "Una cuenta owner inicio sesion.", "medium"),
+            "owner_mfa_enabled": ("MFA owner activado", "Una cuenta owner activo MFA.", "medium"),
+            "owner_mfa_disabled": ("MFA owner desactivado", "Una cuenta owner desactivo MFA. Revisar si fue esperado.", "critical"),
+            "owner_mfa_recovery_code_used": ("Recovery code owner usado", "Una cuenta owner uso un codigo de recuperacion MFA.", "high"),
+            "owner_mfa_recovery_codes_regenerated": ("Recovery codes owner regenerados", "Una cuenta owner regenero codigos de recuperacion.", "high"),
+        }
+        if action in alert_titles:
+            title, body, severity = alert_titles[action]
+            security_alert_service.create_owner_alert(
+                db,
+                owner=owner,
+                event_type=f"owner.{action}",
+                title=title,
+                body=body,
+                severity=severity,
+                request_id=request_id,
+                metadata={"owner_role": owner.role},
+            )
 
 
 owner_auth_service = OwnerAuthService()

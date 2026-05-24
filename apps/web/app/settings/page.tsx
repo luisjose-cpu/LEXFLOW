@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { AccountSecurity } from "@/components/account-security";
 import { PlaceholderPage } from "@/components/placeholder-page";
+import { SecurityAlerts } from "@/components/security-alerts";
 import { TenantSecurityPolicy } from "@/components/tenant-security-policy";
 import { UserInvitations } from "@/components/user-invitations";
 import { Badge, Card, PageHeader } from "@lexflow/ui";
@@ -41,6 +42,7 @@ export default function SettingsPage() {
           </Card>
           <AccountSecurity />
           <TenantSecurityPolicy />
+          <SecurityAlerts />
           <UserInvitations />
           <PlaceholderPage
             description="Preparado para ajustes de tenant lifecycle, seguridad, facturacion y permisos."

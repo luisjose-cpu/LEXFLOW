@@ -55,6 +55,7 @@ import {
   loadOwnerLimits,
   loadOwnerMfaStatus,
   loadOwnerPlans,
+  loadOwnerSecurityAlerts,
   loadOwnerSystemChecks,
   loadOwnerSystemIncidents,
   loadOwnerTenantDetail,
@@ -63,6 +64,7 @@ import {
   loadOwnerTickets,
   logoutOwner,
   reactivateOwnerTenant,
+  acknowledgeOwnerSecurityAlert,
   regenerateOwnerMfaRecoveryCodes,
   resolveOwnerSystemIncident,
   resolveOwnerTicket,
@@ -402,6 +404,80 @@ export function OwnerSecurityPanel() {
   );
 }
 
+export function OwnerSecurityAlertsPanel() {
+  const [alerts, setAlerts] = useState<{ id: string; severity: string; title: string; body: string; status: string; created_at: string }[]>([]);
+  const [state, setState] = useState<OwnerDataSource>("demo");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (!hasOwnerSession()) {
+      setState("demo");
+      return;
+    }
+    let active = true;
+    setState("loading");
+    void loadOwnerSecurityAlerts()
+      .then((items) => {
+        if (!active) return;
+        setAlerts(items);
+        setState("live");
+      })
+      .catch(() => {
+        if (!active) return;
+        setState("fallback");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function acknowledge(alertId: string) {
+    setMessage("");
+    try {
+      const updated = await acknowledgeOwnerSecurityAlert(alertId);
+      setAlerts((current) => current.map((item) => (item.id === alertId ? { ...item, status: updated.status } : item)));
+      setMessage("Alerta owner revisada.");
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "No se pudo revisar la alerta.");
+    }
+  }
+
+  const visibleAlerts = alerts.length ? alerts : [
+    { id: "demo-owner-alert", severity: "medium", title: "Owner security listo", body: "Conecta una sesion owner para ver alertas reales.", status: "demo", created_at: "" }
+  ];
+
+  return (
+    <Card>
+      <SectionTitle icon={<AlertTriangle size={18} />} title="Alertas de seguridad owner" />
+      <p className="mt-3 text-sm leading-6 text-slate-600">
+        Eventos criticos de login, MFA y recovery codes para revision operativa.
+      </p>
+      <div className="mt-4 grid gap-3">
+        {visibleAlerts.map((alert) => (
+          <div className="rounded-md border border-slate-200 bg-white p-3" key={alert.id}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-ink">{alert.title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{alert.body}</p>
+              </div>
+              <span className="rounded-md bg-mist px-2 py-1 text-xs font-semibold text-slate-600">{alert.severity}</span>
+            </div>
+            {alert.status === "open" ? (
+              <button className="mt-3 inline-flex h-9 items-center justify-center rounded-md border border-slate-200 px-3 text-xs font-semibold text-ink" onClick={() => void acknowledge(alert.id)} type="button">
+                Marcar revisada
+              </button>
+            ) : (
+              <p className="mt-3 text-xs font-semibold text-slate-500">Estado: {alert.status}</p>
+            )}
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-xs font-semibold text-slate-500">Fuente: {state}</p>
+      {message ? <p className="mt-3 rounded-md bg-sky-50 px-3 py-2 text-sm text-legal-900">{message}</p> : null}
+    </Card>
+  );
+}
+
 export function OwnerDashboard() {
   const [metrics, setMetrics] = useState(ownerDashboardMetrics());
   const [tenants, setTenants] = useState(ownerTenants);
@@ -460,7 +536,10 @@ export function OwnerDashboard() {
           </div>
         </Card>
       </div>
-      <OwnerSecurityPanel />
+      <div className="grid gap-5 xl:grid-cols-2">
+        <OwnerSecurityPanel />
+        <OwnerSecurityAlertsPanel />
+      </div>
       <div className="grid gap-5 lg:grid-cols-3">
         <OwnerQuickCard icon={<CreditCard size={18} />} title="Billing" value="$457 MRR" detail="ARR $5484, churn mock 2.4%" href="/owner/plans" />
         <OwnerQuickCard icon={<Headphones size={18} />} title="Soporte" value="3 tickets" detail="1 critico, 2 dentro de SLA" href="/owner/support" />

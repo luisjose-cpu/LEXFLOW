@@ -442,6 +442,35 @@ class Notification(Base, TimestampMixin):
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class SecurityAlert(Base, TimestampMixin):
+    __tablename__ = "security_alerts"
+    __table_args__ = (
+        Index("ix_security_alerts_scope", "scope"),
+        Index("ix_security_alerts_tenant_id", "tenant_id"),
+        Index("ix_security_alerts_owner_user_id", "owner_user_id"),
+        Index("ix_security_alerts_event_type", "event_type"),
+        Index("ix_security_alerts_status", "status"),
+        Index("ix_security_alerts_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    scope: Mapped[str] = mapped_column(String(40), nullable=False)
+    tenant_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=True)
+    actor_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    owner_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("owner_users.id"), nullable=True)
+    owner_email: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    severity: Mapped[str] = mapped_column(String(40), default="medium", nullable=False)
+    event_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    body: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="open", nullable=False)
+    request_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    acknowledged_by_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    acknowledged_by_owner_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("owner_users.id"), nullable=True)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     __table_args__ = (

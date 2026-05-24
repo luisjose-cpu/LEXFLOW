@@ -97,6 +97,20 @@ def test_owner_jwt_login_refresh_me_logout_and_access_control(api: TestClient, d
     assert api.get("/api/v1/owner/dashboard", headers=bearer).status_code == 401
 
 
+def test_owner_security_alerts_are_created_and_acknowledged(api: TestClient, db_session: Session) -> None:
+    create_owner_user(db_session)
+    logged = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!"})
+    headers = {"Authorization": f"Bearer {logged.json()['access_token']}"}
+    alerts = api.get("/api/v1/owner/security-alerts", headers=headers)
+    alert_id = alerts.json()[0]["id"]
+    acknowledged = api.post(f"/api/v1/owner/security-alerts/{alert_id}/acknowledge", headers=headers)
+
+    assert alerts.status_code == 200
+    assert alerts.json()[0]["event_type"] == "owner.owner_login"
+    assert acknowledged.status_code == 200
+    assert acknowledged.json()["status"] == "acknowledged"
+
+
 def test_owner_mfa_enrollment_requires_totp_and_can_be_disabled(api: TestClient, db_session: Session) -> None:
     create_owner_user(db_session)
     logged = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!"})
