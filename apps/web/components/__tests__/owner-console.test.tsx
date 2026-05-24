@@ -111,6 +111,33 @@ describe("Owner Console UI", () => {
     expect(screen.getByText(/no accede a documentos/i)).toBeTruthy();
   });
 
+  it("runs audited tenant lifecycle actions through the owner API", async () => {
+    localStorage.setItem("lexflow.owner_access_token", "owner-token");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/owner/tenants/tenant-nova/change-plan")) {
+        return {
+          ok: true,
+          json: async () => ({ id: "tenant-nova", name: "Nova Legal Studio", slug: "nova", status: "active", plan: "PRO", users: 1, cases: 2, health_score: 89 })
+        } as Response;
+      }
+      if (url.includes("/owner/tenants/tenant-nova")) {
+        return {
+          ok: true,
+          json: async () => ({ id: "tenant-nova", name: "Nova Legal Studio", slug: "nova", status: "active", plan: "AI", users: 1, cases: 2, health_score: 89 })
+        } as Response;
+      }
+      return { ok: false, json: async () => ({}) } as Response;
+    });
+
+    render(<TenantDetail tenantId="tenant-nova" />);
+    await waitFor(() => expect(screen.getByText("Owner Console conectado al API cloud.")).toBeTruthy());
+    fireEvent.click(screen.getByText("Cambiar plan"));
+
+    await waitFor(() => expect(screen.getByText("Plan actualizado a PRO.")).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/tenants/tenant-nova/change-plan"), expect.objectContaining({ method: "POST" }));
+  });
+
   it("renders usage and interactive feature flags", () => {
     render(
       <>
@@ -124,6 +151,40 @@ describe("Owner Console UI", () => {
     expect(screen.getByText("client_portal")).toBeTruthy();
     fireEvent.click(screen.getByText("ocr"));
     expect(screen.getByText("ocr")).toBeTruthy();
+  });
+
+  it("saves feature flags through the owner API", async () => {
+    localStorage.setItem("lexflow.owner_access_token", "owner-token");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/owner/tenants/tenant-nova/features") && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => [
+            { feature_key: "ai", enabled: true },
+            { feature_key: "ocr", enabled: true }
+          ]
+        } as Response;
+      }
+      if (url.includes("/owner/tenants/tenant-nova/features")) {
+        return {
+          ok: true,
+          json: async () => [
+            { feature_key: "ai", enabled: true },
+            { feature_key: "ocr", enabled: false }
+          ]
+        } as Response;
+      }
+      return { ok: false, json: async () => ({}) } as Response;
+    });
+
+    render(<TenantFeatures tenantId="tenant-nova" />);
+    await waitFor(() => expect(screen.getByText("Owner Console conectado al API cloud.")).toBeTruthy());
+    fireEvent.click(screen.getByText("ocr"));
+    fireEvent.click(screen.getByText("Guardar flags"));
+
+    await waitFor(() => expect(screen.getByText("Feature flags guardados y auditados.")).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/owner/tenants/tenant-nova/features"), expect.objectContaining({ method: "POST" }));
   });
 
   it("renders plans, support, system, demos, interventions and audit", () => {

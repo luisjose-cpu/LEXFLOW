@@ -89,6 +89,30 @@ export async function loadOwnerTenantDetail(tenantId: string): Promise<OwnerTena
   return normalizeOwnerTenant(body);
 }
 
+export async function suspendOwnerTenant(tenantId: string, reason = "Suspension desde Owner Console") {
+  const body = await ownerApiRequest<ApiOwnerTenant>(`/owner/tenants/${tenantId}/suspend`, {
+    method: "POST",
+    body: JSON.stringify({ reason })
+  });
+  return normalizeOwnerTenant(body);
+}
+
+export async function reactivateOwnerTenant(tenantId: string, reason = "Reactivacion desde Owner Console") {
+  const body = await ownerApiRequest<ApiOwnerTenant>(`/owner/tenants/${tenantId}/reactivate`, {
+    method: "POST",
+    body: JSON.stringify({ reason })
+  });
+  return normalizeOwnerTenant(body);
+}
+
+export async function changeOwnerTenantPlan(tenantId: string, plan = "AI", reason = "Cambio de plan desde Owner Console") {
+  const body = await ownerApiRequest<ApiOwnerTenant>(`/owner/tenants/${tenantId}/change-plan`, {
+    method: "POST",
+    body: JSON.stringify({ plan, reason })
+  });
+  return normalizeOwnerTenant(body);
+}
+
 export async function loadOwnerTenantUsage(tenantId: string) {
   const body = await ownerApiRequest<{ totals?: Record<string, number>; metrics?: { metric_key: string; used: number }[] }>(`/owner/tenants/${tenantId}/usage`);
   const totals = body.totals ?? {};
@@ -107,6 +131,13 @@ export async function loadOwnerTenantUsage(tenantId: string) {
 export async function loadOwnerFeatures(tenantId: string) {
   const body = await ownerApiRequest<{ feature_key: string; enabled: boolean }[]>(`/owner/tenants/${tenantId}/features`);
   return body;
+}
+
+export async function updateOwnerFeatures(tenantId: string, features: Record<string, boolean>, reason = "Actualizacion de feature flags desde Owner Console") {
+  return ownerApiRequest<{ feature_key: string; enabled: boolean }[]>(`/owner/tenants/${tenantId}/features`, {
+    method: "POST",
+    body: JSON.stringify({ features, reason })
+  });
 }
 
 export async function loadOwnerPlans(): Promise<OwnerPlan[]> {

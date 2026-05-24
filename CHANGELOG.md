@@ -8,6 +8,8 @@
 - Initial owner bootstrap script using `INITIAL_OWNER_*` environment variables.
 - `/owner/login` page with owner token storage isolated from tenant sessions.
 - Owner Console web API bridge that loads dashboard, tenants, usage, features, plans, tickets, system health, demos, interventions and audit logs from `/api/v1/owner/*` when an owner JWT exists.
+- Owner Console tenant lifecycle actions for suspend, reactivate and change plan through audited backend endpoints.
+- Owner Console feature flag save action through audited backend endpoint.
 - Owner-only backend models for owner users, roles, audit logs, health scores, support tickets, feature flags, limits, usage, interventions, demos, system health and incidents.
 - `/api/v1/owner/*` endpoints for dashboard, tenants, lifecycle, plans, billing, support, health, demos, interventions and audit logs.
 - Owner RBAC boundary with owner roles separated from tenant users.
@@ -21,7 +23,7 @@
 - Tenant JWT users are blocked from owner endpoints.
 - Critical owner actions create `owner_audit_logs`.
 - Owner header fallback is limited to local/test environments; staging and production require owner JWT.
-- Owner web surfaces keep demo fallback when the Owner API is unavailable.
+- Owner web surfaces keep demo fallback when the Owner API is unavailable and block mutating actions until an owner JWT exists.
 
 ## 2026-05-24 - Operational Core: Clients, Cases And Advanced Expediente 360
 

@@ -36,6 +36,7 @@ import {
 } from "@/lib/owner-demo";
 import {
   API_URL,
+  changeOwnerTenantPlan,
   hasOwnerSession,
   loadOwnerAuditLogs,
   loadOwnerDashboard,
@@ -47,7 +48,10 @@ import {
   loadOwnerTenantDetail,
   loadOwnerTenantUsage,
   loadOwnerTenants,
-  loadOwnerTickets
+  loadOwnerTickets,
+  reactivateOwnerTenant,
+  suspendOwnerTenant,
+  updateOwnerFeatures
 } from "@/lib/owner-api";
 
 const ownerNav = [
@@ -275,6 +279,8 @@ export function TenantsList() {
 export function TenantDetail({ tenantId }: { tenantId: string }) {
   const [tenant, setTenant] = useState(findOwnerTenant(tenantId));
   const [source, setSource] = useState<OwnerDataSource>("demo");
+  const [actionState, setActionState] = useState<"idle" | "saving" | "error" | "success">("idle");
+  const [actionMessage, setActionMessage] = useState("");
 
   useEffect(() => {
     if (!hasOwnerSession()) {
@@ -300,6 +306,30 @@ export function TenantDetail({ tenantId }: { tenantId: string }) {
     };
   }, [tenantId]);
 
+  async function runTenantAction(action: "suspend" | "reactivate" | "plan") {
+    if (!hasOwnerSession()) {
+      setActionState("error");
+      setActionMessage("Inicia sesion owner para ejecutar acciones auditadas.");
+      return;
+    }
+    setActionState("saving");
+    setActionMessage("");
+    try {
+      const nextTenant = action === "suspend"
+        ? await suspendOwnerTenant(tenant.id)
+        : action === "reactivate"
+          ? await reactivateOwnerTenant(tenant.id)
+          : await changeOwnerTenantPlan(tenant.id, tenant.plan === "AI" ? "PRO" : "AI");
+      setTenant(nextTenant);
+      setSource("live");
+      setActionState("success");
+      setActionMessage(action === "plan" ? `Plan actualizado a ${nextTenant.plan}.` : `Tenant ${nextTenant.status}.`);
+    } catch (caught) {
+      setActionState("error");
+      setActionMessage(caught instanceof Error ? caught.message : "No se pudo ejecutar la accion owner.");
+    }
+  }
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Tenant" title={tenant.name} description="Vista administrativa con metadata operativa, billing, limites, soporte y flags. Los datos sensibles del estudio permanecen ocultos." />
@@ -321,12 +351,20 @@ export function TenantDetail({ tenantId }: { tenantId: string }) {
             <InfoItem label="Ultima actividad" value={tenant.lastSeen} />
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
-            {["Suspender", "Reactivar", "Cambiar plan", "Configurar limites"].map((action) => (
-              <button className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-legal-50" key={action} type="button">
-                {action}
-              </button>
-            ))}
+            <button className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-legal-50 disabled:opacity-60" disabled={actionState === "saving"} onClick={() => void runTenantAction("suspend")} type="button">
+              Suspender
+            </button>
+            <button className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-legal-50 disabled:opacity-60" disabled={actionState === "saving"} onClick={() => void runTenantAction("reactivate")} type="button">
+              Reactivar
+            </button>
+            <button className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-legal-50 disabled:opacity-60" disabled={actionState === "saving"} onClick={() => void runTenantAction("plan")} type="button">
+              Cambiar plan
+            </button>
+            <button className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500" type="button">
+              Configurar limites
+            </button>
           </div>
+          {actionMessage ? <p className={`mt-3 rounded-md px-3 py-2 text-sm ${actionState === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{actionMessage}</p> : null}
         </Card>
         <Card>
           <SectionTitle icon={<EyeOff size={18} />} title="Datos sensibles" />
@@ -410,6 +448,8 @@ export function TenantFeatures({ tenantId }: { tenantId: string }) {
   const [enabled, setEnabled] = useState(new Set(tenant.modules));
   const [featureKeys, setFeatureKeys] = useState(ownerFeatureFlags);
   const [source, setSource] = useState<OwnerDataSource>("demo");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "error" | "success">("idle");
+  const [saveMessage, setSaveMessage] = useState("");
 
   useEffect(() => {
     if (!hasOwnerSession()) {
@@ -434,6 +474,28 @@ export function TenantFeatures({ tenantId }: { tenantId: string }) {
     };
   }, [tenantId]);
 
+  async function saveFeatures() {
+    if (!hasOwnerSession()) {
+      setSaveState("error");
+      setSaveMessage("Inicia sesion owner para guardar feature flags auditados.");
+      return;
+    }
+    setSaveState("saving");
+    setSaveMessage("");
+    try {
+      const features = Object.fromEntries(featureKeys.map((feature) => [feature, enabled.has(feature)]));
+      const saved = await updateOwnerFeatures(tenantId, features);
+      setFeatureKeys(saved.map((feature) => feature.feature_key));
+      setEnabled(new Set(saved.filter((feature) => feature.enabled).map((feature) => feature.feature_key)));
+      setSource("live");
+      setSaveState("success");
+      setSaveMessage("Feature flags guardados y auditados.");
+    } catch (caught) {
+      setSaveState("error");
+      setSaveMessage(caught instanceof Error ? caught.message : "No se pudieron guardar los feature flags.");
+    }
+  }
+
   return (
     <OwnerConsoleShell>
       <PageHeader eyebrow="Owner -> Feature flags" title={`Modulos de ${tenant.name}`} description="Activa o desactiva modulos por tenant con auditoria y limites de plan." />
@@ -456,6 +518,12 @@ export function TenantFeatures({ tenantId }: { tenantId: string }) {
               <ToggleRight className={enabled.has(feature) ? "text-legal-700" : "text-slate-300"} size={22} aria-hidden="true" />
             </button>
           ))}
+        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button className="inline-flex h-10 items-center justify-center rounded-md bg-legal-900 px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={saveState === "saving"} onClick={() => void saveFeatures()} type="button">
+            {saveState === "saving" ? "Guardando..." : "Guardar flags"}
+          </button>
+          {saveMessage ? <span className={`rounded-md px-3 py-2 text-sm ${saveState === "error" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-legal-900"}`}>{saveMessage}</span> : null}
         </div>
       </Card>
     </OwnerConsoleShell>

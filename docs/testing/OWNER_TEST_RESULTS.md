@@ -61,7 +61,7 @@ npm run test
 
 Result:
 
-- 52 passed.
+- 54 passed.
 
 Build and cloud checks:
 
@@ -89,3 +89,5 @@ Coverage:
 - InterventionRequests.
 - OwnerAuditLogs.
 - Owner dashboard conectado al Owner API cuando existe JWT owner.
+- Owner tenant lifecycle actions via Owner API.
+- Owner feature flag save via Owner API.
