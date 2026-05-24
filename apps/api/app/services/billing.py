@@ -194,12 +194,41 @@ class BillingService:
             ],
         }
 
-    def webhook_mock(self, db: Session, *, tenant_id: UUID | str, actor: User, event_type: str, payload: dict[str, object], request_id: str | None = None) -> dict[str, object]:
+    def webhook_mock(
+        self,
+        db: Session,
+        *,
+        tenant_id: UUID | str,
+        actor: User,
+        event_type: str,
+        payload: dict[str, object],
+        idempotency_key: str | None = None,
+        request_id: str | None = None,
+    ) -> dict[str, object]:
         subscription = self.ensure_subscription(db, tenant_id=tenant_id)
-        event = dbm.BillingEvent(tenant_id=str(tenant_id), subscription_id=subscription.id, event_type=event_type, status="processed", payload_json=payload)
+        if idempotency_key:
+            existing_events = db.scalars(select(dbm.BillingEvent).where(dbm.BillingEvent.tenant_id == str(tenant_id), dbm.BillingEvent.event_type == event_type)).all()
+            existing = next((event for event in existing_events if event.payload_json.get("idempotency_key") == idempotency_key), None)
+            if existing:
+                self.record_audit(
+                    db,
+                    tenant_id=tenant_id,
+                    actor=actor,
+                    action="billing.webhook_mock_duplicate",
+                    entity_type="billing_event",
+                    entity_id=existing.id,
+                    request_id=request_id,
+                    metadata={"event_type": event_type, "idempotency_key": idempotency_key},
+                )
+                db.commit()
+                return {"id": existing.id, "status": "duplicate", "event_type": existing.event_type}
+        event_payload = dict(payload)
+        if idempotency_key:
+            event_payload["idempotency_key"] = idempotency_key
+        event = dbm.BillingEvent(tenant_id=str(tenant_id), subscription_id=subscription.id, event_type=event_type, status="processed", payload_json=event_payload)
         db.add(event)
         db.flush()
-        self.record_audit(db, tenant_id=tenant_id, actor=actor, action="billing.webhook_mock", entity_type="billing_event", entity_id=event.id, request_id=request_id, metadata={"event_type": event_type})
+        self.record_audit(db, tenant_id=tenant_id, actor=actor, action="billing.webhook_mock", entity_type="billing_event", entity_id=event.id, request_id=request_id, metadata={"event_type": event_type, "idempotency_key": idempotency_key or ""})
         db.commit()
         return {"id": event.id, "status": event.status, "event_type": event.event_type}
 

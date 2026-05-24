@@ -110,3 +110,26 @@ def test_billing_permissions_tenant_and_webhook(api: TestClient, db_session: Ses
     assert client_read.status_code == 403
     assert webhook.status_code == 200
     assert db_session.scalar(select(BillingEvent).where(BillingEvent.event_type == "invoice.payment_succeeded")) is not None
+
+
+def test_billing_webhook_mock_is_idempotent_and_audited(api: TestClient, db_session: Session) -> None:
+    tenant_id = seed_for_billing(api, db_session)
+    headers = login(api, DEMO_SEED.admin_email)
+    payload = {
+        "event_type": "invoice.payment_succeeded",
+        "idempotency_key": "evt_mock_123456",
+        "payload": {"invoice": "mock-123"},
+    }
+
+    first = api.post("/api/v1/billing/webhook/mock", headers=headers, json=payload)
+    duplicate = api.post("/api/v1/billing/webhook/mock", headers=headers, json=payload)
+    events = db_session.scalars(select(BillingEvent).where(BillingEvent.tenant_id == tenant_id, BillingEvent.event_type == "invoice.payment_succeeded")).all()
+    audits = db_session.scalars(select(AuditLog).where(AuditLog.tenant_id == tenant_id, AuditLog.entity_type == "billing_event")).all()
+
+    assert first.status_code == 200
+    assert duplicate.status_code == 200
+    assert duplicate.json()["status"] == "duplicate"
+    assert duplicate.json()["id"] == first.json()["id"]
+    assert len(events) == 1
+    assert events[0].payload_json["idempotency_key"] == "evt_mock_123456"
+    assert {audit.action for audit in audits} >= {"billing.webhook_mock", "billing.webhook_mock_duplicate"}

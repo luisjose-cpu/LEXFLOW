@@ -446,6 +446,7 @@ class BillingChangePlanRequest(BaseModel):
 class BillingWebhookMockRequest(BaseModel):
     event_type: str = Field(min_length=3, max_length=120)
     payload: dict[str, object] = Field(default_factory=dict)
+    idempotency_key: str | None = Field(default=None, min_length=8, max_length=160)
 
 
 class AutomationConditionIn(BaseModel):
@@ -1475,6 +1476,7 @@ def billing_webhook_mock(
         actor=actor,
         event_type=payload.event_type,
         payload=payload.payload,
+        idempotency_key=payload.idempotency_key,
         request_id=getattr(request.state, "request_id", None),
     )
 
