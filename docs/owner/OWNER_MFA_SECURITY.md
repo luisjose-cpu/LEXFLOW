@@ -12,7 +12,7 @@ Endpoints:
 - `POST /api/v1/owner/auth/mfa/disable`
 - `POST /api/v1/owner/auth/mfa/recovery-codes`
 
-Login owner acepta `mfa_code` en `POST /api/v1/owner/auth/login`. Cuando el owner tiene MFA activo, el codigo TOTP es obligatorio.
+Login owner acepta `mfa_code` en `POST /api/v1/owner/auth/login`. Cuando el owner tiene MFA activo, el codigo TOTP es obligatorio. Para produccion publica, `REQUIRE_OWNER_MFA=true` bloquea login owner si la cuenta aun no tiene MFA enrolado.
 
 Al confirmar MFA se generan 10 codigos de recuperacion de un solo uso. El backend guarda solo hashes SHA-256 y retorna los codigos planos una vez para que el owner los guarde en un gestor seguro. Un codigo usado queda marcado con `used_at` y no puede reutilizarse.
 
@@ -38,6 +38,6 @@ Owner Console incluye un panel `Seguridad owner` para:
 
 ## Pendiente productivo
 
-- Exigir MFA para todos los roles owner antes de abrir pilotos externos.
+- Enrolar al primer `owner_admin`, activar `REQUIRE_OWNER_MFA=true` y validar login con MFA antes de abrir pilotos externos.
 - Alertas por activacion/desactivacion MFA.
 - IP allowlist opcional para owner_admin y owner_devops.

@@ -159,6 +159,12 @@ def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
             severity="warning",
             message="Transactional email requires EMAIL_PROVIDER=http_json, EMAIL_API_URL, EMAIL_API_KEY, EMAIL_FROM, and a public LEXFLOW_WEB_URL.",
         ),
+        ReadinessCheck(
+            key="owner_mfa_required",
+            ok=settings.require_owner_mfa,
+            severity="warning",
+            message="Public production should set REQUIRE_OWNER_MFA=true for all Owner Console logins.",
+        ),
     ]
     if not _is_production(settings):
         return [

@@ -61,12 +61,20 @@ def test_public_production_readiness_requires_no_warnings() -> None:
         billing_provider_secret="production-billing-secret-value-123456",
         malware_scanner_provider="clamav",
         lexflow_web_url="https://app.lexflow.example",
+        require_owner_mfa=True,
     )
     report = production_readiness_report(settings)
 
     assert report["production_ready"] is True
     assert report["public_production_ready"] is True
     assert report["warnings"] == []
+
+
+def test_production_readiness_warns_when_owner_mfa_is_not_required() -> None:
+    report = production_readiness_report(production_settings(require_owner_mfa=False))
+    warning_keys = {item["key"] for item in report["warnings"]}
+
+    assert "owner_mfa_required" in warning_keys
 
 
 def test_production_readiness_rejects_placeholder_secrets() -> None:

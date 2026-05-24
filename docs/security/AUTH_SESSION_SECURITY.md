@@ -26,6 +26,7 @@
 - Los links de email para recuperacion e invitacion usan `LEXFLOW_WEB_URL` y autocompletan `?token=` en frontend.
 - Las entregas de email registran telemetria redactada por tenant en `email_delivery_logs`.
 - `tenant_security_policies` queda persistido por migracion `20260524_0018`.
+- `REQUIRE_OWNER_MFA=true` exige MFA owner antes de permitir login propietario sin segundo factor.
 
 ## Auditoria
 
@@ -79,7 +80,7 @@ No se registra secreto MFA, codigo temporal ni password.
 - Proveedor real de email transaccional para entregar invitaciones.
 - Cola/retry de email y eventos de entrega.
 - Grace-period real por usuario para MFA obligatorio.
-- MFA obligatorio por politica para Owner Console.
+- Flujo de bootstrap seguro para activar `REQUIRE_OWNER_MFA=true` despues de enrolar al primer owner admin.
 - Alertas por cambio de password.
 - Politica configurable de complejidad y expiracion.
 - Pantalla de sesiones activas por usuario.

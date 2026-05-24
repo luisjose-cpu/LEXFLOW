@@ -7,9 +7,11 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import Settings
 from app.db.database import get_db
 from app.db.models import Base, OwnerAuditLog, OwnerUser, TenantFeatureFlag, TenantIntervention, TenantSubscription, User
 from app.main import app
+from app.services import owner_auth as owner_auth_module
 from app.services.seed import DEMO_SEED, seed_demo_data
 from app.services.mfa import totp_code
 from app.services.security import hash_password
@@ -95,6 +97,16 @@ def test_owner_jwt_login_refresh_me_logout_and_access_control(api: TestClient, d
     assert refreshed.status_code == 200
     assert api.post("/api/v1/owner/auth/logout", headers=bearer).status_code == 204
     assert api.get("/api/v1/owner/dashboard", headers=bearer).status_code == 401
+
+
+def test_owner_login_blocks_when_owner_mfa_required_and_not_enrolled(api: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+    create_owner_user(db_session)
+    monkeypatch.setattr(owner_auth_module, "get_settings", lambda: Settings(require_owner_mfa=True))
+
+    response = api.post("/api/v1/owner/auth/login", json={"email": "owner@lexflow.com", "password": "OwnerPassword123!"})
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Owner MFA enrollment required"
 
 
 def test_owner_security_alerts_are_created_and_acknowledged(api: TestClient, db_session: Session) -> None:

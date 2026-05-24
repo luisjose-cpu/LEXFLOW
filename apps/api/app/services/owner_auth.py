@@ -27,6 +27,8 @@ class OwnerAuthService:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid owner credentials")
         if owner.role not in OWNER_ROLE_PERMISSIONS or not verify_password(password, owner.hashed_password):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid owner credentials")
+        if get_settings().require_owner_mfa and not self._mfa_is_enabled(owner):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner MFA enrollment required")
         if self._mfa_is_enabled(owner):
             self._verify_owner_mfa(db, owner=owner, code=mfa_code, request_id=request_id)
 
