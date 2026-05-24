@@ -88,6 +88,13 @@ GitHub Actions ejecuta:
 - web build
 - API tests
 - production gate fast
+- post-deploy smoke manual con `workflow_dispatch` e inputs `api_url` / `web_url`
+
+El workflow corre en `main` y `master`. Para habilitar login tenant en el smoke manual, configurar secrets:
+
+- `LEXFLOW_SMOKE_TENANT_SLUG`
+- `LEXFLOW_SMOKE_ADMIN_EMAIL`
+- `LEXFLOW_SMOKE_ADMIN_PASSWORD`
 
 ## Pendiente antes de produccion publica
 

@@ -25,6 +25,7 @@
 - `scripts/cloud-smoke.ps1` to verify public API health, version, API status, web home and web login after deploy.
 - Optional tenant admin login smoke using `LEXFLOW_SMOKE_TENANT_SLUG`, `LEXFLOW_SMOKE_ADMIN_EMAIL` and `LEXFLOW_SMOKE_ADMIN_PASSWORD`.
 - `npm run cloud:smoke` for repeatable post-deploy validation.
+- GitHub Actions now runs on `main` and `master` and exposes a manual post-deploy smoke job.
 
 ### Security
 

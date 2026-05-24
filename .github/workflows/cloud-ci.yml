@@ -2,10 +2,19 @@ name: Cloud CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "master"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "master"]
   workflow_dispatch:
+    inputs:
+      api_url:
+        description: "Public API URL for post-deploy smoke"
+        required: false
+        type: string
+      web_url:
+        description: "Public web URL for post-deploy smoke"
+        required: false
+        type: string
 
 jobs:
   validate:
@@ -46,3 +55,20 @@ jobs:
       - name: Production gate fast
         shell: pwsh
         run: ./scripts/production-gate.ps1 -Fast
+
+  post_deploy_smoke:
+    if: github.event_name == 'workflow_dispatch' && inputs.api_url != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run cloud smoke
+        shell: pwsh
+        env:
+          LEXFLOW_API_URL: ${{ inputs.api_url }}
+          LEXFLOW_WEB_URL: ${{ inputs.web_url }}
+          LEXFLOW_SMOKE_TENANT_SLUG: ${{ secrets.LEXFLOW_SMOKE_TENANT_SLUG }}
+          LEXFLOW_SMOKE_ADMIN_EMAIL: ${{ secrets.LEXFLOW_SMOKE_ADMIN_EMAIL }}
+          LEXFLOW_SMOKE_ADMIN_PASSWORD: ${{ secrets.LEXFLOW_SMOKE_ADMIN_PASSWORD }}
+        run: ./scripts/cloud-smoke.ps1
