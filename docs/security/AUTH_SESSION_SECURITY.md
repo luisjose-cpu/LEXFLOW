@@ -21,6 +21,7 @@
 - La UI de Settings permite cambiar password y guarda la sesion rotada.
 - La UI de Settings permite activar y desactivar MFA TOTP con rotacion de sesion.
 - La UI de Login permite solicitar recuperacion y confirmar token sin exponer password ni secretos.
+- Los links de email para recuperacion e invitacion usan `LEXFLOW_WEB_URL` y autocompletan `?token=` en frontend.
 
 ## Auditoria
 
@@ -64,6 +65,7 @@ No se registra password, hash ni token plano.
 
 - Proveedor real de email transaccional para entregar tokens de recuperacion.
 - Proveedor real de email transaccional para entregar invitaciones.
+- Cola/retry de email y eventos de entrega.
 - MFA obligatorio por politica para admin y owner.
 - Alertas por cambio de password.
 - Politica configurable de complejidad y expiracion.

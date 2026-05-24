@@ -4,7 +4,7 @@ import { Button, Card } from "@lexflow/ui";
 import { ArrowLeft, KeyRound, MailCheck, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import React from "react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { confirmPasswordReset, requestPasswordReset } from "@/lib/lexflow-api";
 
 function Field({
@@ -119,6 +119,12 @@ export function PasswordResetConfirm() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const canSubmit = useMemo(() => resetToken.trim() && newPassword.length >= 10 && confirmPassword.length >= 10, [confirmPassword, newPassword, resetToken]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const queryToken = params.get("token");
+    if (queryToken) setResetToken(queryToken);
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

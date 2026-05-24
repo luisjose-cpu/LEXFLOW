@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     release_name: str = "CLOUD-DEPLOY-PACK"
     require_production_ready: bool = False
     seed_demo_on_startup: bool = True
+    lexflow_web_url: str = "http://localhost:3000"
     database_url: str = "sqlite+pysqlite:///:memory:"
     redis_url: str = "redis://localhost:6379/0"
     s3_endpoint: str = "http://localhost:9000"
@@ -25,6 +26,10 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     whatsapp_business_token: str | None = None
     billing_provider_secret: str | None = None
+    email_provider: str = "prepared"
+    email_api_url: str | None = None
+    email_api_key: str | None = None
+    email_from: str = "no-reply@lexflow.local"
     credential_encryption_key: str | None = None
     jwt_secret: str = "change-me-locally"
     jwt_algorithm: str = "HS256"

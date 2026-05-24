@@ -14,6 +14,7 @@ from app.db import models as dbm
 from app.db.database import SessionLocal
 from app.domain.models import AuditAction, User
 from app.services.audit import audit_service
+from app.services.email_delivery import get_email_provider
 from app.services.mfa import build_otpauth_url, generate_totp_secret, verify_totp
 from app.services.security import create_token, decode_token, hash_password, verify_password
 from app.services.sinoe_integration import CredentialCipher
@@ -232,6 +233,8 @@ class AuthService:
                 request_id=request_id,
                 metadata={"reason": "password_reset_requested"},
             )
+            delivery = self._deliver_password_reset(email=user.email, token=raw_token)
+            response["delivery"] = delivery.provider if delivery.status == "prepared" else delivery.status
             if settings.app_env.lower() in {"local", "test"}:
                 response["reset_token"] = raw_token
             return response
@@ -272,6 +275,8 @@ class AuthService:
             request_id=request_id,
             metadata={"reason": "password_reset_requested"},
         )
+        delivery = self._deliver_password_reset(email=db_user.email, token=raw_token)
+        response["delivery"] = delivery.provider if delivery.status == "prepared" else delivery.status
         if settings.app_env.lower() in {"local", "test"}:
             response["reset_token"] = raw_token
         return response
@@ -480,6 +485,11 @@ class AuthService:
     @staticmethod
     def _token_hash(raw_token: str) -> str:
         return sha256(raw_token.encode("utf-8")).hexdigest()
+
+    def _deliver_password_reset(self, *, email: str, token: str):
+        settings = get_settings()
+        reset_url = f"{settings.lexflow_web_url.rstrip('/')}/login/reset/confirm?token={token}"
+        return get_email_provider(settings).send_password_reset(to_email=email, reset_url=reset_url)
 
 
 auth_service = AuthService()

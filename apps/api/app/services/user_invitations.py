@@ -12,7 +12,7 @@ from app.core.config import get_settings
 from app.db import models as dbm
 from app.domain.models import AuditAction, RoleName, User
 from app.services.audit import audit_service
-from app.services.email_delivery import email_provider
+from app.services.email_delivery import get_email_provider
 from app.services.security import hash_password
 from app.services.tenants import tenant_service
 from app.services.users import user_service
@@ -87,7 +87,7 @@ class UserInvitationService:
                 "updated_at": dbm.now_utc(),
             }
 
-        delivery = self._deliver(normalized_email, full_name)
+        delivery = self._deliver(normalized_email, full_name, token=raw_token)
         audit_service.record(
             tenant_id=tenant_id,
             actor_user_id=actor.id,
@@ -135,7 +135,7 @@ class UserInvitationService:
             memory_invitation["updated_at"] = dbm.now_utc()
             self._memory_invitations[token_hash] = memory_invitation
             response = self._serialize_memory(memory_invitation)
-            response["delivery"] = self._deliver(memory_invitation["email"], memory_invitation["full_name"]).status
+            response["delivery"] = self._deliver(memory_invitation["email"], memory_invitation["full_name"], token=raw_token).status
         else:
             invitation = self._get_db_invitation(db, tenant_id=tenant_id, invitation_id=invitation_id)
             if invitation.status != "pending":
@@ -146,7 +146,7 @@ class UserInvitationService:
             db.commit()
             db.refresh(invitation)
             response = self._serialize_db(invitation)
-            response["delivery"] = self._deliver(invitation.email, invitation.full_name).status
+            response["delivery"] = self._deliver(invitation.email, invitation.full_name, token=raw_token).status
 
         audit_service.record(
             tenant_id=tenant_id,
@@ -298,8 +298,10 @@ class UserInvitationService:
                 return token_hash, invitation
         return None, None
 
-    def _deliver(self, email: object, full_name: object):
-        return email_provider.send_user_invitation(to_email=str(email), full_name=str(full_name))
+    def _deliver(self, email: object, full_name: object, *, token: str):
+        settings = get_settings()
+        invitation_url = f"{settings.lexflow_web_url.rstrip('/')}/login/invite?token={token}"
+        return get_email_provider(settings).send_user_invitation(to_email=str(email), full_name=str(full_name), invitation_url=invitation_url)
 
     def _ensure_role(self, db: Session, *, tenant_id: str, role: RoleName) -> dbm.Role:
         existing = db.scalars(select(dbm.Role).where(dbm.Role.tenant_id == tenant_id, dbm.Role.name == role.value)).first()

@@ -99,6 +99,19 @@ def production_readiness_checks(settings: Settings) -> list[ReadinessCheck]:
             severity="warning",
             message="Billing provider secret is required before paid SaaS subscriptions.",
         ),
+        ReadinessCheck(
+            key="email_configured",
+            ok=settings.email_provider == "prepared"
+            or (
+                settings.email_provider == "http_json"
+                and bool(settings.email_api_url)
+                and _secret_is_strong(settings.email_api_key, min_length=20)
+                and "@" in settings.email_from
+                and not settings.lexflow_web_url.startswith("http://localhost")
+            ),
+            severity="warning",
+            message="Transactional email requires EMAIL_PROVIDER=http_json, EMAIL_API_URL, EMAIL_API_KEY, EMAIL_FROM, and a public LEXFLOW_WEB_URL.",
+        ),
     ]
     if not _is_production(settings):
         return [

@@ -47,6 +47,23 @@ def test_production_readiness_accepts_hardened_core_settings() -> None:
     assert_startup_readiness(settings) is None
 
 
+def test_production_readiness_reports_email_provider_configuration() -> None:
+    unconfigured = production_settings(email_provider="http_json")
+    configured = production_settings(
+        email_provider="http_json",
+        email_api_url="https://email-provider.example/send",
+        email_api_key="strong-email-provider-key-value-123456",
+        email_from="no-reply@lexflow.example",
+        lexflow_web_url="https://app.lexflow.example",
+    )
+
+    unconfigured_warnings = {item["key"] for item in production_readiness_report(unconfigured)["warnings"]}
+    configured_warnings = {item["key"] for item in production_readiness_report(configured)["warnings"]}
+
+    assert "email_configured" in unconfigured_warnings
+    assert "email_configured" not in configured_warnings
+
+
 def test_readiness_endpoint_reports_current_environment() -> None:
     client = TestClient(app)
 

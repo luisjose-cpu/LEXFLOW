@@ -118,7 +118,7 @@ Grouped into 8 execution parts:
 Started:
 
 - Part 1 now includes tenant password change, password recovery, MFA TOTP and session revocation.
-- Part 2 now includes owner tenant onboarding and tenant user invitations with one-time hashed tokens, resend and cancellation.
+- Part 2 now includes owner tenant onboarding, tenant user invitations with one-time hashed tokens, resend/cancellation and transactional email provider readiness.
 - Part 1 now includes password reset request/confirm with one-time hashed tokens and login recovery screens.
 - Part 1 now includes tenant MFA TOTP with encrypted secrets, login enforcement and Settings controls.
 - Part 2 now includes Owner tenant onboarding with initial admin, seats, plan subscription, feature flags, limits and handoff readiness.

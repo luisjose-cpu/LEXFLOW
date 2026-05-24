@@ -4,7 +4,7 @@ import { Button, Card } from "@lexflow/ui";
 import { ArrowLeft, UserCheck } from "lucide-react";
 import Link from "next/link";
 import React from "react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { acceptUserInvitation } from "@/lib/lexflow-api";
 
 export function InvitationAccept() {
@@ -14,6 +14,12 @@ export function InvitationAccept() {
   const [state, setState] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const canSubmit = useMemo(() => token.trim() && password.length >= 10 && confirmPassword.length >= 10, [confirmPassword, password, token]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const queryToken = params.get("token");
+    if (queryToken) setToken(queryToken);
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

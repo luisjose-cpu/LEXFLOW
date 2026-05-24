@@ -7,6 +7,7 @@
 - Las invitaciones pendientes pueden reenviarse con rotacion de token.
 - Las invitaciones pendientes pueden cancelarse para bloquear aceptacion.
 - El invitado acepta en `/login/invite` y define su propia password.
+- Si el link llega como `/login/invite?token=...`, la UI autocompleta el token.
 - El token se guarda solo como hash SHA-256 en `user_invitations`.
 - La migracion `20260524_0016` crea persistencia cloud para invitaciones.
 - En `local/test` el token puede devolverse para QA; en produccion no se retorna.
