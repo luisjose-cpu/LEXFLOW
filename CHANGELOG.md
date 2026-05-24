@@ -1,5 +1,18 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Cloud Login
+
+### Added
+
+- Real web login flow connected to `NEXT_PUBLIC_API_URL`.
+- Tenant slug field for multi-studio authentication.
+- Client session storage for access token, refresh token, user, tenant id, and tenant slug.
+- Login tests for successful cloud auth and invalid credentials.
+
+### Changed
+
+- `/login` is no longer a placeholder and now redirects authenticated users to `/dashboard`.
+
 ## 2026-05-22 - P24 Cloud Deploy Pack
 
 ### Added
