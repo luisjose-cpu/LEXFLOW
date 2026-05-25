@@ -805,3 +805,12 @@
 - Added GAP reports for all mandatory Nivel 1 modules.
 - Classified the current release as `PILOT_READY_WITH_MOCKS`, not full production automation.
 - Confirmed no CAPTCHA bypass, no credential hardcoding and no module duplication in this review pass.
+# 2026-05-24 - Nivel 2 commercial modules
+
+- Added War Room Legal backend endpoint and `/war-room` premium UI.
+- Added Legal CRM models, endpoints, lead conversion flow and `/crm` UI.
+- Added Financial Engine models, endpoints, profitability calculations and `/financial` UI.
+- Added Risk Engine endpoint, case/client/study scoring and `/risk` UI.
+- Upgraded `/demo` to Level 2 commercial Demo Mode with reset/snapshot endpoints.
+- Added Alembic migration `20260524_0023`.
+- Added backend and frontend tests for Level 2.

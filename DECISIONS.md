@@ -71,3 +71,10 @@ Decision: Owner Console authentication uses dedicated owner JWTs with `scope=own
 Reason: Tenant JWTs must not grant control-plane access, and production/staging owner access cannot depend on ad hoc headers.
 
 Status: Accepted
+# 2026-05-24 - Nivel 2 commercial modules
+
+Decision: implementar War Room, CRM, Financial, Risk y Demo Mode como capa agregadora del core existente.
+
+Reason: Nivel 2 debe ser vendible y conectado, no un grupo de pantallas aisladas. El modulo consume Expediente360, SINOE, IA, Automation, Dashboard, Portal y Owner sin duplicar logica judicial.
+
+Consequences: los proveedores reales siguen tras feature flags; los calculos son deterministas y auditables para piloto.

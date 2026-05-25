@@ -124,3 +124,10 @@ Started:
 - Part 1 now includes password reset request/confirm with one-time hashed tokens and login recovery screens.
 - Part 1 now includes tenant MFA TOTP with encrypted secrets, login enforcement and Settings controls.
 - Part 2 now includes Owner tenant onboarding with initial admin, seats, plan subscription, feature flags, limits and handoff readiness.
+# Nivel 2 - Modulos altamente vendibles
+
+- War Room Legal: centro operativo en tiempo real.
+- Legal CRM: pipeline lead -> cliente -> expediente.
+- Engine Rentabilidad: margen, ROI, gastos y horas por expediente.
+- Risk Engine: score juridico operativo por expediente, cliente y estudio.
+- Demo Mode: datasets, reset y snapshot demo comercial.

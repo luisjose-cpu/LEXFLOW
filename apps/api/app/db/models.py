@@ -216,6 +216,7 @@ class Case(Base, TimestampMixin, SoftDeleteMixin):
     documents: Mapped[list["Document"]] = relationship(back_populates="case")
     hearings: Mapped[list["Hearing"]] = relationship(back_populates="case")
     tasks: Mapped[list["Task"]] = relationship(back_populates="case")
+    financial: Mapped["CaseFinancial | None"] = relationship(back_populates="case", cascade="all, delete-orphan", uselist=False)
 
 
 class CaseEvent(Base, TimestampMixin):
@@ -420,6 +421,110 @@ class Task(Base, TimestampMixin, SoftDeleteMixin):
 
     case: Mapped[Case] = relationship(back_populates="tasks")
     assigned_user: Mapped[User | None] = relationship(back_populates="tasks")
+
+
+class CrmLead(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "crm_leads"
+    __table_args__ = (
+        Index("ix_crm_leads_tenant_id", "tenant_id"),
+        Index("ix_crm_leads_stage", "stage"),
+        Index("ix_crm_leads_owner_user_id", "owner_user_id"),
+        Index("ix_crm_leads_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    owner_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    company: Mapped[str] = mapped_column(String(180), nullable=False)
+    person_name: Mapped[str] = mapped_column(String(180), nullable=False)
+    ruc: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    dni: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    sector: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    source: Mapped[str] = mapped_column(String(120), default="direct", nullable=False)
+    campaign: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    expected_value_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    probability: Mapped[int] = mapped_column(Integer, default=25, nullable=False)
+    stage: Mapped[str] = mapped_column(String(40), default="lead", nullable=False)
+    next_action: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    score: Mapped[int] = mapped_column(Integer, default=40, nullable=False)
+    converted_client_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("clients.id"), nullable=True)
+    converted_case_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("cases.id"), nullable=True)
+
+
+class CaseFinancial(Base, TimestampMixin):
+    __tablename__ = "case_financials"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "case_id", name="uq_case_financials_tenant_case"),
+        Index("ix_case_financials_tenant_id", "tenant_id"),
+        Index("ix_case_financials_case_id", "case_id"),
+        Index("ix_case_financials_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("cases.id"), nullable=False)
+    fees_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    budget_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    invoiced_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    pending_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="neutral", nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    case: Mapped[Case] = relationship(back_populates="financial")
+
+
+class CaseExpense(Base, TimestampMixin):
+    __tablename__ = "case_expenses"
+    __table_args__ = (
+        Index("ix_case_expenses_tenant_id", "tenant_id"),
+        Index("ix_case_expenses_case_id", "case_id"),
+        Index("ix_case_expenses_category", "category"),
+        Index("ix_case_expenses_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("cases.id"), nullable=False)
+    category: Mapped[str] = mapped_column(String(80), default="general", nullable=False)
+    description: Mapped[str] = mapped_column(String(240), nullable=False)
+    amount_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    provider: Mapped[str | None] = mapped_column(String(160), nullable=True)
+
+
+class CaseHour(Base, TimestampMixin):
+    __tablename__ = "case_hours"
+    __table_args__ = (
+        Index("ix_case_hours_tenant_id", "tenant_id"),
+        Index("ix_case_hours_case_id", "case_id"),
+        Index("ix_case_hours_user_id", "user_id"),
+        Index("ix_case_hours_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("cases.id"), nullable=False)
+    user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    minutes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    hourly_rate_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    description: Mapped[str | None] = mapped_column(String(240), nullable=True)
+
+
+class DemoSnapshot(Base, TimestampMixin):
+    __tablename__ = "demo_snapshots"
+    __table_args__ = (
+        Index("ix_demo_snapshots_tenant_id", "tenant_id"),
+        Index("ix_demo_snapshots_demo_type", "demo_type"),
+        Index("ix_demo_snapshots_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    demo_type: Mapped[str] = mapped_column(String(80), default="general", nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="ready", nullable=False)
+    snapshot_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
 
 
 class Notification(Base, TimestampMixin):

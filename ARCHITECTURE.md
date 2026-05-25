@@ -68,3 +68,10 @@ Major layers:
 ## P0 Architecture Status
 
 This document defines direction only. P0 does not create new backend, frontend, database, table, or Docker behavior.
+# Nivel 2 Commercial Architecture
+
+Nivel 2 agrega una capa comercial sobre el core existente. No duplica Expediente360, SINOE, IA ni Automation: consume sus senales y las agrega en War Room, CRM, Financial, Risk y Demo Mode.
+
+Nuevas tablas: `crm_leads`, `case_financials`, `case_expenses`, `case_hours`, `demo_snapshots`.
+
+Nuevos servicios: `WarRoomService`, `CrmService`, `FinancialEngineService`, `RiskEngineService`, `Level2DemoService`.

@@ -1,10 +1,10 @@
 import { AppShell } from "@/components/app-shell";
-import { LexflowOSFinal } from "@/components/lexflow-os-final";
+import { Level2DemoMode } from "@/components/level2-commercial";
 
 export default function DemoModePage() {
   return (
     <AppShell>
-      <LexflowOSFinal view="demo" />
+      <Level2DemoMode />
     </AppShell>
   );
 }

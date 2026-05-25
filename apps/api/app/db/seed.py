@@ -11,11 +11,16 @@ from app.db.models import (
     AutomationWorkflow,
     BillingEvent,
     BillingPlan,
+    CaseExpense,
+    CaseFinancial,
+    CaseHour,
     Case,
     CaseEvent,
     CaseSource,
     Client,
     Document,
+    CrmLead,
+    DemoSnapshot,
     Hearing,
     LegalNews,
     LegalAlert,
@@ -43,8 +48,8 @@ from app.services.security import hash_password
 
 
 ROLE_PERMISSIONS = {
-    "tenant_admin": ["users:read", "users:write", "clients:read", "clients:write", "cases:read", "cases:write", "audit:read", "communications:read", "communications:write", "templates:write", "notifications:write", "ai:read", "ai:write", "ai:review", "intelligence:read", "intelligence:write", "dashboard:read", "billing:read", "billing:write", "automation:read", "automation:write", "automation:run"],
-    "lawyer": ["clients:read", "clients:write", "cases:read", "cases:write", "communications:read", "communications:write", "templates:write", "notifications:write", "ai:read", "ai:write", "ai:review", "intelligence:read", "intelligence:write", "dashboard:read", "billing:read", "automation:read", "automation:write", "automation:run"],
+    "tenant_admin": ["users:read", "users:write", "clients:read", "clients:write", "cases:read", "cases:write", "audit:read", "communications:read", "communications:write", "templates:write", "notifications:write", "ai:read", "ai:write", "ai:review", "intelligence:read", "intelligence:write", "dashboard:read", "warroom:read", "crm:read", "crm:write", "financial:read", "financial:write", "risk:read", "demo:write", "billing:read", "billing:write", "automation:read", "automation:write", "automation:run"],
+    "lawyer": ["clients:read", "clients:write", "cases:read", "cases:write", "communications:read", "communications:write", "templates:write", "notifications:write", "ai:read", "ai:write", "ai:review", "intelligence:read", "intelligence:write", "dashboard:read", "warroom:read", "crm:read", "crm:write", "financial:read", "risk:read", "billing:read", "automation:read", "automation:write", "automation:run"],
     "assistant": ["clients:read", "cases:read", "tasks:write", "automation:read", "automation:run"],
     "client_user": ["portal:read", "cases:read"],
 }
@@ -138,6 +143,21 @@ def seed_demo_database(db: Session, *, tenant_id: str | None = None) -> dict[str
     ]
     db.add_all(cases)
     db.flush()
+
+    db.add_all(
+        [
+            CrmLead(tenant_id=tenant.id, owner_user_id=admin.id, company="Inversiones Pacifico", person_name="Carla Rios", email="carla@pacifico.demo", phone="+5710000000", sector="corporativo", source="referido", campaign="Demo Nivel 2", expected_value_cents=1250000, probability=72, stage="proposal", next_action="Enviar propuesta piloto", score=82),
+            CrmLead(tenant_id=tenant.id, owner_user_id=lawyer.id, company="Litigios Norte", person_name="Marco Silva", email="marco@litigiosnorte.demo", sector="litigios", source="web", campaign="War Room", expected_value_cents=850000, probability=48, stage="meeting", next_action="Agendar demo War Room", score=68),
+        ]
+    )
+
+    for index, legal_case in enumerate(cases):
+        fees = [1800000, 900000, 650000][index]
+        db.add(CaseFinancial(tenant_id=tenant.id, case_id=legal_case.id, fees_cents=fees, budget_cents=round(fees * 0.55), invoiced_cents=round(fees * 0.35), pending_cents=round(fees * 0.65)))
+        db.add(CaseExpense(tenant_id=tenant.id, case_id=legal_case.id, category="notificaciones", description="Gastos judiciales demo", amount_cents=[90000, 180000, 45000][index], provider="Proveedor demo"))
+        db.add(CaseHour(tenant_id=tenant.id, case_id=legal_case.id, user_id=lawyer.id, minutes=[360, 720, 240][index], hourly_rate_cents=22000, description="Trabajo legal demo"))
+
+    db.add(DemoSnapshot(tenant_id=tenant.id, demo_type="litigation", status="ready", snapshot_json={"source": "seed", "modules": ["war-room", "crm", "financial", "risk", "demo"]}))
 
     for legal_case in cases:
         thread = CommunicationThread(

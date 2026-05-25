@@ -50,6 +50,7 @@ from app.services.legal_intelligence import (
     tag_service,
 )
 from app.services.lexflow_os import lexflow_os_service
+from app.services.level2 import crm_service, financial_engine_service, level2_demo_service, risk_engine_service, war_room_service
 from app.services.matters import matter_service
 from app.services.mobile import mobile_client_service, mobile_lawyer_service
 from app.services.ops_center import ops_center_service
@@ -177,6 +178,44 @@ class UserUpdate(BaseModel):
     full_name: str | None = None
     role: RoleName | None = None
     is_active: bool | None = None
+
+
+class CrmLeadCreate(BaseModel):
+    company: str = Field(min_length=2, max_length=180)
+    person_name: str = Field(min_length=2, max_length=180)
+    ruc: str | None = Field(default=None, max_length=40)
+    dni: str | None = Field(default=None, max_length=40)
+    email: EmailStr | None = None
+    phone: str | None = Field(default=None, max_length=80)
+    sector: str | None = Field(default=None, max_length=120)
+    source: str = Field(default="direct", max_length=120)
+    campaign: str | None = Field(default=None, max_length=160)
+    expected_value_cents: int = Field(default=0, ge=0)
+    probability: int = Field(default=25, ge=0, le=100)
+    stage: str = Field(default="lead", max_length=40)
+    next_action: str | None = Field(default=None, max_length=240)
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class CrmStageUpdate(BaseModel):
+    stage: str = Field(min_length=2, max_length=40)
+
+
+class FinancialExpenseCreate(BaseModel):
+    category: str = Field(default="general", max_length=80)
+    description: str = Field(min_length=2, max_length=240)
+    amount_cents: int = Field(ge=0)
+    provider: str | None = Field(default=None, max_length=160)
+
+
+class FinancialHoursCreate(BaseModel):
+    minutes: int = Field(ge=1, le=1440)
+    hourly_rate_cents: int = Field(ge=0)
+    description: str | None = Field(default=None, max_length=240)
+
+
+class Level2DemoRequest(BaseModel):
+    demo_type: str = Field(default="litigation", max_length=80)
 
 
 class UserInvitationCreate(BaseModel):
@@ -2309,6 +2348,171 @@ def dashboard_snapshot(
     db: Annotated[Session, Depends(get_db)],
 ) -> dict[str, object]:
     return command_center_service.snapshot(db, tenant_id=tenant_id)
+
+
+@router.get("/war-room")
+def level2_war_room(
+    _: Annotated[User, Depends(require_permission("warroom:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    mode: str = Query(default="partner"),
+) -> dict[str, object]:
+    return war_room_service.dashboard(db, tenant_id=tenant_id, mode=mode)
+
+
+@router.get("/crm/leads")
+def crm_leads(
+    _: Annotated[User, Depends(require_permission("crm:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return crm_service.list_leads(db, tenant_id=tenant_id)
+
+
+@router.post("/crm/leads", status_code=status.HTTP_201_CREATED)
+def crm_create_lead(
+    payload: CrmLeadCreate,
+    actor: Annotated[User, Depends(require_permission("crm:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return crm_service.create_lead(db, tenant_id=tenant_id, actor=actor, payload=payload.model_dump(exclude_none=True), request_id=getattr(request.state, "request_id", None))
+
+
+@router.patch("/crm/leads/{lead_id}/stage")
+def crm_move_lead(
+    lead_id: UUID,
+    payload: CrmStageUpdate,
+    actor: Annotated[User, Depends(require_permission("crm:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return crm_service.move_stage(db, tenant_id=tenant_id, lead_id=lead_id, actor=actor, stage=payload.stage, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/crm/leads/{lead_id}/convert")
+def crm_convert_lead(
+    lead_id: UUID,
+    actor: Annotated[User, Depends(require_permission("crm:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return crm_service.convert(db, tenant_id=tenant_id, lead_id=lead_id, actor=actor, request_id=getattr(request.state, "request_id", None))
+
+
+@router.get("/crm/analytics")
+def crm_analytics(
+    _: Annotated[User, Depends(require_permission("crm:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return crm_service.analytics(db, tenant_id=tenant_id)
+
+
+@router.get("/financial/overview")
+def financial_overview(
+    _: Annotated[User, Depends(require_permission("financial:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return financial_engine_service.overview(db, tenant_id=tenant_id)
+
+
+@router.get("/financial/cases/{case_id}")
+def financial_case(
+    case_id: UUID,
+    _: Annotated[User, Depends(require_permission("financial:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return financial_engine_service.case_profitability(db, tenant_id=tenant_id, case_id=case_id)
+
+
+@router.post("/financial/cases/{case_id}/expenses", status_code=status.HTTP_201_CREATED)
+def financial_add_expense(
+    case_id: UUID,
+    payload: FinancialExpenseCreate,
+    actor: Annotated[User, Depends(require_permission("financial:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return financial_engine_service.add_expense(db, tenant_id=tenant_id, case_id=case_id, actor=actor, payload=payload.model_dump(exclude_none=True), request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/financial/cases/{case_id}/hours", status_code=status.HTTP_201_CREATED)
+def financial_add_hours(
+    case_id: UUID,
+    payload: FinancialHoursCreate,
+    actor: Annotated[User, Depends(require_permission("financial:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return financial_engine_service.add_hours(db, tenant_id=tenant_id, case_id=case_id, actor=actor, payload=payload.model_dump(exclude_none=True), request_id=getattr(request.state, "request_id", None))
+
+
+@router.get("/risk")
+def level2_risk(
+    _: Annotated[User, Depends(require_permission("risk:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return risk_engine_service.dashboard(db, tenant_id=tenant_id)
+
+
+@router.get("/risk/cases/{case_id}")
+def level2_case_risk(
+    case_id: UUID,
+    _: Annotated[User, Depends(require_permission("risk:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return risk_engine_service.case_score(db, tenant_id=tenant_id, case_id=case_id)
+
+
+@router.get("/risk/clients/{client_id}")
+def level2_client_risk(
+    client_id: UUID,
+    _: Annotated[User, Depends(require_permission("risk:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return risk_engine_service.client_score(db, tenant_id=tenant_id, client_id=client_id)
+
+
+@router.get("/demo/level2")
+def level2_demo_overview(
+    _: Annotated[User, Depends(require_permission("dashboard:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return level2_demo_service.overview(db, tenant_id=tenant_id)
+
+
+@router.post("/demo/level2/reset")
+def level2_demo_reset(
+    payload: Level2DemoRequest,
+    actor: Annotated[User, Depends(require_permission("demo:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return level2_demo_service.reset(db, tenant_id=tenant_id, actor=actor, demo_type=payload.demo_type, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/demo/level2/snapshot", status_code=status.HTTP_201_CREATED)
+def level2_demo_snapshot(
+    payload: Level2DemoRequest,
+    actor: Annotated[User, Depends(require_permission("demo:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return level2_demo_service.snapshot(db, tenant_id=tenant_id, actor=actor, demo_type=payload.demo_type, request_id=getattr(request.state, "request_id", None))
 
 
 @router.get("/mobile/client/home")

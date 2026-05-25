@@ -33,6 +33,7 @@ The current architecture creates:
 - LEXFLOW OS Final with Legal Memory, RAG Legal, global search, Copiloto Juridico, specialized AI agents, Legal Graph, future Marketplace, Demo Mode, commercial landing, final documentation, and release readiness status
 - SINOE integration foundation with encrypted credentials, Settings surface, SINOE case source linking, mock authorized updates, CAPTCHA human-in-the-loop checkpoints, notifications, evidence, audit logs, and Expediente 360 panels
 - Owner Console foundation with owner JWT auth, bootstrap script, and a separate SaaS control plane for tenants, plans, billing, support, usage, feature flags, demos, interventions, audit logs and system health without exposing sensitive tenant content by default
+- Nivel 2 commercial modules: War Room Legal, Legal CRM, Engine Rentabilidad, Risk Engine and Demo Mode for premium sales, pilots, partner presentations and SaaS expansion.
 
 ## Product Spine
 
