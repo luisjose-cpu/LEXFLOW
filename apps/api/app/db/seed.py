@@ -18,15 +18,22 @@ from app.db.models import (
     CaseEvent,
     CaseSource,
     Client,
+    CountryConfig,
     Document,
     CrmLead,
     DemoSnapshot,
     Hearing,
+    KnowledgeVaultItem,
+    LegalGraphEdge,
+    LegalGraphNode,
+    LegalMemoryItem,
     LegalNews,
     LegalAlert,
     LegalTag,
     LegalNewsCaseLink,
     LegalNewsSource,
+    MarketplaceInstallation,
+    MarketplaceItem,
     CommunicationMessage,
     CommunicationThread,
     MessageTemplate,
@@ -48,9 +55,9 @@ from app.services.security import hash_password
 
 
 ROLE_PERMISSIONS = {
-    "tenant_admin": ["users:read", "users:write", "clients:read", "clients:write", "cases:read", "cases:write", "audit:read", "communications:read", "communications:write", "templates:write", "notifications:write", "ai:read", "ai:write", "ai:review", "intelligence:read", "intelligence:write", "dashboard:read", "warroom:read", "crm:read", "crm:write", "financial:read", "financial:write", "risk:read", "demo:write", "billing:read", "billing:write", "automation:read", "automation:write", "automation:run"],
-    "lawyer": ["clients:read", "clients:write", "cases:read", "cases:write", "communications:read", "communications:write", "templates:write", "notifications:write", "ai:read", "ai:write", "ai:review", "intelligence:read", "intelligence:write", "dashboard:read", "warroom:read", "crm:read", "crm:write", "financial:read", "risk:read", "billing:read", "automation:read", "automation:write", "automation:run"],
-    "assistant": ["clients:read", "cases:read", "tasks:write", "automation:read", "automation:run"],
+    "tenant_admin": ["users:read", "users:write", "clients:read", "clients:write", "cases:read", "cases:write", "audit:read", "communications:read", "communications:write", "templates:write", "notifications:write", "ai:read", "ai:write", "ai:review", "intelligence:read", "intelligence:write", "dashboard:read", "warroom:read", "crm:read", "crm:write", "financial:read", "financial:write", "risk:read", "demo:write", "billing:read", "billing:write", "automation:read", "automation:write", "automation:run", "legal_os:read", "legal_os:write", "knowledge:read", "knowledge:write", "memory:read", "memory:write", "graph:read", "graph:write", "copilot:read", "marketplace:read", "marketplace:write", "latam:read", "latam:write", "agents:run"],
+    "lawyer": ["clients:read", "clients:write", "cases:read", "cases:write", "communications:read", "communications:write", "templates:write", "notifications:write", "ai:read", "ai:write", "ai:review", "intelligence:read", "intelligence:write", "dashboard:read", "warroom:read", "crm:read", "crm:write", "financial:read", "risk:read", "billing:read", "automation:read", "automation:write", "automation:run", "legal_os:read", "knowledge:read", "knowledge:write", "memory:read", "memory:write", "graph:read", "copilot:read", "marketplace:read", "latam:read", "agents:run"],
+    "assistant": ["clients:read", "cases:read", "tasks:write", "automation:read", "automation:run", "legal_os:read", "knowledge:read", "memory:read", "graph:read", "marketplace:read", "latam:read"],
     "client_user": ["portal:read", "cases:read"],
 }
 
@@ -158,6 +165,73 @@ def seed_demo_database(db: Session, *, tenant_id: str | None = None) -> dict[str
         db.add(CaseHour(tenant_id=tenant.id, case_id=legal_case.id, user_id=lawyer.id, minutes=[360, 720, 240][index], hourly_rate_cents=22000, description="Trabajo legal demo"))
 
     db.add(DemoSnapshot(tenant_id=tenant.id, demo_type="litigation", status="ready", snapshot_json={"source": "seed", "modules": ["war-room", "crm", "financial", "risk", "demo"]}))
+    db.add_all(
+        [
+            KnowledgeVaultItem(
+                tenant_id=tenant.id,
+                source_type="template",
+                category="demanda",
+                title="Demanda ejecutiva con anexos",
+                content_summary="Plantilla demo para cobro ejecutivo con checklist documental y estrategia de seguimiento.",
+                tags=["cobro", "ejecutivo", "nova"],
+                created_by_user_id=lawyer.id,
+            ),
+            KnowledgeVaultItem(
+                tenant_id=tenant.id,
+                source_type="precedent",
+                category="laboral",
+                title="Precedente interno laboral colectivo",
+                content_summary="Criterios demo de control de plazos, audiencia y riesgo operativo en materia laboral colectiva.",
+                tags=["laboral", "audiencia", "riesgo"],
+                created_by_user_id=lawyer.id,
+            ),
+            LegalMemoryItem(
+                tenant_id=tenant.id,
+                entity_type="case",
+                entity_id=cases[0].id,
+                case_id=cases[0].id,
+                client_id=clients[0].id,
+                source_type="seed",
+                title="Memoria operativa Nova",
+                content="Cobro ejecutivo Nova con demanda, anexos, plazo critico y comunicacion WhatsApp mock.",
+                chunk_text="Cobro ejecutivo Nova demanda anexos plazo critico comunicacion WhatsApp mock.",
+                tags=["nova", "cobro", "plazo"],
+                embedding_vector_json=[0.14, 0.22, 0.61, 0.33, 0.44, 0.18],
+                citations_json=[{"source_type": "case", "case_id": cases[0].id, "title": cases[0].title}],
+            ),
+        ]
+    )
+
+    client_node = LegalGraphNode(tenant_id=tenant.id, node_type="client", entity_id=clients[0].id, label=clients[0].name, metadata_json={"risk_profile": clients[0].risk_profile})
+    case_node = LegalGraphNode(tenant_id=tenant.id, node_type="case", entity_id=cases[0].id, label=cases[0].title, metadata_json={"status": cases[0].status})
+    db.add_all([client_node, case_node])
+    db.flush()
+    db.add(LegalGraphEdge(tenant_id=tenant.id, from_node_id=client_node.id, to_node_id=case_node.id, edge_type="owns", weight=5, metadata_json={"source": "seed"}))
+
+    marketplace_item = MarketplaceItem(
+        item_key=f"deadline_risk_pack_{tenant.id[:8]}",
+        name="Deadline Risk Pack",
+        item_type="automation",
+        description="Workflow demo para alertas de plazos, audiencias y CAPTCHA pendientes.",
+        permissions_json=["automation:write", "risk:read"],
+        metadata_json={"level": "N3", "review_required": True},
+    )
+    db.add(marketplace_item)
+    db.flush()
+    db.add(MarketplaceInstallation(tenant_id=tenant.id, marketplace_item_id=marketplace_item.id, installed_by_user_id=admin.id, config_json={"mode": "demo"}))
+    db.add(
+        CountryConfig(
+            tenant_id=tenant.id,
+            country_code="PE",
+            name="Peru",
+            currency="PEN",
+            timezone="America/Lima",
+            language="es",
+            formats_json={"case_number": "district-instance-year-number", "date": "dd/mm/yyyy"},
+            legal_sources_json=[{"key": "sinoe", "name": "SINOE", "captcha_policy": "human_in_the_loop"}],
+            provider_registry_json=[{"key": "sinoe_mock", "type": "judicial", "status": "mock_ready"}],
+        )
+    )
 
     for legal_case in cases:
         thread = CommunicationThread(

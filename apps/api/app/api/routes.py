@@ -51,6 +51,17 @@ from app.services.legal_intelligence import (
 )
 from app.services.lexflow_os import lexflow_os_service
 from app.services.level2 import crm_service, financial_engine_service, level2_demo_service, risk_engine_service, war_room_service
+from app.services.level3 import (
+    ai_agents_framework,
+    digital_twin_service,
+    knowledge_vault_service,
+    latam_ready_service,
+    legal_graph_service,
+    legal_memory_service,
+    management_copilot_service,
+    marketplace_service,
+    rag_pipeline_service,
+)
 from app.services.matters import matter_service
 from app.services.mobile import mobile_client_service, mobile_lawyer_service
 from app.services.ops_center import ops_center_service
@@ -560,6 +571,44 @@ class LexflowOSQueryRequest(BaseModel):
 
 class LexflowOSCopilotRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=1000)
+
+
+class KnowledgeVaultItemCreate(BaseModel):
+    source_type: str = Field(default="template", max_length=80)
+    category: str = Field(default="knowledge", max_length=80)
+    title: str = Field(min_length=2, max_length=240)
+    content_summary: str = Field(default="", max_length=4000)
+    tags: list[str] = Field(default_factory=list)
+    visibility: str = Field(default="internal", pattern="^(internal|shared|tenant)$")
+    case_id: UUID | None = None
+    client_id: UUID | None = None
+    document_id: UUID | None = None
+
+
+class GraphRelationshipCreate(BaseModel):
+    from_node_id: UUID
+    to_node_id: UUID
+    relationship: str = Field(default="related", max_length=80)
+    weight: int = Field(default=1, ge=1, le=100)
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class ManagementCopilotRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=1000)
+
+
+class Level3RagQueryRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=1000)
+    case_id: UUID | None = None
+    client_id: UUID | None = None
+
+
+class AgentRunRequest(BaseModel):
+    payload: dict[str, object] = Field(default_factory=dict)
+
+
+class MarketplaceInstallRequest(BaseModel):
+    item_id: UUID
 
 
 class TenantBootstrapRequest(BaseModel):
@@ -1294,6 +1343,250 @@ def seed_demo() -> dict[str, str]:
         "client_email": DEMO_SEED.client_email,
         "password": "configured-for-local-seed",
     }
+
+
+@router.get("/digital-twin")
+def level3_digital_twin(
+    actor: Annotated[User, Depends(require_permission("legal_os:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return digital_twin_service.dashboard(db, tenant_id=tenant_id)
+
+
+@router.get("/knowledge/items")
+def level3_knowledge_items(
+    actor: Annotated[User, Depends(require_permission("knowledge:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return knowledge_vault_service.search(db, tenant_id=tenant_id, query="")
+
+
+@router.post("/knowledge/items", status_code=status.HTTP_201_CREATED)
+def level3_create_knowledge_item(
+    payload: KnowledgeVaultItemCreate,
+    actor: Annotated[User, Depends(require_permission("knowledge:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return knowledge_vault_service.create_item(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        payload=payload.model_dump(mode="json"),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/knowledge/search")
+def level3_knowledge_search(
+    actor: Annotated[User, Depends(require_permission("knowledge:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    q: str = Query(min_length=1, max_length=500),
+) -> dict[str, object]:
+    return knowledge_vault_service.search(db, tenant_id=tenant_id, query=q)
+
+
+@router.get("/knowledge/templates")
+def level3_knowledge_templates(
+    actor: Annotated[User, Depends(require_permission("knowledge:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    return knowledge_vault_service.list_by_type(db, tenant_id=tenant_id, source_type="template")
+
+
+@router.get("/knowledge/precedents")
+def level3_knowledge_precedents(
+    actor: Annotated[User, Depends(require_permission("knowledge:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    return knowledge_vault_service.list_by_type(db, tenant_id=tenant_id, source_type="precedent")
+
+
+@router.get("/knowledge/prompts")
+def level3_knowledge_prompts(
+    actor: Annotated[User, Depends(require_permission("knowledge:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    return knowledge_vault_service.list_by_type(db, tenant_id=tenant_id, source_type="prompt")
+
+
+@router.post("/intelligence/memory/index")
+def level3_memory_index(
+    actor: Annotated[User, Depends(require_permission("memory:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return legal_memory_service.index_tenant(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/intelligence/memory/search")
+def level3_memory_search(
+    actor: Annotated[User, Depends(require_permission("memory:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    q: str = Query(min_length=1, max_length=500),
+) -> dict[str, object]:
+    return legal_memory_service.search(db, tenant_id=tenant_id, query=q)
+
+
+@router.post("/intelligence/rag/query")
+def level3_rag_query(
+    payload: Level3RagQueryRequest,
+    actor: Annotated[User, Depends(require_permission("ai:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return rag_pipeline_service.query(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        query=payload.query,
+        case_id=payload.case_id,
+        client_id=payload.client_id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/graph")
+def level3_graph(
+    actor: Annotated[User, Depends(require_permission("graph:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return legal_graph_service.build(db, tenant_id=tenant_id)
+
+
+@router.post("/graph/relationships", status_code=status.HTTP_201_CREATED)
+def level3_graph_relationship(
+    payload: GraphRelationshipCreate,
+    actor: Annotated[User, Depends(require_permission("graph:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return legal_graph_service.create_relationship(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        payload=payload.model_dump(mode="json"),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/graph/search")
+def level3_graph_search(
+    actor: Annotated[User, Depends(require_permission("graph:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    q: str = Query(min_length=1, max_length=500),
+) -> dict[str, object]:
+    return legal_graph_service.search(db, tenant_id=tenant_id, query=q)
+
+
+@router.post("/copilot/management")
+def level3_management_copilot(
+    payload: ManagementCopilotRequest,
+    actor: Annotated[User, Depends(require_permission("copilot:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return management_copilot_service.ask(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        question=payload.question,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/marketplace/catalog")
+def level3_marketplace_catalog(
+    actor: Annotated[User, Depends(require_permission("marketplace:read"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return marketplace_service.catalog(db)
+
+
+@router.post("/marketplace/install")
+def level3_marketplace_install(
+    payload: MarketplaceInstallRequest,
+    actor: Annotated[User, Depends(require_permission("marketplace:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return marketplace_service.install(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        item_id=payload.item_id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/latam/configs")
+def level3_latam_configs(
+    actor: Annotated[User, Depends(require_permission("latam:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[dict[str, object]]:
+    return latam_ready_service.list_configs(db, tenant_id=tenant_id)
+
+
+@router.post("/latam/configs/defaults")
+def level3_latam_defaults(
+    actor: Annotated[User, Depends(require_permission("latam:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return latam_ready_service.ensure_defaults(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/agents/catalog")
+def level3_agents_catalog(
+    actor: Annotated[User, Depends(require_permission("legal_os:read"))],
+) -> dict[str, object]:
+    return ai_agents_framework.list_catalog()
+
+
+@router.post("/agents/{agent_key}/run")
+def level3_agent_run(
+    agent_key: str,
+    payload: AgentRunRequest,
+    actor: Annotated[User, Depends(require_permission("agents:run"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return ai_agents_framework.run(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        agent_key=agent_key,
+        payload=payload.payload,
+        request_id=getattr(request.state, "request_id", None),
+    )
 
 
 @router.get("/lexflow-os/memory")

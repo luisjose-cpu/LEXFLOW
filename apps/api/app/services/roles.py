@@ -1,6 +1,24 @@
 from app.domain.models import Role, RoleName
 
 
+LEGAL_OS_PERMISSIONS = [
+    "legal_os:read",
+    "legal_os:write",
+    "knowledge:read",
+    "knowledge:write",
+    "memory:read",
+    "memory:write",
+    "graph:read",
+    "graph:write",
+    "copilot:read",
+    "marketplace:read",
+    "marketplace:write",
+    "latam:read",
+    "latam:write",
+    "agents:run",
+]
+
+
 ROLE_PERMISSIONS: dict[RoleName, list[str]] = {
     RoleName.super_admin: ["*"],
     RoleName.tenant_admin: [
@@ -39,7 +57,8 @@ ROLE_PERMISSIONS: dict[RoleName, list[str]] = {
         "integrations:write",
         "integrations:run",
         "audit:read",
-    ],
+    ]
+    + LEGAL_OS_PERMISSIONS,
     RoleName.partner: [
         "users:read",
         "roles:read",
@@ -75,7 +94,8 @@ ROLE_PERMISSIONS: dict[RoleName, list[str]] = {
         "integrations:write",
         "integrations:run",
         "audit:read",
-    ],
+    ]
+    + LEGAL_OS_PERMISSIONS,
     RoleName.lawyer: [
         "clients:read",
         "clients:write",
@@ -101,8 +121,35 @@ ROLE_PERMISSIONS: dict[RoleName, list[str]] = {
         "automation:read",
         "automation:write",
         "automation:run",
+    ]
+    + [
+        "legal_os:read",
+        "knowledge:read",
+        "knowledge:write",
+        "memory:read",
+        "memory:write",
+        "graph:read",
+        "copilot:read",
+        "marketplace:read",
+        "latam:read",
+        "agents:run",
     ],
-    RoleName.assistant: ["clients:read", "clients:write", "cases:read", "cases:write", "communications:read", "communications:write", "automation:read", "automation:run"],
+    RoleName.assistant: [
+        "clients:read",
+        "clients:write",
+        "cases:read",
+        "cases:write",
+        "communications:read",
+        "communications:write",
+        "automation:read",
+        "automation:run",
+        "legal_os:read",
+        "knowledge:read",
+        "memory:read",
+        "graph:read",
+        "marketplace:read",
+        "latam:read",
+    ],
     RoleName.client_user: ["clients:read", "cases:read"],
 }
 

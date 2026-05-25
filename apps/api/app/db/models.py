@@ -1101,6 +1101,177 @@ class AutomationRunStep(Base, TimestampMixin):
     run: Mapped[AutomationRun] = relationship(back_populates="steps")
 
 
+class KnowledgeVaultItem(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "knowledge_vault_items"
+    __table_args__ = (
+        Index("ix_knowledge_vault_items_tenant_id", "tenant_id"),
+        Index("ix_knowledge_vault_items_category", "category"),
+        Index("ix_knowledge_vault_items_source_type", "source_type"),
+        Index("ix_knowledge_vault_items_visibility", "visibility"),
+        Index("ix_knowledge_vault_items_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(80), default="template", nullable=False)
+    category: Mapped[str] = mapped_column(String(80), default="knowledge", nullable=False)
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    content_summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    visibility: Mapped[str] = mapped_column(String(40), default="internal", nullable=False)
+    case_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("cases.id"), nullable=True)
+    client_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("clients.id"), nullable=True)
+    document_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("documents.id"), nullable=True)
+    created_by_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class LegalMemoryItem(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "legal_memory_items"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "source_type", "entity_type", "entity_id", name="uq_legal_memory_items_source_entity"),
+        Index("ix_legal_memory_items_tenant_id", "tenant_id"),
+        Index("ix_legal_memory_items_entity", "entity_type", "entity_id"),
+        Index("ix_legal_memory_items_case_id", "case_id"),
+        Index("ix_legal_memory_items_client_id", "client_id"),
+        Index("ix_legal_memory_items_index_status", "index_status"),
+        Index("ix_legal_memory_items_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    case_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("cases.id"), nullable=True)
+    client_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("clients.id"), nullable=True)
+    source_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    content: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    chunk_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    embedding_vector_json: Mapped[list[float]] = mapped_column(JSON, default=list, nullable=False)
+    citations_json: Mapped[list[dict[str, object]]] = mapped_column(JSON, default=list, nullable=False)
+    index_status: Mapped[str] = mapped_column(String(40), default="indexed", nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class LegalGraphNode(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "legal_graph_nodes"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "node_type", "entity_id", name="uq_legal_graph_nodes_entity"),
+        Index("ix_legal_graph_nodes_tenant_id", "tenant_id"),
+        Index("ix_legal_graph_nodes_node_type", "node_type"),
+        Index("ix_legal_graph_nodes_entity_id", "entity_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    node_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    label: Mapped[str] = mapped_column(String(240), nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+    outgoing_edges: Mapped[list["LegalGraphEdge"]] = relationship(
+        back_populates="from_node",
+        cascade="all, delete-orphan",
+        foreign_keys="LegalGraphEdge.from_node_id",
+    )
+
+
+class LegalGraphEdge(Base, TimestampMixin):
+    __tablename__ = "legal_graph_edges"
+    __table_args__ = (
+        Index("ix_legal_graph_edges_tenant_id", "tenant_id"),
+        Index("ix_legal_graph_edges_from_node_id", "from_node_id"),
+        Index("ix_legal_graph_edges_to_node_id", "to_node_id"),
+        Index("ix_legal_graph_edges_relationship", "relationship"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    from_node_id: Mapped[str] = mapped_column(String(36), ForeignKey("legal_graph_nodes.id"), nullable=False)
+    to_node_id: Mapped[str] = mapped_column(String(36), ForeignKey("legal_graph_nodes.id"), nullable=False)
+    edge_type: Mapped[str] = mapped_column("relationship", String(80), nullable=False)
+    weight: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+    from_node: Mapped[LegalGraphNode] = relationship(back_populates="outgoing_edges", foreign_keys=[from_node_id])
+    to_node: Mapped[LegalGraphNode] = relationship(foreign_keys=[to_node_id])
+
+
+class MarketplaceItem(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "marketplace_items"
+    __table_args__ = (
+        UniqueConstraint("item_key", name="uq_marketplace_items_item_key"),
+        Index("ix_marketplace_items_item_type", "item_type"),
+        Index("ix_marketplace_items_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    item_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    name: Mapped[str] = mapped_column(String(180), nullable=False)
+    item_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    permissions_json: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="available", nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class MarketplaceInstallation(Base, TimestampMixin):
+    __tablename__ = "marketplace_installations"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "marketplace_item_id", name="uq_marketplace_installations_tenant_item"),
+        Index("ix_marketplace_installations_tenant_id", "tenant_id"),
+        Index("ix_marketplace_installations_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    marketplace_item_id: Mapped[str] = mapped_column(String(36), ForeignKey("marketplace_items.id"), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="installed", nullable=False)
+    installed_by_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    config_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class CountryConfig(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "country_configs"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "country_code", name="uq_country_configs_tenant_country"),
+        Index("ix_country_configs_tenant_id", "tenant_id"),
+        Index("ix_country_configs_country_code", "country_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    country_code: Mapped[str] = mapped_column(String(8), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    currency: Mapped[str] = mapped_column(String(12), nullable=False)
+    timezone: Mapped[str] = mapped_column(String(80), nullable=False)
+    language: Mapped[str] = mapped_column(String(16), default="es", nullable=False)
+    formats_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    legal_sources_json: Mapped[list[dict[str, object]]] = mapped_column(JSON, default=list, nullable=False)
+    provider_registry_json: Mapped[list[dict[str, object]]] = mapped_column(JSON, default=list, nullable=False)
+
+
+class AiAgentRun(Base, TimestampMixin):
+    __tablename__ = "ai_agent_runs"
+    __table_args__ = (
+        Index("ix_ai_agent_runs_tenant_id", "tenant_id"),
+        Index("ix_ai_agent_runs_agent_key", "agent_key"),
+        Index("ix_ai_agent_runs_status", "status"),
+        Index("ix_ai_agent_runs_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    agent_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="completed", nullable=False)
+    input_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    output_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    review_required: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    actor_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+
+
 class OwnerRole(Base, TimestampMixin):
     __tablename__ = "owner_roles"
     __table_args__ = (

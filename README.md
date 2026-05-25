@@ -34,6 +34,7 @@ The current architecture creates:
 - SINOE integration foundation with encrypted credentials, Settings surface, SINOE case source linking, mock authorized updates, CAPTCHA human-in-the-loop checkpoints, notifications, evidence, audit logs, and Expediente 360 panels
 - Owner Console foundation with owner JWT auth, bootstrap script, and a separate SaaS control plane for tenants, plans, billing, support, usage, feature flags, demos, interventions, audit logs and system health without exposing sensitive tenant content by default
 - Nivel 2 commercial modules: War Room Legal, Legal CRM, Engine Rentabilidad, Risk Engine and Demo Mode for premium sales, pilots, partner presentations and SaaS expansion.
+- Nivel 3 Legal OS intelligence: Digital Twin, Knowledge Vault, Legal Memory Engine, persistent Legal Graph, Management Copilot, Marketplace Legal, LATAM Ready Engine, RAG + Context Engine and AI Agents Framework with tenant isolation, citations, JSON outputs and audit logs.
 
 ## Product Spine
 
@@ -333,11 +334,31 @@ P15 LEXFLOW OS endpoints are under `/api/v1`:
 - `GET /lexflow-os/marketplace`
 - `GET /lexflow-os/demo`
 - `GET /lexflow-os/release-status`
+- `GET /digital-twin`
+- `GET|POST /knowledge/items`
+- `GET /knowledge/search`
+- `POST /intelligence/memory/index`
+- `GET /intelligence/memory/search`
+- `POST /intelligence/rag/query`
+- `GET|POST /graph`
+- `POST /copilot/management`
+- `GET /marketplace/catalog`
+- `POST /marketplace/install`
+- `GET|POST /latam/configs`
+- `GET /agents/catalog`
+- `POST /agents/{agent_key}/run`
 
 P15 LEXFLOW OS routes:
 
 - `/`
 - `/lexflow-os`
+- `/digital-twin`
+- `/knowledge`
+- `/graph`
+- `/copilot`
+- `/marketplace`
+- `/intelligence/memory`
+- `/intelligence/rag`
 - `/demo`
 
 P16 production foundation endpoints:

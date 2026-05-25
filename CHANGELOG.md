@@ -1,5 +1,19 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Nivel 3 Legal OS Intelligence
+
+### Added
+
+- Persistent Level 3 data layer for Knowledge Vault, Legal Memory, Legal Graph, Marketplace, LATAM configs and AI agent runs.
+- Dedicated APIs for Digital Twin, Knowledge, Memory, RAG, Graph, Management Copilot, Marketplace, LATAM and Agents.
+- Premium web routes for `/digital-twin`, `/knowledge`, `/graph`, `/copilot`, `/marketplace`, `/intelligence/memory` and `/intelligence/rag`.
+- Level 3 tests for backend flows and frontend modules.
+
+### Security
+
+- New RBAC permissions for legal OS, knowledge, memory, graph, copilot, marketplace, LATAM and agents.
+- Tenant-scoped memory/graph/knowledge/RAG access with audit logs and review-required AI outputs.
+
 ## 2026-05-24 - Expediente 360 Functional Workspace
 
 ### Added

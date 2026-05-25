@@ -78,3 +78,15 @@ Decision: implementar War Room, CRM, Financial, Risk y Demo Mode como capa agreg
 Reason: Nivel 2 debe ser vendible y conectado, no un grupo de pantallas aisladas. El modulo consume Expediente360, SINOE, IA, Automation, Dashboard, Portal y Owner sin duplicar logica judicial.
 
 Consequences: los proveedores reales siguen tras feature flags; los calculos son deterministas y auditables para piloto.
+
+### D-0008 - Nivel 3 Uses Persistent Intelligence, Not Isolated Screens
+
+Date: 2026-05-24
+
+Decision: implementar Digital Twin, Knowledge Vault, Memory, Graph, Copilot, Marketplace, LATAM, RAG y Agents como capa persistente, tenant-scoped y auditada sobre el core existente.
+
+Reason: LEXFLOW debe ser dificil de copiar por memoria, contexto y conocimiento acumulado, no por mas pantallas.
+
+Consequences: RAG cita fuentes o declara ausencia de evidencia; agentes producen JSON auditado y requieren revision profesional; marketplace no habilita pagos reales todavia.
+
+Status: Accepted

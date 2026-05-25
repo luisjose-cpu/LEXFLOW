@@ -131,3 +131,15 @@ Started:
 - Engine Rentabilidad: margen, ROI, gastos y horas por expediente.
 - Risk Engine: score juridico operativo por expediente, cliente y estudio.
 - Demo Mode: datasets, reset y snapshot demo comercial.
+
+# Nivel 3 - Legal OS Intelligence
+
+- Legal Digital Twin: modelo operativo de clientes, abogados, expedientes, carga, riesgo y simulacion.
+- Knowledge Vault: biblioteca viva de plantillas, precedentes y prompts.
+- Legal Memory Engine: memoria tenant-scoped indexada desde documentos, timeline y comunicaciones.
+- Legal Graph: nodos y relaciones persistentes para cliente, expediente, documento y riesgo.
+- Copiloto Gerencial: insights ejecutivos con fuentes, recomendaciones y revision profesional.
+- Marketplace Legal: catalogo instalable sin pagos reales.
+- LATAM Ready Engine: configuracion por pais, moneda, timezone, fuentes y proveedores.
+- RAG + Context Engine: respuestas con citas o ausencia explicita de evidencia.
+- AI Agents Framework: agentes con permisos, audit log, salida JSON y review required.

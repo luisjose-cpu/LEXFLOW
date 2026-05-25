@@ -75,3 +75,13 @@ Nivel 2 agrega una capa comercial sobre el core existente. No duplica Expediente
 Nuevas tablas: `crm_leads`, `case_financials`, `case_expenses`, `case_hours`, `demo_snapshots`.
 
 Nuevos servicios: `WarRoomService`, `CrmService`, `FinancialEngineService`, `RiskEngineService`, `Level2DemoService`.
+
+# Nivel 3 Legal OS Architecture
+
+Nivel 3 eleva P15 desde una superficie OS final a una capa inteligente persistente. No duplica Expediente360, SINOE, IA ni Nivel 2: consume sus senales y las convierte en memoria, grafo, contexto y recomendaciones auditadas.
+
+Nuevas tablas: `knowledge_vault_items`, `legal_memory_items`, `legal_graph_nodes`, `legal_graph_edges`, `marketplace_items`, `marketplace_installations`, `country_configs`, `ai_agent_runs`.
+
+Nuevos servicios: `DigitalTwinService`, `KnowledgeVaultService`, `LegalMemoryService`, `LegalGraphService`, `ContextEngine`, `RAGPipelineService`, `ManagementCopilotService`, `MarketplaceService`, `LatamReadyService`, `AiAgentsFramework`.
+
+Regla RAG: citar fuentes o declarar ausencia de evidencia. Toda salida IA requiere revision profesional.

@@ -8,7 +8,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-mist">
       <div className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[260px_1fr] lg:px-8">
-        <aside className="rounded-lg border border-white/80 bg-white p-4 shadow-soft lg:sticky lg:top-5 lg:h-[calc(100vh-2.5rem)]">
+        <aside className="overflow-y-auto rounded-lg border border-white/80 bg-white p-4 shadow-soft lg:sticky lg:top-5 lg:h-[calc(100vh-2.5rem)]">
           <Link className="flex items-center gap-3" href="/dashboard">
             <span className="grid h-10 w-10 place-items-center rounded-md bg-legal-900 text-white">
               <Sparkles size={19} aria-hidden="true" />
