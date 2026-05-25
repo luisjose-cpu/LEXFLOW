@@ -9,6 +9,7 @@ from app.db.models import (
     AutomationAction,
     AutomationCondition,
     AutomationWorkflow,
+    BackupRecord,
     BillingEvent,
     BillingPlan,
     CaseExpense,
@@ -18,12 +19,18 @@ from app.db.models import (
     CaseEvent,
     CaseSource,
     Client,
+    CloudEnvironment,
     CountryConfig,
+    Department,
     Document,
     CrmLead,
     DemoSnapshot,
+    EnterpriseAiSwarmRun,
+    EvidenceVaultItem,
+    GovernancePolicy,
     Hearing,
     KnowledgeVaultItem,
+    LegalDataEvent,
     LegalGraphEdge,
     LegalGraphNode,
     LegalMemoryItem,
@@ -41,13 +48,23 @@ from app.db.models import (
     NotificationRule,
     PlanFeature,
     Permission,
+    PublicApiKey,
+    Organization,
+    OrganizationTenant,
+    OrchestrationEvent,
     Role,
     RolePermission,
+    RetentionPolicy,
+    RevenueInsight,
     Task,
+    Team,
+    TeamMember,
     Tenant,
     TenantSubscription,
     TenantUsage,
+    TelemetryMetric,
     User,
+    WebhookSubscription,
     WhatsAppMessage,
     now_utc,
 )
@@ -55,9 +72,9 @@ from app.services.security import hash_password
 
 
 ROLE_PERMISSIONS = {
-    "tenant_admin": ["users:read", "users:write", "clients:read", "clients:write", "cases:read", "cases:write", "audit:read", "communications:read", "communications:write", "templates:write", "notifications:write", "ai:read", "ai:write", "ai:review", "intelligence:read", "intelligence:write", "dashboard:read", "warroom:read", "crm:read", "crm:write", "financial:read", "financial:write", "risk:read", "demo:write", "billing:read", "billing:write", "automation:read", "automation:write", "automation:run", "legal_os:read", "legal_os:write", "knowledge:read", "knowledge:write", "memory:read", "memory:write", "graph:read", "graph:write", "copilot:read", "marketplace:read", "marketplace:write", "latam:read", "latam:write", "agents:run"],
-    "lawyer": ["clients:read", "clients:write", "cases:read", "cases:write", "communications:read", "communications:write", "templates:write", "notifications:write", "ai:read", "ai:write", "ai:review", "intelligence:read", "intelligence:write", "dashboard:read", "warroom:read", "crm:read", "crm:write", "financial:read", "risk:read", "billing:read", "automation:read", "automation:write", "automation:run", "legal_os:read", "knowledge:read", "knowledge:write", "memory:read", "memory:write", "graph:read", "copilot:read", "marketplace:read", "latam:read", "agents:run"],
-    "assistant": ["clients:read", "cases:read", "tasks:write", "automation:read", "automation:run", "legal_os:read", "knowledge:read", "memory:read", "graph:read", "marketplace:read", "latam:read"],
+    "tenant_admin": ["users:read", "users:write", "clients:read", "clients:write", "cases:read", "cases:write", "audit:read", "communications:read", "communications:write", "templates:write", "notifications:write", "ai:read", "ai:write", "ai:review", "intelligence:read", "intelligence:write", "dashboard:read", "warroom:read", "crm:read", "crm:write", "financial:read", "financial:write", "risk:read", "demo:write", "billing:read", "billing:write", "automation:read", "automation:write", "automation:run", "legal_os:read", "legal_os:write", "knowledge:read", "knowledge:write", "memory:read", "memory:write", "graph:read", "graph:write", "copilot:read", "marketplace:read", "marketplace:write", "latam:read", "latam:write", "agents:run", "enterprise:read", "enterprise:write", "organizations:read", "organizations:write", "data_platform:read", "data_platform:write", "orchestration:read", "orchestration:write", "ai_swarm:read", "ai_swarm:run", "telemetry:read", "revenue:read", "integrations:api", "governance:read", "governance:write", "cloud:read", "cloud:write"],
+    "lawyer": ["clients:read", "clients:write", "cases:read", "cases:write", "communications:read", "communications:write", "templates:write", "notifications:write", "ai:read", "ai:write", "ai:review", "intelligence:read", "intelligence:write", "dashboard:read", "warroom:read", "crm:read", "crm:write", "financial:read", "risk:read", "billing:read", "automation:read", "automation:write", "automation:run", "legal_os:read", "knowledge:read", "knowledge:write", "memory:read", "memory:write", "graph:read", "copilot:read", "marketplace:read", "latam:read", "agents:run", "enterprise:read", "organizations:read", "data_platform:read", "orchestration:read", "ai_swarm:read", "ai_swarm:run", "telemetry:read", "revenue:read", "integrations:api", "governance:read", "cloud:read"],
+    "assistant": ["clients:read", "cases:read", "tasks:write", "automation:read", "automation:run", "legal_os:read", "knowledge:read", "memory:read", "graph:read", "marketplace:read", "latam:read", "enterprise:read", "data_platform:read", "telemetry:read", "governance:read"],
     "client_user": ["portal:read", "cases:read"],
 }
 
@@ -503,6 +520,141 @@ def seed_demo_database(db: Session, *, tenant_id: str | None = None) -> dict[str
             ),
         ]
     )
+
+    organization = Organization(
+        name="LEXFLOW Enterprise Group",
+        slug=f"lexflow-enterprise-{tenant.id[:8]}",
+        org_type="holding",
+        country_scope=["PE", "CO", "MX", "CL"],
+        branding_json={"white_label": True, "primary_color": "#0f3b63"},
+        metadata_json={"seed": True, "level": "N4"},
+    )
+    db.add(organization)
+    db.flush()
+    db.add(
+        OrganizationTenant(
+            organization_id=organization.id,
+            tenant_id=tenant.id,
+            relationship_type="headquarters",
+            country_code="PE",
+            brand_name="LEXFLOW Demo Studio",
+            permissions_json=["cross_analytics", "cross_reporting", "cross_risk"],
+        )
+    )
+    department = Department(organization_id=organization.id, tenant_id=tenant.id, name="Litigation Command", practice_area="litigation")
+    db.add(department)
+    db.flush()
+    team = Team(tenant_id=tenant.id, department_id=department.id, name="Enterprise Response Team", metadata_json={"focus": ["risk", "sinoe", "automation"]})
+    db.add(team)
+    db.flush()
+    db.add_all(
+        [
+            TeamMember(tenant_id=tenant.id, team_id=team.id, user_id=admin.id, role="lead"),
+            TeamMember(tenant_id=tenant.id, team_id=team.id, user_id=lawyer.id, role="case_owner"),
+        ]
+    )
+    db.add(
+        LegalDataEvent(
+            tenant_id=tenant.id,
+            organization_id=organization.id,
+            event_type="case.created",
+            entity_type="case",
+            entity_id=cases[0].id,
+            idempotency_key=f"seed-{tenant.id}-case-created",
+            payload_json={"source": "seed", "case_title": cases[0].title, "pipeline": "legal_data_platform"},
+            indexed=True,
+            processed_at=now_utc(),
+        )
+    )
+    db.add(
+        OrchestrationEvent(
+            tenant_id=tenant.id,
+            organization_id=organization.id,
+            event_key="CASE_RISK_ESCALATED",
+            state_json={"case_id": cases[1].id, "source": "risk_engine"},
+            result_json={"actions": ["notify_partner", "prepare_ai_context", "refresh_dashboard"], "review_required": True},
+        )
+    )
+    db.add(
+        EnterpriseAiSwarmRun(
+            tenant_id=tenant.id,
+            organization_id=organization.id,
+            objective="Evaluar riesgo multi-expediente demo",
+            agents_json=[
+                {"key": "legal_agent", "status": "ready"},
+                {"key": "risk_agent", "status": "completed"},
+                {"key": "management_agent", "status": "completed"},
+            ],
+            handoff_json=[
+                {"from": "risk_agent", "to": "management_agent", "reason": "priorizar decisiones gerenciales"},
+            ],
+            actor_user_id=admin.id,
+        )
+    )
+    db.add_all(
+        [
+            TelemetryMetric(tenant_id=tenant.id, organization_id=organization.id, component="api", metric_key="latency_p95_ms", metric_value=210, unit="ms", metadata_json={"target": "<500"}),
+            TelemetryMetric(tenant_id=tenant.id, organization_id=organization.id, component="ai", metric_key="tokens_month", metric_value=12400, unit="tokens", metadata_json={"provider": "mock"}),
+            TelemetryMetric(tenant_id=tenant.id, organization_id=organization.id, component="sinoe", metric_key="sync_success_rate", metric_value=98, unit="percent", metadata_json={"captcha_policy": "human_in_the_loop"}),
+        ]
+    )
+    db.add(
+        PublicApiKey(
+            tenant_id=tenant.id,
+            name="Demo Developer API Key",
+            key_hash=f"seed-key-hash-{tenant.id}",
+            scopes_json=["cases:read", "webhooks:write"],
+        )
+    )
+    db.add(
+        WebhookSubscription(
+            tenant_id=tenant.id,
+            name="Demo Enterprise Webhook",
+            target_url="https://hooks.example.com/lexflow",
+            event_types_json=["case.updated", "sinoe.update.approved", "automation.failed"],
+            secret_hint="whsec_demo",
+        )
+    )
+    db.add_all(
+        [
+            GovernancePolicy(
+                tenant_id=tenant.id,
+                organization_id=organization.id,
+                policy_type="ai_review",
+                name="Revision humana obligatoria IA",
+                rules_json={"all_outputs_require_review": True, "citations_required": True},
+                approved_by_user_id=admin.id,
+            ),
+            RetentionPolicy(tenant_id=tenant.id, record_type="documents", retention_days=3650, disposition="archive", legal_hold=True),
+            EvidenceVaultItem(
+                tenant_id=tenant.id,
+                organization_id=organization.id,
+                entity_type="judicial_update",
+                entity_id=cases[0].id,
+                evidence_hash=f"seed-evidence-hash-{tenant.id[:8]}",
+                storage_ref=f"evidence/{tenant.id}/seed.json",
+                metadata_json={"chain": "seed", "captcha_bypass": False},
+            ),
+            RevenueInsight(
+                tenant_id=tenant.id,
+                organization_id=organization.id,
+                signal_type="enterprise_upgrade",
+                score=84,
+                recommendation="Tenant demo apto para plan Enterprise por uso de IA, SINOE, automation y data platform.",
+                metadata_json={"trial_conversion": "high", "modules": ["ai", "sinoe", "automation", "api"]},
+            ),
+        ]
+    )
+    cloud_environment = CloudEnvironment(
+        environment_key=f"staging-{tenant.id[:8]}",
+        name="LEXFLOW Staging",
+        environment_type="staging",
+        region="us-east",
+        config_json={"multi_region_future": True, "backup_policy": "daily", "kubernetes_future": True},
+    )
+    db.add(cloud_environment)
+    db.flush()
+    db.add(BackupRecord(environment_id=cloud_environment.id, backup_type="database", status="completed", storage_ref=f"managed-backup/{tenant.id}/seed", restore_tested_at=now_utc()))
 
     db.add(
         AuditLog(

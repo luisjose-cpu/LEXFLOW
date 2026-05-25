@@ -85,3 +85,13 @@ Nuevas tablas: `knowledge_vault_items`, `legal_memory_items`, `legal_graph_nodes
 Nuevos servicios: `DigitalTwinService`, `KnowledgeVaultService`, `LegalMemoryService`, `LegalGraphService`, `ContextEngine`, `RAGPipelineService`, `ManagementCopilotService`, `MarketplaceService`, `LatamReadyService`, `AiAgentsFramework`.
 
 Regla RAG: citar fuentes o declarar ausencia de evidencia. Toda salida IA requiere revision profesional.
+
+# Nivel 4 Enterprise Architecture
+
+Nivel 4 agrega una capa enterprise sobre N1, N2 y N3. No duplica Expediente360, SINOE, portal, IA, automation, memory, graph, copilot ni dashboard: los coordina para organizaciones, grupos, filiales, partners y white-label.
+
+Nuevas tablas: `organizations`, `organization_tenants`, `departments`, `teams`, `team_members`, `legal_data_events`, `orchestration_events`, `enterprise_ai_swarm_runs`, `telemetry_metrics`, `public_api_keys`, `webhook_subscriptions`, `governance_policies`, `evidence_vault_items`, `retention_policies`, `cloud_environments`, `backup_records`, `revenue_insights`.
+
+Nuevos servicios: `EnterpriseMultiOrgService`, `LegalDataPlatformService`, `OrchestrationLayerService`, `EnterpriseAiSwarmService`, `TelemetryCenterService`, `RevenueGrowthService`, `ApiIntegrationPlatformService`, `GovernanceOSService`, `LexflowCloudService`.
+
+Regla enterprise: analytics cross-tenant debe ser agregado y autorizado; memoria, documentos, embeddings y secretos permanecen aislados por tenant salvo politica explicita y auditada.

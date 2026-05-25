@@ -62,6 +62,17 @@ from app.services.level3 import (
     marketplace_service,
     rag_pipeline_service,
 )
+from app.services.level4 import (
+    api_integration_platform_service,
+    enterprise_ai_swarm_service,
+    enterprise_multi_org_service,
+    governance_os_service,
+    legal_data_platform_service,
+    lexflow_cloud_service,
+    orchestration_layer_service,
+    revenue_growth_service,
+    telemetry_center_service,
+)
 from app.services.matters import matter_service
 from app.services.mobile import mobile_client_service, mobile_lawyer_service
 from app.services.ops_center import ops_center_service
@@ -609,6 +620,81 @@ class AgentRunRequest(BaseModel):
 
 class MarketplaceInstallRequest(BaseModel):
     item_id: UUID
+
+
+class OrganizationCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=180)
+    slug: str = Field(min_length=2, max_length=120)
+    org_type: str = Field(default="holding", max_length=80)
+    country_scope: list[str] = Field(default_factory=lambda: ["PE"])
+    country_code: str = Field(default="PE", max_length=8)
+    brand_name: str | None = Field(default=None, max_length=180)
+    relationship_type: str = Field(default="headquarters", max_length=80)
+    branding: dict[str, object] = Field(default_factory=dict)
+
+
+class LegalDataEventIn(BaseModel):
+    event_type: str = Field(min_length=2, max_length=120)
+    entity_type: str = Field(min_length=2, max_length=120)
+    entity_id: str = Field(min_length=1, max_length=120)
+    idempotency_key: str | None = Field(default=None, max_length=160)
+    organization_id: UUID | None = None
+    payload: dict[str, object] = Field(default_factory=dict)
+
+
+class OrchestrationDispatchRequest(BaseModel):
+    event_key: str = Field(min_length=2, max_length=120)
+    organization_id: UUID | None = None
+    payload: dict[str, object] = Field(default_factory=dict)
+
+
+class AiSwarmRunRequest(BaseModel):
+    objective: str = Field(min_length=3, max_length=1000)
+    organization_id: UUID | None = None
+
+
+class TelemetryMetricIn(BaseModel):
+    component: str = Field(min_length=2, max_length=120)
+    metric_key: str = Field(min_length=2, max_length=120)
+    metric_value: int = Field(ge=0)
+    unit: str = Field(default="count", max_length=40)
+    organization_id: UUID | None = None
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class ApiKeyCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=180)
+    scopes: list[str] = Field(default_factory=lambda: ["cases:read"])
+
+
+class WebhookCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=180)
+    target_url: str = Field(min_length=8, max_length=500)
+    event_types: list[str] = Field(default_factory=lambda: ["case.updated"])
+
+
+class GovernancePolicyCreate(BaseModel):
+    policy_type: str = Field(min_length=2, max_length=120)
+    name: str = Field(min_length=2, max_length=180)
+    organization_id: UUID | None = None
+    rules: dict[str, object] = Field(default_factory=dict)
+
+
+class EvidenceVaultCreate(BaseModel):
+    entity_type: str = Field(min_length=2, max_length=120)
+    entity_id: str = Field(min_length=1, max_length=120)
+    organization_id: UUID | None = None
+    evidence_hash: str | None = Field(default=None, max_length=128)
+    storage_ref: str | None = Field(default=None, max_length=500)
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class CloudBackupCreate(BaseModel):
+    environment_id: UUID
+    backup_type: str = Field(default="database", max_length=80)
+    status: str = Field(default="completed", max_length=40)
+    storage_ref: str = Field(default="managed-backup", max_length=500)
+    restore_tested: bool = False
 
 
 class TenantBootstrapRequest(BaseModel):
@@ -1585,6 +1671,317 @@ def level3_agent_run(
         actor=actor,
         agent_key=agent_key,
         payload=payload.payload,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/enterprise/dashboard")
+def level4_enterprise_dashboard(
+    actor: Annotated[User, Depends(require_permission("enterprise:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+    organization_id: UUID | None = None,
+) -> dict[str, object]:
+    return enterprise_multi_org_service.dashboard(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        organization_id=organization_id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/organizations")
+def level4_organizations(
+    actor: Annotated[User, Depends(require_permission("organizations:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return enterprise_multi_org_service.list_organizations(db, tenant_id=tenant_id)
+
+
+@router.post("/organizations", status_code=status.HTTP_201_CREATED)
+def level4_create_organization(
+    payload: OrganizationCreate,
+    actor: Annotated[User, Depends(require_permission("organizations:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return enterprise_multi_org_service.create_organization(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        payload=payload.model_dump(mode="json"),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/organizations/{organization_id}")
+def level4_organization_detail(
+    organization_id: UUID,
+    actor: Annotated[User, Depends(require_permission("organizations:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return enterprise_multi_org_service.dashboard(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        organization_id=organization_id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/data-platform")
+def level4_data_platform(
+    actor: Annotated[User, Depends(require_permission("data_platform:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return legal_data_platform_service.dashboard(db, tenant_id=tenant_id)
+
+
+@router.post("/data-platform/events", status_code=status.HTTP_201_CREATED)
+def level4_ingest_data_event(
+    payload: LegalDataEventIn,
+    actor: Annotated[User, Depends(require_permission("data_platform:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return legal_data_platform_service.ingest_event(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        payload=payload.model_dump(mode="json"),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.post("/data-platform/index")
+def level4_index_data_platform(
+    actor: Annotated[User, Depends(require_permission("data_platform:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return legal_data_platform_service.index(db, tenant_id=tenant_id, actor=actor, request_id=getattr(request.state, "request_id", None))
+
+
+@router.get("/data-platform/search")
+def level4_data_platform_search(
+    actor: Annotated[User, Depends(require_permission("data_platform:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    q: str = Query(min_length=1, max_length=500),
+) -> dict[str, object]:
+    return legal_data_platform_service.search(db, tenant_id=tenant_id, query=q)
+
+
+@router.get("/orchestration")
+def level4_orchestration(
+    actor: Annotated[User, Depends(require_permission("orchestration:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return orchestration_layer_service.dashboard(db, tenant_id=tenant_id)
+
+
+@router.post("/orchestration/dispatch")
+def level4_orchestration_dispatch(
+    payload: OrchestrationDispatchRequest,
+    actor: Annotated[User, Depends(require_permission("orchestration:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    event_payload = dict(payload.payload)
+    if payload.organization_id:
+        event_payload["organization_id"] = str(payload.organization_id)
+    return orchestration_layer_service.dispatch(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        event_key=payload.event_key,
+        payload=event_payload,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/ai-swarm")
+def level4_ai_swarm(
+    actor: Annotated[User, Depends(require_permission("ai_swarm:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return enterprise_ai_swarm_service.dashboard(db, tenant_id=tenant_id)
+
+
+@router.post("/ai-swarm/run")
+def level4_ai_swarm_run(
+    payload: AiSwarmRunRequest,
+    actor: Annotated[User, Depends(require_permission("ai_swarm:run"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return enterprise_ai_swarm_service.run(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        objective=payload.objective,
+        organization_id=payload.organization_id,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/telemetry")
+def level4_telemetry(
+    actor: Annotated[User, Depends(require_permission("telemetry:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return telemetry_center_service.dashboard(db, tenant_id=tenant_id)
+
+
+@router.post("/telemetry/metrics", status_code=status.HTTP_201_CREATED)
+def level4_record_telemetry_metric(
+    payload: TelemetryMetricIn,
+    actor: Annotated[User, Depends(require_permission("enterprise:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return telemetry_center_service.record_metric(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        payload=payload.model_dump(mode="json"),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/revenue")
+def level4_revenue(
+    actor: Annotated[User, Depends(require_permission("revenue:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return revenue_growth_service.dashboard(db, tenant_id=tenant_id)
+
+
+@router.get("/integrations/platform")
+def level4_integrations_platform(
+    actor: Annotated[User, Depends(require_permission("integrations:api"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return api_integration_platform_service.dashboard(db, tenant_id=tenant_id)
+
+
+@router.post("/integrations/api-keys", status_code=status.HTTP_201_CREATED)
+def level4_create_api_key(
+    payload: ApiKeyCreate,
+    actor: Annotated[User, Depends(require_permission("integrations:api"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return api_integration_platform_service.create_api_key(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        payload=payload.model_dump(mode="json"),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.post("/integrations/webhooks", status_code=status.HTTP_201_CREATED)
+def level4_create_webhook(
+    payload: WebhookCreate,
+    actor: Annotated[User, Depends(require_permission("integrations:api"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return api_integration_platform_service.create_webhook(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        payload=payload.model_dump(mode="json"),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/governance")
+def level4_governance(
+    actor: Annotated[User, Depends(require_permission("governance:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, object]:
+    return governance_os_service.dashboard(db, tenant_id=tenant_id)
+
+
+@router.post("/governance/policies", status_code=status.HTTP_201_CREATED)
+def level4_create_governance_policy(
+    payload: GovernancePolicyCreate,
+    actor: Annotated[User, Depends(require_permission("governance:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return governance_os_service.create_policy(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        payload=payload.model_dump(mode="json"),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.post("/governance/evidence", status_code=status.HTTP_201_CREATED)
+def level4_vault_evidence(
+    payload: EvidenceVaultCreate,
+    actor: Annotated[User, Depends(require_permission("governance:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return governance_os_service.vault_evidence(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        payload=payload.model_dump(mode="json"),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/cloud/control")
+def level4_cloud_control(
+    actor: Annotated[User, Depends(require_permission("cloud:read"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return lexflow_cloud_service.dashboard(db, tenant_id=tenant_id, actor=actor, request_id=getattr(request.state, "request_id", None))
+
+
+@router.post("/cloud/backups", status_code=status.HTTP_201_CREATED)
+def level4_record_cloud_backup(
+    payload: CloudBackupCreate,
+    actor: Annotated[User, Depends(require_permission("cloud:write"))],
+    tenant_id: Annotated[UUID, Depends(get_request_tenant)],
+    db: Annotated[Session, Depends(get_db)],
+    request: Request,
+) -> dict[str, object]:
+    return lexflow_cloud_service.record_backup(
+        db,
+        tenant_id=tenant_id,
+        actor=actor,
+        payload=payload.model_dump(mode="json"),
         request_id=getattr(request.state, "request_id", None),
     )
 

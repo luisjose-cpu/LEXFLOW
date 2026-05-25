@@ -90,3 +90,15 @@ Reason: LEXFLOW debe ser dificil de copiar por memoria, contexto y conocimiento 
 Consequences: RAG cita fuentes o declara ausencia de evidencia; agentes producen JSON auditado y requieren revision profesional; marketplace no habilita pagos reales todavia.
 
 Status: Accepted
+
+### D-0009 - Nivel 4 Is An Enterprise Coordination Layer
+
+Date: 2026-05-24
+
+Decision: implementar Multi-Org, Data Platform, Orchestration, AI Swarm, Telemetry, Revenue, API Platform, Governance y Cloud como capa enterprise coordinadora sobre N1/N2/N3.
+
+Reason: LEXFLOW debe escalar a holdings, corporativos, multi-pais, white-label, partners y API economy sin duplicar Expediente360, SINOE, IA, Automation, Memory, Graph ni Copilot.
+
+Consequences: cross-tenant analytics es agregado y autorizado; API keys se almacenan como hash; AI Swarm requiere revision; cloud control queda future-ready y no ejecuta infraestructura destructiva.
+
+Status: Accepted

@@ -19,6 +19,27 @@ LEGAL_OS_PERMISSIONS = [
 ]
 
 
+ENTERPRISE_PERMISSIONS = [
+    "enterprise:read",
+    "enterprise:write",
+    "organizations:read",
+    "organizations:write",
+    "data_platform:read",
+    "data_platform:write",
+    "orchestration:read",
+    "orchestration:write",
+    "ai_swarm:read",
+    "ai_swarm:run",
+    "telemetry:read",
+    "revenue:read",
+    "integrations:api",
+    "governance:read",
+    "governance:write",
+    "cloud:read",
+    "cloud:write",
+]
+
+
 ROLE_PERMISSIONS: dict[RoleName, list[str]] = {
     RoleName.super_admin: ["*"],
     RoleName.tenant_admin: [
@@ -58,7 +79,8 @@ ROLE_PERMISSIONS: dict[RoleName, list[str]] = {
         "integrations:run",
         "audit:read",
     ]
-    + LEGAL_OS_PERMISSIONS,
+    + LEGAL_OS_PERMISSIONS
+    + ENTERPRISE_PERMISSIONS,
     RoleName.partner: [
         "users:read",
         "roles:read",
@@ -95,7 +117,8 @@ ROLE_PERMISSIONS: dict[RoleName, list[str]] = {
         "integrations:run",
         "audit:read",
     ]
-    + LEGAL_OS_PERMISSIONS,
+    + LEGAL_OS_PERMISSIONS
+    + ENTERPRISE_PERMISSIONS,
     RoleName.lawyer: [
         "clients:read",
         "clients:write",
@@ -133,6 +156,17 @@ ROLE_PERMISSIONS: dict[RoleName, list[str]] = {
         "marketplace:read",
         "latam:read",
         "agents:run",
+        "enterprise:read",
+        "organizations:read",
+        "data_platform:read",
+        "orchestration:read",
+        "ai_swarm:read",
+        "ai_swarm:run",
+        "telemetry:read",
+        "revenue:read",
+        "integrations:api",
+        "governance:read",
+        "cloud:read",
     ],
     RoleName.assistant: [
         "clients:read",
@@ -149,6 +183,10 @@ ROLE_PERMISSIONS: dict[RoleName, list[str]] = {
         "graph:read",
         "marketplace:read",
         "latam:read",
+        "enterprise:read",
+        "data_platform:read",
+        "telemetry:read",
+        "governance:read",
     ],
     RoleName.client_user: ["clients:read", "cases:read"],
 }

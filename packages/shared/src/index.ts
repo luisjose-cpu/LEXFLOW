@@ -12,6 +12,15 @@ export const productSpine = [
 ] as const;
 
 export const webNavigation: NavigationItem[] = [
+  { label: "Enterprise", href: "/enterprise", module: "analytics" },
+  { label: "Organizations", href: "/organizations", module: "analytics" },
+  { label: "Data Platform", href: "/data-platform", module: "intelligence" },
+  { label: "AI Swarm", href: "/ai-swarm", module: "ai" },
+  { label: "Telemetry", href: "/telemetry", module: "analytics" },
+  { label: "Revenue", href: "/revenue", module: "billing" },
+  { label: "Integrations", href: "/integrations", module: "communication" },
+  { label: "Governance", href: "/governance", module: "legal-core" },
+  { label: "Cloud", href: "/cloud", module: "analytics" },
   { label: "LEXFLOW OS", href: "/lexflow-os", module: "analytics" },
   { label: "Digital Twin", href: "/digital-twin", module: "analytics" },
   { label: "Knowledge", href: "/knowledge", module: "intelligence" },

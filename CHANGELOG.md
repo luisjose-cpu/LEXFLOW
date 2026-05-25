@@ -1,5 +1,20 @@
 # CHANGELOG.md
 
+## 2026-05-24 - Nivel 4 Enterprise Legal Intelligence Platform
+
+### Added
+
+- Enterprise data layer for organizations, departments, teams, legal data events, orchestration events, AI swarm runs, telemetry metrics, API keys, webhooks, governance, evidence, retention, cloud environments, backups and revenue insights.
+- Dedicated APIs for enterprise dashboard, organizations, data platform, orchestration, AI swarm, telemetry, revenue, integrations, governance and cloud control.
+- Premium web routes for `/enterprise`, `/organizations`, `/data-platform`, `/ai-swarm`, `/telemetry`, `/revenue`, `/integrations`, `/governance` and `/cloud`.
+- Level 4 seed data, docs and focused backend/frontend tests.
+
+### Security
+
+- New RBAC permissions for enterprise, organizations, data platform, orchestration, AI swarm, telemetry, revenue, integrations, governance and cloud.
+- Public API keys are stored hash-only and shown once.
+- Cross-tenant enterprise analytics stays aggregated and governed.
+
 ## 2026-05-24 - Nivel 3 Legal OS Intelligence
 
 ### Added

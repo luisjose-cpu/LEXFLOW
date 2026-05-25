@@ -1272,6 +1272,301 @@ class AiAgentRun(Base, TimestampMixin):
     actor_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
 
 
+class Organization(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "organizations"
+    __table_args__ = (
+        UniqueConstraint("slug", name="uq_organizations_slug"),
+        Index("ix_organizations_slug", "slug"),
+        Index("ix_organizations_status", "status"),
+        Index("ix_organizations_org_type", "org_type"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(180), nullable=False)
+    slug: Mapped[str] = mapped_column(String(120), nullable=False)
+    org_type: Mapped[str] = mapped_column(String(80), default="holding", nullable=False)
+    country_scope: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="active", nullable=False)
+    branding_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class OrganizationTenant(Base, TimestampMixin):
+    __tablename__ = "organization_tenants"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "tenant_id", name="uq_organization_tenants_org_tenant"),
+        Index("ix_organization_tenants_organization_id", "organization_id"),
+        Index("ix_organization_tenants_tenant_id", "tenant_id"),
+        Index("ix_organization_tenants_country_code", "country_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    organization_id: Mapped[str] = mapped_column(String(36), ForeignKey("organizations.id"), nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    relationship_type: Mapped[str] = mapped_column(String(80), default="subsidiary", nullable=False)
+    country_code: Mapped[str] = mapped_column(String(8), default="PE", nullable=False)
+    brand_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    permissions_json: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+
+
+class Department(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "departments"
+    __table_args__ = (
+        Index("ix_departments_tenant_id", "tenant_id"),
+        Index("ix_departments_organization_id", "organization_id"),
+        Index("ix_departments_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    organization_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("organizations.id"), nullable=True)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(180), nullable=False)
+    practice_area: Mapped[str] = mapped_column(String(120), default="general", nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="active", nullable=False)
+
+
+class Team(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "teams"
+    __table_args__ = (
+        Index("ix_teams_tenant_id", "tenant_id"),
+        Index("ix_teams_department_id", "department_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    department_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("departments.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(180), nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class TeamMember(Base, TimestampMixin):
+    __tablename__ = "team_members"
+    __table_args__ = (
+        UniqueConstraint("team_id", "user_id", name="uq_team_members_team_user"),
+        Index("ix_team_members_tenant_id", "tenant_id"),
+        Index("ix_team_members_team_id", "team_id"),
+        Index("ix_team_members_user_id", "user_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    team_id: Mapped[str] = mapped_column(String(36), ForeignKey("teams.id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
+    role: Mapped[str] = mapped_column(String(80), default="member", nullable=False)
+
+
+class LegalDataEvent(Base, TimestampMixin):
+    __tablename__ = "legal_data_events"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "idempotency_key", name="uq_legal_data_events_tenant_idempotency"),
+        Index("ix_legal_data_events_tenant_id", "tenant_id"),
+        Index("ix_legal_data_events_event_type", "event_type"),
+        Index("ix_legal_data_events_entity_type", "entity_type"),
+        Index("ix_legal_data_events_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    organization_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("organizations.id"), nullable=True)
+    event_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    payload_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    indexed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class OrchestrationEvent(Base, TimestampMixin):
+    __tablename__ = "orchestration_events"
+    __table_args__ = (
+        Index("ix_orchestration_events_tenant_id", "tenant_id"),
+        Index("ix_orchestration_events_event_key", "event_key"),
+        Index("ix_orchestration_events_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    organization_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("organizations.id"), nullable=True)
+    event_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="completed", nullable=False)
+    state_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    result_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class EnterpriseAiSwarmRun(Base, TimestampMixin):
+    __tablename__ = "enterprise_ai_swarm_runs"
+    __table_args__ = (
+        Index("ix_enterprise_ai_swarm_runs_tenant_id", "tenant_id"),
+        Index("ix_enterprise_ai_swarm_runs_organization_id", "organization_id"),
+        Index("ix_enterprise_ai_swarm_runs_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    organization_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("organizations.id"), nullable=True)
+    objective: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="completed", nullable=False)
+    agents_json: Mapped[list[dict[str, object]]] = mapped_column(JSON, default=list, nullable=False)
+    handoff_json: Mapped[list[dict[str, object]]] = mapped_column(JSON, default=list, nullable=False)
+    review_required: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    actor_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+
+
+class TelemetryMetric(Base, TimestampMixin):
+    __tablename__ = "telemetry_metrics"
+    __table_args__ = (
+        Index("ix_telemetry_metrics_tenant_id", "tenant_id"),
+        Index("ix_telemetry_metrics_component", "component"),
+        Index("ix_telemetry_metrics_metric_key", "metric_key"),
+        Index("ix_telemetry_metrics_recorded_at", "recorded_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=True)
+    organization_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("organizations.id"), nullable=True)
+    component: Mapped[str] = mapped_column(String(120), nullable=False)
+    metric_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    metric_value: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    unit: Mapped[str] = mapped_column(String(40), default="count", nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, nullable=False)
+
+
+class PublicApiKey(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "public_api_keys"
+    __table_args__ = (
+        UniqueConstraint("key_hash", name="uq_public_api_keys_key_hash"),
+        Index("ix_public_api_keys_tenant_id", "tenant_id"),
+        Index("ix_public_api_keys_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(180), nullable=False)
+    key_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    scopes_json: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="active", nullable=False)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class WebhookSubscription(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "webhook_subscriptions"
+    __table_args__ = (
+        Index("ix_webhook_subscriptions_tenant_id", "tenant_id"),
+        Index("ix_webhook_subscriptions_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(180), nullable=False)
+    target_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    event_types_json: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    secret_hint: Mapped[str] = mapped_column(String(80), default="configured", nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="active", nullable=False)
+
+
+class GovernancePolicy(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "governance_policies"
+    __table_args__ = (
+        Index("ix_governance_policies_tenant_id", "tenant_id"),
+        Index("ix_governance_policies_policy_type", "policy_type"),
+        Index("ix_governance_policies_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    organization_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("organizations.id"), nullable=True)
+    policy_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    name: Mapped[str] = mapped_column(String(180), nullable=False)
+    rules_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="active", nullable=False)
+    approved_by_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+
+
+class EvidenceVaultItem(Base, TimestampMixin):
+    __tablename__ = "evidence_vault_items"
+    __table_args__ = (
+        Index("ix_evidence_vault_items_tenant_id", "tenant_id"),
+        Index("ix_evidence_vault_items_entity_type", "entity_type"),
+        Index("ix_evidence_vault_items_evidence_hash", "evidence_hash"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    organization_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("organizations.id"), nullable=True)
+    entity_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    evidence_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    storage_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class RetentionPolicy(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "retention_policies"
+    __table_args__ = (
+        Index("ix_retention_policies_tenant_id", "tenant_id"),
+        Index("ix_retention_policies_record_type", "record_type"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    record_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    retention_days: Mapped[int] = mapped_column(Integer, default=3650, nullable=False)
+    disposition: Mapped[str] = mapped_column(String(80), default="archive", nullable=False)
+    legal_hold: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class CloudEnvironment(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "cloud_environments"
+    __table_args__ = (
+        UniqueConstraint("environment_key", name="uq_cloud_environments_key"),
+        Index("ix_cloud_environments_status", "status"),
+        Index("ix_cloud_environments_region", "region"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    environment_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    name: Mapped[str] = mapped_column(String(180), nullable=False)
+    environment_type: Mapped[str] = mapped_column(String(80), default="staging", nullable=False)
+    region: Mapped[str] = mapped_column(String(80), default="us-east", nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="healthy", nullable=False)
+    config_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class BackupRecord(Base, TimestampMixin):
+    __tablename__ = "backup_records"
+    __table_args__ = (
+        Index("ix_backup_records_environment_id", "environment_id"),
+        Index("ix_backup_records_status", "status"),
+        Index("ix_backup_records_created_at", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    environment_id: Mapped[str] = mapped_column(String(36), ForeignKey("cloud_environments.id"), nullable=False)
+    backup_type: Mapped[str] = mapped_column(String(80), default="database", nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="completed", nullable=False)
+    storage_ref: Mapped[str] = mapped_column(String(500), default="managed-backup", nullable=False)
+    restore_tested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class RevenueInsight(Base, TimestampMixin):
+    __tablename__ = "revenue_insights"
+    __table_args__ = (
+        Index("ix_revenue_insights_tenant_id", "tenant_id"),
+        Index("ix_revenue_insights_signal_type", "signal_type"),
+        Index("ix_revenue_insights_score", "score"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+    organization_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("organizations.id"), nullable=True)
+    signal_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    score: Mapped[int] = mapped_column(Integer, default=50, nullable=False)
+    recommendation: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+
+
 class OwnerRole(Base, TimestampMixin):
     __tablename__ = "owner_roles"
     __table_args__ = (

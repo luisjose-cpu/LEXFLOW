@@ -348,6 +348,31 @@ P15 LEXFLOW OS endpoints are under `/api/v1`:
 - `GET /agents/catalog`
 - `POST /agents/{agent_key}/run`
 
+Nivel 4 Enterprise endpoints are under `/api/v1`:
+
+- `GET /enterprise/dashboard`
+- `GET|POST /organizations`
+- `GET /organizations/{organization_id}`
+- `GET /data-platform`
+- `POST /data-platform/events`
+- `POST /data-platform/index`
+- `GET /data-platform/search`
+- `GET /orchestration`
+- `POST /orchestration/dispatch`
+- `GET /ai-swarm`
+- `POST /ai-swarm/run`
+- `GET /telemetry`
+- `POST /telemetry/metrics`
+- `GET /revenue`
+- `GET /integrations/platform`
+- `POST /integrations/api-keys`
+- `POST /integrations/webhooks`
+- `GET /governance`
+- `POST /governance/policies`
+- `POST /governance/evidence`
+- `GET /cloud/control`
+- `POST /cloud/backups`
+
 P15 LEXFLOW OS routes:
 
 - `/`
@@ -360,6 +385,18 @@ P15 LEXFLOW OS routes:
 - `/intelligence/memory`
 - `/intelligence/rag`
 - `/demo`
+
+Nivel 4 Enterprise routes:
+
+- `/enterprise`
+- `/organizations`
+- `/data-platform`
+- `/ai-swarm`
+- `/telemetry`
+- `/revenue`
+- `/integrations`
+- `/governance`
+- `/cloud`
 
 P16 production foundation endpoints:
 
